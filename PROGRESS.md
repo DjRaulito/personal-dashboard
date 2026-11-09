@@ -5,8 +5,8 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 ## Estado actual
 
 - **Fase:** 1 — Acceso, estructura y calendario
-- **Última tarea hecha:** migración núcleo aplicada, login con Google, layout, Ajustes y calendario (código)
-- **Siguiente tarea:** configurar Google OAuth (Google Cloud + Supabase + Vercel) y verificar el login real; después, Capacitor + APK
+- **Última tarea hecha:** login con Google y calendario verificados en producción (9 nov 2026)
+- **Siguiente tarea:** Capacitor + workflow que genera la APK de prueba
 
 ## Fase 0 — Cimientos
 
@@ -18,7 +18,7 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 - [x] Workflow de CI (lint + typecheck + tests + build + e2e)
 - [x] Repo en GitHub (DjRaulito/personal-dashboard) y primer push
 - [x] Proyecto en Vercel enlazado al repo y primer despliegue
-- [ ] Verificación: URL pública carga y CI en verde (falta confirmar CI)
+- [x] Verificación: URL pública carga y CI en verde
 
 ## Fase 1 — Acceso, estructura y calendario
 
@@ -30,10 +30,10 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 - [x] Pantalla de Ajustes (nombre, moneda, estado de conexiones, cerrar sesión)
 - [x] Google Calendar: vistas hoy / semana / mes (refresh token cifrado con AES-256-GCM en `integrations`)
 - [x] Portada con widget de agenda (hoy y mañana) y widgets vacíos de cada módulo
-- [ ] Configurar Google OAuth: cliente en Google Cloud, proveedor Google en Supabase, URLs de redirección y variables en Vercel
+- [x] Configurar Google OAuth: cliente en Google Cloud, proveedor Google en Supabase, URLs de redirección y variables en Vercel
 - [ ] Desactivar el registro público en Supabase Auth después del primer login
 - [ ] Capacitor + workflow que genera la APK de prueba
-- [ ] Verificación: entras con Google en web y APK y ves tu agenda real
+- [ ] Verificación: entras con Google en web y APK y ves tu agenda real (web hecha el 9 nov 2026: perfil e integración de Google creados; falta APK)
 
 ### Pasos manuales pendientes (los hace Raúl)
 
