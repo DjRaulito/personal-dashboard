@@ -46,6 +46,21 @@ export function zonedMidnight(year: number, month: number, day: number, timeZone
   return new Date(result);
 }
 
+/** Instante UTC de una hora local (año, mes 1-12, día, hora, minuto) en una zona horaria. */
+export function zonedDateTime(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  timeZone = APP_TIMEZONE,
+): Date {
+  const guess = Date.UTC(year, month - 1, day, hour, minute);
+  let result = guess - offsetMs(new Date(guess), timeZone);
+  result = guess - offsetMs(new Date(result), timeZone);
+  return new Date(result);
+}
+
 /** Clave YYYY-MM-DD del día local de un instante. */
 export function dayKey(instant: Date, timeZone = APP_TIMEZONE): string {
   const { year, month, day } = wallClockDate(instant, timeZone);

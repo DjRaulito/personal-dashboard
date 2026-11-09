@@ -4,9 +4,9 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 
 ## Estado actual
 
-- **Fase:** 3 cerrada → empieza la 4 (Gimnasio)
-- **Última tarea hecha:** revisión `web-design-guidelines` de Finanzas (foco visible, salto al contenido, confirmación al borrar, formularios sin autocompletado, táctil). Antes: pestaña Plan: presupuestos mensuales, huchas y pagos recurrentes (con detección automática) y widget "Próximos pagos" en la portada
-- **Siguiente tarea:** fase 4 — Gimnasio (importar CSV de Hevy). Pendiente de Raúl: crear presupuestos, huchas y pagos en Finanzas → Plan e importar un extracto real
+- **Fase:** 4 — Gimnasio
+- **Última tarea hecha:** módulo de Gimnasio: importador del CSV de Hevy, resumen (racha, calendario, series por grupo muscular), entrenos, ejercicios con récords y 1RM, y medidas corporales
+- **Siguiente tarea:** Raúl exporta el CSV de Hevy y lo importa en Gimnasio → Importar; comprobar que los números cuadran con Hevy. Después: fase 5 (Nutrición)
 
 ## Fase 0 — Cimientos
 
@@ -86,6 +86,18 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
 - [x] Pestaña Plan: presupuestos por categoría con aviso de ritmo, huchas (saldo de cuenta o a mano, aportación mensual necesaria) y pagos recurrentes (vencimientos, se dan por pagados al aparecer el cargo, detección en los movimientos)
 - [x] Portada: widget "Próximos pagos" (14 días)
 - [x] Pasar `web-design-guidelines` a Finanzas antes de cerrar la fase
+
+## Fase 4 — Gimnasio (Hevy)
+
+- [x] Migración `gym`: gym_exercises (grupo muscular editable), gym_workouts (origen csv/api), gym_sets y body_measurements, con RLS (aplicada)
+- [x] Lector del CSV de Hevy (fechas en hora local, kg/lb, km/millas, tipos de serie, ejercicios repetidos) y reimportación sin duplicados
+- [x] Grupo muscular deducido del nombre (español e inglés), probado con los nombres reales de Raúl
+- [x] Resumen: entrenos del mes, racha de semanas, calendario de 20 semanas, entrenos por semana, series por grupo muscular
+- [x] Detalle de entreno, lista de ejercicios con récords (1RM estimado, peso máximo, mejor serie) y ficha con gráfico de progreso
+- [x] Medidas corporales y peso con gráfico
+- [x] Portada: widget "Último entreno"
+- [ ] Verificación: importar el CSV real y comprobar que cuadra con Hevy
+- [ ] Con Hevy Pro (opcional): API key cifrada, sincronización inicial y diaria
 
 ## Decisiones
 

@@ -265,6 +265,174 @@ export type Database = {
         };
         Relationships: [];
       };
+      body_measurements: {
+        Row: {
+          arm_cm: number | null;
+          body_fat_pct: number | null;
+          chest_cm: number | null;
+          created_at: string;
+          id: string;
+          measured_on: string;
+          notes: string | null;
+          thigh_cm: number | null;
+          updated_at: string;
+          user_id: string;
+          waist_cm: number | null;
+          weight_kg: number | null;
+        };
+        Insert: {
+          arm_cm?: number | null;
+          body_fat_pct?: number | null;
+          chest_cm?: number | null;
+          created_at?: string;
+          id?: string;
+          measured_on: string;
+          notes?: string | null;
+          thigh_cm?: number | null;
+          updated_at?: string;
+          user_id?: string;
+          waist_cm?: number | null;
+          weight_kg?: number | null;
+        };
+        Update: {
+          arm_cm?: number | null;
+          body_fat_pct?: number | null;
+          chest_cm?: number | null;
+          created_at?: string;
+          id?: string;
+          measured_on?: string;
+          notes?: string | null;
+          thigh_cm?: number | null;
+          updated_at?: string;
+          user_id?: string;
+          waist_cm?: number | null;
+          weight_kg?: number | null;
+        };
+        Relationships: [];
+      };
+      gym_exercises: {
+        Row: {
+          created_at: string;
+          hevy_template_id: string | null;
+          id: string;
+          muscle_group: string;
+          muscle_group_manual: boolean;
+          name: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          hevy_template_id?: string | null;
+          id?: string;
+          muscle_group?: string;
+          muscle_group_manual?: boolean;
+          name: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          hevy_template_id?: string | null;
+          id?: string;
+          muscle_group?: string;
+          muscle_group_manual?: boolean;
+          name?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      gym_sets: {
+        Row: {
+          distance_m: number | null;
+          duration_s: number | null;
+          exercise_id: string;
+          exercise_index: number;
+          exercise_notes: string | null;
+          id: string;
+          reps: number | null;
+          rpe: number | null;
+          set_index: number;
+          set_type: string;
+          superset_id: number | null;
+          user_id: string;
+          weight_kg: number | null;
+          workout_id: string;
+        };
+        Insert: {
+          distance_m?: number | null;
+          duration_s?: number | null;
+          exercise_id: string;
+          exercise_index: number;
+          exercise_notes?: string | null;
+          id?: string;
+          reps?: number | null;
+          rpe?: number | null;
+          set_index: number;
+          set_type?: string;
+          superset_id?: number | null;
+          user_id?: string;
+          weight_kg?: number | null;
+          workout_id: string;
+        };
+        Update: {
+          distance_m?: number | null;
+          duration_s?: number | null;
+          exercise_id?: string;
+          exercise_index?: number;
+          exercise_notes?: string | null;
+          id?: string;
+          reps?: number | null;
+          rpe?: number | null;
+          set_index?: number;
+          set_type?: string;
+          superset_id?: number | null;
+          user_id?: string;
+          weight_kg?: number | null;
+          workout_id?: string;
+        };
+        Relationships: [];
+      };
+      gym_workouts: {
+        Row: {
+          created_at: string;
+          description: string | null;
+          ended_at: string | null;
+          external_id: string;
+          id: string;
+          source: string;
+          started_at: string;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          description?: string | null;
+          ended_at?: string | null;
+          external_id: string;
+          id?: string;
+          source?: string;
+          started_at: string;
+          title: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          description?: string | null;
+          ended_at?: string | null;
+          external_id?: string;
+          id?: string;
+          source?: string;
+          started_at?: string;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       accounts: {
         Row: {
           archived: boolean;

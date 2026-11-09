@@ -12,24 +12,28 @@ import { getPortfolio } from "@/lib/investments/server";
 import { createClient } from "@/lib/supabase/server";
 
 // Widgets que se rellenarán en fases posteriores. Sin datos, se muestra "—".
-const PENDING_WIDGETS = [
-  { title: "Último entreno", phase: 4, color: "bg-gym", span: "md:col-span-3" },
-  { title: "Kcal del día", phase: 5, color: "bg-nutrition", span: "md:col-span-3" },
-] as const;
+const PENDING_WIDGETS = [{ title: "Kcal del día", phase: 5, color: "bg-nutrition", span: "md:col-span-3" }] as const;
 
 export default async function Home() {
   const now = new Date();
   const range = daysFromToday(now, 2);
   const supabase = await createClient();
   const p = financePeriods(now);
-  const [{ data: profile }, agenda, accounts, { data: cashflow }, portfolio, payments] = await Promise.all([
-    supabase.from("profiles").select("display_name").maybeSingle(),
-    getCalendarEvents(range),
-    getAccounts(),
-    supabase.rpc("monthly_cashflow", { p_from: p.monthStart, p_to: p.nextMonthStart }),
-    getPortfolio(),
-    getUpcomingPayments(dayKey(now), 14),
-  ]);
+  const [{ data: profile }, agenda, accounts, { data: cashflow }, portfolio, payments, { data: lastWorkout }] =
+    await Promise.all([
+      supabase.from("profiles").select("display_name").maybeSingle(),
+      getCalendarEvents(range),
+      getAccounts(),
+      supabase.rpc("monthly_cashflow", { p_from: p.monthStart, p_to: p.nextMonthStart }),
+      getPortfolio(),
+      getUpcomingPayments(dayKey(now), 14),
+      supabase
+        .from("gym_workouts")
+        .select("id, title, started_at, ended_at")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
   const portfolioValue = [...portfolio.positions.values()].reduce((s, x) => s + x.valueEur, 0);
   const hasAccounts = accounts.length > 0 || portfolio.operations.length > 0;
   const currency = accounts[0]?.currency ?? "EUR";
@@ -102,6 +106,35 @@ export default async function Home() {
             <span className="text-muted mt-4 block text-sm">
               {payments.count ? "Nada en las próximas dos semanas." : "Añade tus pagos recurrentes"}
             </span>
+          )}
+        </Link>
+
+        <Link
+          href={lastWorkout ? `/gimnasio/entreno/${lastWorkout.id}` : "/gimnasio/importar"}
+          className="rounded-tile border-border bg-surface hover:border-border-strong flex flex-col border p-6 transition-[border-color,transform] duration-150 active:scale-[0.98] motion-reduce:active:scale-100 md:col-span-3"
+        >
+          <span className="flex items-center gap-3">
+            <span aria-hidden="true" className="bg-gym h-2.5 w-2.5 rounded-full" />
+            <span className="font-semibold">Último entreno</span>
+          </span>
+          {lastWorkout ? (
+            <>
+              <span className="font-display mt-4 block truncate text-3xl font-extrabold tracking-tight">
+                {lastWorkout.title}
+              </span>
+              <span className="text-muted mt-1 block text-sm first-letter:uppercase">
+                {new Intl.DateTimeFormat("es-ES", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  timeZone: "Europe/Madrid",
+                }).format(new Date(lastWorkout.started_at))}
+                {lastWorkout.ended_at &&
+                  ` · ${Math.round((Date.parse(lastWorkout.ended_at) - Date.parse(lastWorkout.started_at)) / 60000)} min`}
+              </span>
+            </>
+          ) : (
+            <span className="text-muted mt-4 block text-sm">Importa tus entrenos de Hevy</span>
           )}
         </Link>
 
