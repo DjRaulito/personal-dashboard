@@ -60,3 +60,4 @@ backups/
 # Android / Capacitor (firma)
 *.jks
 *.keystore
+*.pdf

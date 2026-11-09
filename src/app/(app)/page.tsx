@@ -7,6 +7,7 @@ import { formatLongDate } from "@/lib/datetime";
 import { formatCents } from "@/lib/finance/money";
 import { financePeriods } from "@/lib/finance/periods";
 import { getAccounts } from "@/lib/finance/server";
+import { getPortfolio } from "@/lib/investments/server";
 import { createClient } from "@/lib/supabase/server";
 
 // Widgets que se rellenarán en fases posteriores. Sin datos, se muestra "—".
@@ -21,15 +22,17 @@ export default async function Home() {
   const range = daysFromToday(now, 2);
   const supabase = await createClient();
   const p = financePeriods(now);
-  const [{ data: profile }, agenda, accounts, { data: cashflow }] = await Promise.all([
+  const [{ data: profile }, agenda, accounts, { data: cashflow }, portfolio] = await Promise.all([
     supabase.from("profiles").select("display_name").maybeSingle(),
     getCalendarEvents(range),
     getAccounts(),
     supabase.rpc("monthly_cashflow", { p_from: p.monthStart, p_to: p.nextMonthStart }),
+    getPortfolio(),
   ]);
-  const hasAccounts = accounts.length > 0;
+  const portfolioValue = [...portfolio.positions.values()].reduce((s, x) => s + x.valueEur, 0);
+  const hasAccounts = accounts.length > 0 || portfolio.operations.length > 0;
   const currency = accounts[0]?.currency ?? "EUR";
-  const netWorth = accounts.reduce((sum, a) => sum + a.balance_cents, 0);
+  const netWorth = accounts.reduce((sum, a) => sum + a.balance_cents, 0) + Math.round(portfolioValue * 100);
   const monthExpense = cashflow?.[0]?.expense_cents ?? 0;
   const financeWidgets = [
     { title: "Patrimonio neto", value: hasAccounts ? formatCents(netWorth, currency) : "—", href: "/finanzas" },

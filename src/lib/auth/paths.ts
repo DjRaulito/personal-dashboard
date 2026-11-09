@@ -1,5 +1,5 @@
 // Rutas accesibles sin sesión.
-const PUBLIC_PREFIXES = ["/login", "/auth/"];
+const PUBLIC_PREFIXES = ["/login", "/auth/", "/api/health/"];
 
 export function isPublicPath(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p.endsWith("/") ? p : `${p}/`));
