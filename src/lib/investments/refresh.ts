@@ -3,7 +3,15 @@ import { dayKey } from "@/lib/datetime";
 import type { createClient } from "@/lib/supabase/server";
 import { addDays, valueAt } from "./engine";
 import { fetchFxSeries } from "./fx";
+import { morningstarDailyCloses, morningstarSearch, MS_PREFIX } from "./morningstar";
 import { currencyFactor, investingToYahoo, yahooDailyCloses, yahooSearch, type YahooQuote } from "./yahoo";
+
+/** Cierres diarios de un símbolo: "ms:<id>" = Morningstar; si no, Yahoo. */
+export function dailyCloses(symbol: string, from: string, to: string) {
+  return symbol.startsWith(MS_PREFIX)
+    ? morningstarDailyCloses(symbol.slice(MS_PREFIX.length), from, to)
+    : yahooDailyCloses(symbol, from, to);
+}
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -20,12 +28,24 @@ async function inBatches<T>(items: T[], size: number, fn: (item: T) => Promise<v
   for (let i = 0; i < items.length; i += size) await Promise.all(items.slice(i, i + size).map(fn));
 }
 
+export interface ResolveInput {
+  name: string;
+  isin: string | null;
+  symbol: string | null;
+  market: string | null;
+  price_symbol: string | null;
+  currency?: string;
+  /** Último precio de una operación propia, para descartar otras clases del fondo */
+  reference?: { date: string; price: number } | null;
+}
+
 /**
- * Busca un símbolo de Yahoo con cotizaciones recientes: por ISIN, por el símbolo de Investing
- * y por nombre. Se queda con el primer candidato que devuelva cierres de las últimas semanas.
+ * Busca un símbolo con cotizaciones: Yahoo por ISIN, por símbolo de Investing y por nombre, y
+ * Morningstar por ISIN. Descarta candidatos cuyo precio en la fecha de referencia se aleje más
+ * de un 20 % del de la operación (otra clase del fondo) y prefiere los que cotizan en la moneda del activo.
  */
 export async function resolveYahooSymbol(
-  a: { name: string; isin: string | null; symbol: string | null; market: string | null; price_symbol: string | null },
+  a: ResolveInput,
   today: string,
 ): Promise<{ symbol: string; name: string | null; tried: string[] } | null> {
   const candidates: YahooQuote[] = [];
@@ -33,23 +53,43 @@ export async function resolveYahooSymbol(
     for (const q of list) if (!candidates.some((c) => c.symbol === q.symbol)) candidates.push(q);
   };
   if (a.price_symbol) add([{ symbol: a.price_symbol, name: null, quoteType: null }]);
-  if (a.isin) add(await yahooSearch(a.isin).catch(() => []));
+  const [byIsin, byName, ms] = await Promise.all([
+    a.isin ? yahooSearch(a.isin).catch(() => []) : [],
+    yahooSearch(a.name.replace(/\b(ADR|INC|PLC|SICAV|SA|SE)\b/gi, "").trim()).catch(() => []),
+    a.isin ? morningstarSearch(a.isin).catch(() => []) : [],
+  ]);
+  add(byIsin);
   const mapped = a.symbol ? investingToYahoo(a.symbol, a.market) : null;
   if (mapped) add([{ symbol: mapped, name: null, quoteType: null }]);
-  add(await yahooSearch(a.name.replace(/\b(ADR|INC|PLC|SICAV|SA|SE)\b/gi, "").trim()).catch(() => []));
+  add(byName);
+  add(ms.slice(0, 2).map((m) => ({ symbol: `${MS_PREFIX}${m.id}`, name: m.name, quoteType: "MUTUALFUND" })));
 
-  const from = addDays(today, -30);
-  // Se prueban en paralelo y gana el primero de la lista que tenga cotizaciones
-  const list = candidates.slice(0, 8);
-  const ok = await Promise.all(
-    list.map((c) =>
-      yahooDailyCloses(c.symbol, from, today)
-        .then(({ points }) => points.length >= 3)
-        .catch(() => false),
-    ),
+  const list = candidates.slice(0, 10);
+  const ref = a.reference && a.reference.price > 0 ? a.reference : null;
+  const from = ref && ref.date < addDays(today, -30) ? addDays(ref.date, -7) : addDays(today, -30);
+  const checked = await Promise.all(
+    list.map(async (c) => {
+      try {
+        const { currency, points } = await dailyCloses(c.symbol, from, today);
+        if (points.length < 3 || points.at(-1)!.date < addDays(today, -15)) return null;
+        if (ref) {
+          const near = points.filter((p) => p.date <= ref.date).at(-1) ?? points[0];
+          const factor = currencyFactor(currency, a.currency ?? "EUR");
+          // Solo se puede comparar si la moneda es la misma (o peniques)
+          if (factor != null) {
+            const ratio = (near.value * factor) / ref.price;
+            if (ratio < 0.8 || ratio > 1.25) return null;
+          }
+        }
+        return { c, sameCurrency: currencyFactor(currency, a.currency ?? "EUR") != null };
+      } catch {
+        return null;
+      }
+    }),
   );
-  const i = ok.indexOf(true);
-  return i >= 0 ? { symbol: list[i].symbol, name: list[i].name, tried: list.map((c) => c.symbol) } : null;
+  const ok = checked.filter((x): x is NonNullable<typeof x> => x != null);
+  const best = ok.find((x) => x.sameCurrency) ?? ok[0];
+  return best ? { symbol: best.c.symbol, name: best.c.name, tried: list.map((c) => c.symbol) } : null;
 }
 
 /** Descarga lo que falte de precios y tipos de cambio para la cartera del usuario. */
@@ -62,7 +102,10 @@ export async function refreshMarketData(supabase: Supabase): Promise<RefreshResu
 
   const [{ data: assets }, { data: ops }] = await Promise.all([
     supabase.from("assets").select("id, name, isin, symbol, market, currency, price_source, price_symbol"),
-    supabase.from("investment_operations").select("asset_id, trade_date, type, quantity").order("trade_date"),
+    supabase
+      .from("investment_operations")
+      .select("asset_id, trade_date, type, quantity, price, is_split")
+      .order("trade_date"),
   ]);
   if (!assets?.length || !ops?.length) return result;
 
@@ -77,6 +120,14 @@ export async function refreshMarketData(supabase: Supabase): Promise<RefreshResu
     qty.set(o.asset_id, (qty.get(o.asset_id) ?? 0) + sign * Number(o.quantity));
   }
   for (const [id, r] of range) if ((qty.get(id) ?? 0) > 1e-4) r.to = today;
+  // Última operación con precio de cada activo (referencia para elegir símbolo; tras el último split)
+  const reference = new Map<string, { date: string; price: number }>();
+  for (const o of ops) {
+    if (o.is_split) reference.delete(o.asset_id);
+    else if ((o.type === "buy" || o.type === "sell") && o.price && Number(o.price) > 0) {
+      reference.set(o.asset_id, { date: o.trade_date, price: Number(o.price) });
+    }
+  }
   const firstDate = addDays(ops[0].trade_date, -7);
 
   // 1. Resolver el símbolo de Yahoo de los activos que no lo tienen o cuyo símbolo no da precios
@@ -101,7 +152,7 @@ export async function refreshMarketData(supabase: Supabase): Promise<RefreshResu
     async (a) => {
       if (late()) return;
       try {
-        const hit = await resolveYahooSymbol(a, today);
+        const hit = await resolveYahooSymbol({ ...a, reference: reference.get(a.id) ?? null }, today);
         if (!hit)
           return void result.errors.push(`Sin precios en Yahoo para ${a.name}: ponlo a mano o indica su símbolo`);
         if (hit.symbol === a.price_symbol) return;
@@ -170,7 +221,7 @@ export async function refreshMarketData(supabase: Supabase): Promise<RefreshResu
       const from = last ? addDays(last.price_date, 1) : addDays(r.from, -7);
       if (from > r.to) return;
       try {
-        const { currency, points } = await yahooDailyCloses(a.price_symbol!, from, r.to);
+        const { currency, points } = await dailyCloses(a.price_symbol!, from, r.to);
         if (points.length === 0) return;
         const factor = currencyFactor(currency, a.currency);
         const rows = points.map((p) => {
