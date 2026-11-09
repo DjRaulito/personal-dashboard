@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { clsx } from "clsx";
+import { LinkPending } from "@/components/link-pending";
 
 const TABS = [
   { href: "/finanzas", label: "Patrimonio", match: (p: string) => p === "/finanzas" },
@@ -35,11 +36,12 @@ export function FinanceNav() {
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
                 className={clsx(
-                  "block rounded-full px-4 py-1.5 text-sm font-medium whitespace-nowrap transition-colors duration-200",
+                  "relative flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium whitespace-nowrap transition-[background-color,color,transform] duration-150 active:scale-95 motion-reduce:active:scale-100",
                   active ? "bg-finance text-ink" : "text-muted hover:text-text",
                 )}
               >
                 {tab.label}
+                {!active && <LinkPending className="absolute top-1 right-2" />}
               </Link>
             </li>
           );

@@ -24,10 +24,10 @@ async function inBatches<T>(items: T[], size: number, fn: (item: T) => Promise<v
  * Busca un símbolo de Yahoo con cotizaciones recientes: por ISIN, por el símbolo de Investing
  * y por nombre. Se queda con el primer candidato que devuelva cierres de las últimas semanas.
  */
-async function resolveYahooSymbol(
+export async function resolveYahooSymbol(
   a: { name: string; isin: string | null; symbol: string | null; market: string | null; price_symbol: string | null },
   today: string,
-): Promise<{ symbol: string; name: string | null } | null> {
+): Promise<{ symbol: string; name: string | null; tried: string[] } | null> {
   const candidates: YahooQuote[] = [];
   const add = (list: YahooQuote[]) => {
     for (const q of list) if (!candidates.some((c) => c.symbol === q.symbol)) candidates.push(q);
@@ -39,20 +39,25 @@ async function resolveYahooSymbol(
   add(await yahooSearch(a.name.replace(/\b(ADR|INC|PLC|SICAV|SA|SE)\b/gi, "").trim()).catch(() => []));
 
   const from = addDays(today, -30);
-  for (const c of candidates.slice(0, 8)) {
-    try {
-      const { points } = await yahooDailyCloses(c.symbol, from, today);
-      if (points.length >= 3) return { symbol: c.symbol, name: c.name };
-    } catch {
-      // probar el siguiente
-    }
-  }
-  return null;
+  // Se prueban en paralelo y gana el primero de la lista que tenga cotizaciones
+  const list = candidates.slice(0, 8);
+  const ok = await Promise.all(
+    list.map((c) =>
+      yahooDailyCloses(c.symbol, from, today)
+        .then(({ points }) => points.length >= 3)
+        .catch(() => false),
+    ),
+  );
+  const i = ok.indexOf(true);
+  return i >= 0 ? { symbol: list[i].symbol, name: list[i].name, tried: list.map((c) => c.symbol) } : null;
 }
 
 /** Descarga lo que falte de precios y tipos de cambio para la cartera del usuario. */
 export async function refreshMarketData(supabase: Supabase): Promise<RefreshResult> {
   const today = dayKey(new Date());
+  // Margen antes del límite de 60 s de Vercel: lo que no dé tiempo se hace en la siguiente actualización
+  const deadline = Date.now() + 45_000;
+  const late = () => Date.now() > deadline;
   const result: RefreshResult = { resolved: 0, prices: 0, fx: 0, errors: [] };
 
   const [{ data: assets }, { data: ops }] = await Promise.all([
@@ -87,10 +92,14 @@ export async function refreshMarketData(supabase: Supabase): Promise<RefreshResu
     }),
   );
   const hasPrices = new Set(counts.filter(([, n]) => n >= 5).map(([id]) => id));
+  const held = (id: string) => (qty.get(id) ?? 0) > 1e-4;
+  const byPriority = <T extends { id: string }>(list: T[]) =>
+    [...list].sort((x, y) => Number(held(y.id)) - Number(held(x.id)));
   await inBatches(
-    assets.filter((a) => a.price_source === "yahoo" && (!a.price_symbol || !hasPrices.has(a.id))),
-    3,
+    byPriority(assets.filter((a) => a.price_source === "yahoo" && (!a.price_symbol || !hasPrices.has(a.id)))),
+    4,
     async (a) => {
+      if (late()) return;
       try {
         const hit = await resolveYahooSymbol(a, today);
         if (!hit)
@@ -145,9 +154,10 @@ export async function refreshMarketData(supabase: Supabase): Promise<RefreshResu
 
   // 3. Precios que falten
   await inBatches(
-    assets.filter((a) => a.price_source === "yahoo" && a.price_symbol && range.has(a.id)),
-    4,
+    byPriority(assets.filter((a) => a.price_source === "yahoo" && a.price_symbol && range.has(a.id))),
+    6,
     async (a) => {
+      if (late()) return;
       const r = range.get(a.id)!;
       const { data: last } = await supabase
         .from("asset_prices")
@@ -185,5 +195,6 @@ export async function refreshMarketData(supabase: Supabase): Promise<RefreshResu
     },
   );
 
+  if (late()) result.errors.push("No dio tiempo a todo: pulsa «Actualizar precios» otra vez para terminar.");
   return result;
 }

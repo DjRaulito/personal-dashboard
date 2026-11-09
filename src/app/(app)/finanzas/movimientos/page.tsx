@@ -3,7 +3,7 @@ import Link from "next/link";
 import { TransactionForm } from "@/components/finance/transaction-form";
 import { TransactionsTable } from "@/components/finance/transactions-table";
 import { CategoryOptions } from "@/components/finance/category-select";
-import { buttonClass, EmptyState, inputClass, Tile, TileTitle } from "@/components/ui";
+import { BackLink, buttonClass, EmptyState, inputClass, Tile, TileTitle } from "@/components/ui";
 import { dayKey } from "@/lib/datetime";
 import { categoryLabels, categoryOptions } from "@/lib/finance/categories";
 import { filtersHref, PAGE_SIZE, parseFilters } from "@/lib/finance/filters";
@@ -48,6 +48,7 @@ export default async function TransactionsPage({
 
   return (
     <>
+      <BackLink href="/finanzas/gastos">Gastos</BackLink>
       <Tile>
         <details>
           <summary className="cursor-pointer font-semibold select-none">Añadir movimiento</summary>

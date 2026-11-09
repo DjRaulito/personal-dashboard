@@ -138,7 +138,7 @@ export default async function InvestmentsPage({ searchParams }: { searchParams: 
                   href={r === "1A" ? "/finanzas/inversiones" : `/finanzas/inversiones?rango=${r}`}
                   aria-current={r === range ? "page" : undefined}
                   className={clsx(
-                    "rounded-full px-3 py-1 text-xs font-medium",
+                    "rounded-full px-3 py-1 text-xs font-medium transition-[background-color,transform] duration-150 active:scale-95",
                     r === range ? "bg-finance text-ink" : "text-muted hover:text-text",
                   )}
                 >

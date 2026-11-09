@@ -1,8 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { fetchFxSeries } from "@/lib/investments/fx";
+import { resolveYahooSymbol } from "@/lib/investments/refresh";
 import { yahooDailyCloses, yahooSearch } from "@/lib/investments/yahoo";
 
 // Diagnóstico público (sin datos personales): ¿responden las fuentes de precios desde el servidor?
+// ?isin=XX...&name=... prueba la búsqueda de símbolo de un valor concreto.
 export const dynamic = "force-dynamic";
 
 async function check<T>(fn: () => Promise<T>) {
@@ -13,9 +15,22 @@ async function check<T>(fn: () => Promise<T>) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const to = new Date().toISOString().slice(0, 10);
   const from = new Date(Date.now() - 10 * 86400000).toISOString().slice(0, 10);
+  const isin = request.nextUrl.searchParams.get("isin");
+  const name = request.nextUrl.searchParams.get("name")?.slice(0, 60) ?? null;
+  if (isin || name) {
+    const validIsin = isin && /^[A-Z]{2}[A-Z0-9]{9}\d$/.test(isin) ? isin : null;
+    return NextResponse.json(
+      await check(() =>
+        resolveYahooSymbol(
+          { name: name ?? validIsin ?? "", isin: validIsin, symbol: null, market: null, price_symbol: null },
+          to,
+        ),
+      ),
+    );
+  }
   const [chart, search, fx] = await Promise.all([
     check(async () => (await yahooDailyCloses("SAN.MC", from, to)).points.length),
     check(async () => (await yahooSearch("IE00B4L5Y983")).slice(0, 2)),

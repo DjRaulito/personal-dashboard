@@ -64,7 +64,7 @@ export default async function Home() {
           <Link
             key={w.title}
             href={w.href}
-            className="rounded-tile border-border bg-surface hover:border-border-strong border p-6 transition-colors duration-200 md:col-span-2"
+            className="rounded-tile border-border bg-surface hover:border-border-strong border p-6 transition-[border-color,transform] duration-150 active:scale-[0.98] motion-reduce:active:scale-100 md:col-span-2"
           >
             <span className="flex items-center gap-3">
               <span aria-hidden="true" className="bg-finance h-2.5 w-2.5 rounded-full" />

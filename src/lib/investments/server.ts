@@ -26,6 +26,23 @@ async function fetchAll<T>(build: (from: number, to: number) => PromiseLike<{ da
   return out;
 }
 
+/** Igual que fetchAll pero pide todas las páginas a la vez (para tablas grandes). */
+async function fetchAllParallel<T>(
+  count: () => PromiseLike<{ count: number | null; error: unknown }>,
+  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+) {
+  const { count: total, error } = await count();
+  if (error) throw error;
+  const pages = Math.max(1, Math.ceil((total ?? 0) / 1000));
+  const results = await Promise.all(Array.from({ length: pages }, (_, i) => page(i * 1000, i * 1000 + 999)));
+  const out: T[] = [];
+  for (const r of results) {
+    if (r.error) throw r.error;
+    out.push(...(r.data ?? []));
+  }
+  return out;
+}
+
 export interface AssetRow {
   id: string;
   name: string;
@@ -58,8 +75,15 @@ export const getPortfolio = cache(async () => {
         .order("trade_date")
         .range(f, t),
     ),
-    fetchAll((f, t) =>
-      supabase.from("asset_prices").select("asset_id, price_date, close").order("price_date").range(f, t),
+    fetchAllParallel(
+      () => supabase.from("asset_prices").select("asset_id", { count: "exact", head: true }),
+      (f, t) =>
+        supabase
+          .from("asset_prices")
+          .select("asset_id, price_date, close")
+          .order("price_date")
+          .order("asset_id")
+          .range(f, t),
     ),
     fetchAll((f, t) =>
       supabase.from("fx_rates").select("currency, rate_date, eur_per_unit").order("rate_date").range(f, t),

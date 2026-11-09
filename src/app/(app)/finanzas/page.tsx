@@ -79,7 +79,7 @@ export default async function NetWorthPage() {
         </div>
         <Link
           href="/finanzas/inversiones"
-          className="rounded-tile border-border bg-surface hover:border-border-strong border p-6 transition-colors duration-200"
+          className="rounded-tile border-border bg-surface hover:border-border-strong border p-6 transition-[border-color,transform] duration-150 active:scale-[0.98] motion-reduce:active:scale-100"
         >
           <span className="text-muted block text-sm">Inversiones</span>
           <span className="font-display mt-3 block text-3xl font-extrabold tracking-tight">
@@ -89,7 +89,7 @@ export default async function NetWorthPage() {
         </Link>
         <Link
           href="/finanzas/cuentas"
-          className="rounded-tile border-border bg-surface hover:border-border-strong border p-6 transition-colors duration-200"
+          className="rounded-tile border-border bg-surface hover:border-border-strong border p-6 transition-[border-color,transform] duration-150 active:scale-[0.98] motion-reduce:active:scale-100"
         >
           <span className="text-muted block text-sm">Liquidez</span>
           <span className="font-display mt-3 block text-3xl font-extrabold tracking-tight">{formatCents(cash)}</span>
