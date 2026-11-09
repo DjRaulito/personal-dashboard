@@ -4,9 +4,9 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 
 ## Estado actual
 
-- **Fase:** 4 — Gimnasio
-- **Última tarea hecha:** módulo de Gimnasio: importador del CSV de Hevy, resumen (racha, calendario, series por grupo muscular), entrenos, ejercicios con récords y 1RM, y medidas corporales
-- **Siguiente tarea:** Raúl exporta el CSV de Hevy y lo importa en Gimnasio → Importar; comprobar que los números cuadran con Hevy. Después: fase 5 (Nutrición)
+- **Fase:** 4 cerrada → empieza la 5 (Nutrición)
+- **Última tarea hecha:** verificación de Gimnasio con los datos reales (642 entrenos y 13 549 series desde ago 2022, igual que Hevy) y clasificación de los 7 ejercicios que quedaban en "Otros"
+- **Siguiente tarea:** fase 5 — Nutrición
 
 ## Fase 0 — Cimientos
 
@@ -96,7 +96,7 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
 - [x] Detalle de entreno, lista de ejercicios con récords (1RM estimado, peso máximo, mejor serie) y ficha con gráfico de progreso
 - [x] Medidas corporales y peso con gráfico
 - [x] Portada: widget "Último entreno"
-- [ ] Verificación: importar el CSV real y comprobar que cuadra con Hevy
+- [x] Verificación: CSV real importado (642 entrenos, 13 549 series, 160 ejercicios); Raúl confirma que funciona
 - [ ] Con Hevy Pro (opcional): API key cifrada, sincronización inicial y diaria
 
 ## Decisiones
