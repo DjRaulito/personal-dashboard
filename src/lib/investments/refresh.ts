@@ -58,13 +58,13 @@ export async function resolveYahooSymbol(
     yahooSearch(a.name.replace(/\b(ADR|INC|PLC|SICAV|SA|SE)\b/gi, "").trim()).catch(() => []),
     a.isin ? morningstarSearch(a.isin).catch(() => []) : [],
   ]);
-  add(byIsin);
+  add(byIsin.slice(0, 5));
+  add(ms.slice(0, 3).map((m) => ({ symbol: `${MS_PREFIX}${m.id}`, name: m.name, quoteType: "MUTUALFUND" })));
   const mapped = a.symbol ? investingToYahoo(a.symbol, a.market) : null;
   if (mapped) add([{ symbol: mapped, name: null, quoteType: null }]);
-  add(byName);
-  add(ms.slice(0, 2).map((m) => ({ symbol: `${MS_PREFIX}${m.id}`, name: m.name, quoteType: "MUTUALFUND" })));
+  add(byName.slice(0, 3));
 
-  const list = candidates.slice(0, 10);
+  const list = candidates.slice(0, 12);
   const ref = a.reference && a.reference.price > 0 ? a.reference : null;
   const from = ref && ref.date < addDays(today, -30) ? addDays(ref.date, -7) : addDays(today, -30);
   const checked = await Promise.all(
@@ -72,23 +72,28 @@ export async function resolveYahooSymbol(
       try {
         const { currency, points } = await dailyCloses(c.symbol, from, today);
         if (points.length < 3 || points.at(-1)!.date < addDays(today, -15)) return null;
+        let deviation = 0;
         if (ref) {
           const near = points.filter((p) => p.date <= ref.date).at(-1) ?? points[0];
           const factor = currencyFactor(currency, a.currency ?? "EUR");
           // Solo se puede comparar si la moneda es la misma (o peniques)
           if (factor != null) {
             const ratio = (near.value * factor) / ref.price;
-            if (ratio < 0.8 || ratio > 1.25) return null;
+            if (ratio < 0.87 || ratio > 1.15) return null;
+            deviation = Math.abs(Math.log(ratio));
           }
         }
-        return { c, sameCurrency: currencyFactor(currency, a.currency ?? "EUR") != null };
+        return { c, deviation, sameCurrency: currencyFactor(currency, a.currency ?? "EUR") != null };
       } catch {
         return null;
       }
     }),
   );
-  const ok = checked.filter((x): x is NonNullable<typeof x> => x != null);
-  const best = ok.find((x) => x.sameCurrency) ?? ok[0];
+  // Primero la misma moneda; dentro de ella, el precio más parecido al de la operación (la misma clase del fondo)
+  const ok = checked
+    .filter((x): x is NonNullable<typeof x> => x != null)
+    .sort((x, y) => Number(y.sameCurrency) - Number(x.sameCurrency) || x.deviation - y.deviation);
+  const best = ok[0];
   return best ? { symbol: best.c.symbol, name: best.c.name, tried: list.map((c) => c.symbol) } : null;
 }
 
