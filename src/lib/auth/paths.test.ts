@@ -5,6 +5,7 @@ describe("rutas públicas", () => {
   it("solo login y auth son públicas", () => {
     expect(isPublicPath("/login")).toBe(true);
     expect(isPublicPath("/auth/callback")).toBe(true);
+    expect(isPublicPath("/manifest.webmanifest")).toBe(true);
     expect(isPublicPath("/")).toBe(false);
     expect(isPublicPath("/loginx")).toBe(false);
     expect(isPublicPath("/authors")).toBe(false);
