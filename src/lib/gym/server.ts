@@ -113,7 +113,9 @@ export async function getMeasurements() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("body_measurements")
-    .select("id, measured_on, weight_kg, body_fat_pct, waist_cm, chest_cm, arm_cm, thigh_cm, notes")
+    .select(
+      "id, measured_on, weight_kg, body_fat_pct, waist_cm, chest_cm, arm_cm, thigh_cm, shoulder_cm, abdomen_cm, hip_cm, calf_cm, notes",
+    )
     .order("measured_on", { ascending: false })
     .limit(1000);
   if (error) throw error;
@@ -126,5 +128,9 @@ export async function getMeasurements() {
     chest_cm: n(m.chest_cm),
     arm_cm: n(m.arm_cm),
     thigh_cm: n(m.thigh_cm),
+    shoulder_cm: n(m.shoulder_cm),
+    abdomen_cm: n(m.abdomen_cm),
+    hip_cm: n(m.hip_cm),
+    calf_cm: n(m.calf_cm),
   }));
 }

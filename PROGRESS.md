@@ -4,9 +4,9 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 
 ## Estado actual
 
-- **Fase:** 4 — Gimnasio
-- **Última tarea hecha:** módulo de Gimnasio: importador del CSV de Hevy, resumen (racha, calendario, series por grupo muscular), entrenos, ejercicios con récords y 1RM, y medidas corporales
-- **Siguiente tarea:** Raúl exporta el CSV de Hevy y lo importa en Gimnasio → Importar; comprobar que los números cuadran con Hevy. Después: fase 5 (Nutrición)
+- **Fase:** 5 — Nutrición
+- **Última tarea hecha:** módulo de Nutrición: plan por intercambios con calculadora en directo (pesos en crudo, cocidos con factor), checklist de comidas, IA (Gemini/Groq) para generar comidas y estimar cheat meals y alimentos, revisiones con la hoja de control importada
+- **Siguiente tarea:** Raúl crea una clave gratuita de Gemini (aistudio.google.com/apikey) y la añade en Vercel como `GEMINI_API_KEY`; prueba Nutrición → Hoy unos días. Después: fase 6 (IA, cruces y extras)
 
 ## Fase 0 — Cimientos
 
@@ -96,8 +96,21 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
 - [x] Detalle de entreno, lista de ejercicios con récords (1RM estimado, peso máximo, mejor serie) y ficha con gráfico de progreso
 - [x] Medidas corporales y peso con gráfico
 - [x] Portada: widget "Último entreno"
-- [ ] Verificación: importar el CSV real y comprobar que cuadra con Hevy
+- [x] Verificación: CSV real importado (642 entrenos, 13 549 series, 160 ejercicios); Raúl confirma que funciona
 - [ ] Con Hevy Pro (opcional): API key cifrada, sincronización inicial y diaria
+
+## Fase 5 — Nutrición
+
+- [x] Migraciones `nutrition` y `nutrition_cooked_factor`: alimentos (macros/100 g, unidades, versión cocida con factor), plan → comidas → grupos → opciones, registro diario, checklist de comidas, cheat meals y revisiones; perímetros nuevos en body_measurements. Todo con RLS (aplicadas)
+- [x] Calculadora de raciones: equivalencias del plan, mezcla de alimentos, cocidos convertidos a crudo (arroz ÷ 2,5, pasta ÷ 2…), comparación por macro principal para alimentos fuera de la lista; lo que falta en cada opción
+- [x] Hoy: checklist por comida (hecha, comí menos, comí más, saltada, cheat), calculadora en directo y resumen del día
+- [x] IA gratuita (Gemini, respaldo Groq): propuestas de comida que cuadran lo que falta (la IA elige alimentos y reparto; los gramos los calcula la app), estimación de cheat meals y de macros de alimentos nuevos
+- [x] Cheat meals por periodo entre revisiones; revisiones con peso, perímetros, valoración, notas, % de comidas según el plan
+- [x] Plan editable (comidas, grupos, opciones) y alimentos editables; catálogo básico de alimentos
+- [x] Carga inicial (solo en la BD, no en el repo): plan de sept. 2026 de la nutricionista y hoja de control desde dic. 2024 (42 revisiones)
+- [x] Portada: widget "Nutrición de hoy"
+- [ ] Configurar `GEMINI_API_KEY` en Vercel (lo hace Raúl)
+- [ ] Verificación: unos días usando Hoy con el plan real
 
 ## Decisiones
 

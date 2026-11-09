@@ -202,6 +202,13 @@ describe("guessMuscleGroup", () => {
     ["Elevaciones De Hombro Maquina", "shoulders"],
     ["Elevación Lateral a un Brazo (Cable)", "shoulders"],
     ["Elevación Frontal (Cable)", "shoulders"],
+    ["Belt Squad", "quadriceps"],
+    ["Entrenador Elíptico", "cardio"],
+    ["JM Press (Barbell)", "triceps"],
+    ["Pies a Barra", "abs"],
+    ["Press Inclinado En Polea", "chest"],
+    ["Rack Pull", "back"],
+    ["Rear Kick (Machine)", "glutes"],
     ["Algo raro", "other"],
   ])("%s → %s", (name, group) => {
     expect(guessMuscleGroup(name)).toBe(group);

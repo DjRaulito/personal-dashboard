@@ -268,6 +268,10 @@ export type Database = {
       body_measurements: {
         Row: {
           arm_cm: number | null;
+          calf_cm: number | null;
+          hip_cm: number | null;
+          abdomen_cm: number | null;
+          shoulder_cm: number | null;
           body_fat_pct: number | null;
           chest_cm: number | null;
           created_at: string;
@@ -282,6 +286,10 @@ export type Database = {
         };
         Insert: {
           arm_cm?: number | null;
+          calf_cm?: number | null;
+          hip_cm?: number | null;
+          abdomen_cm?: number | null;
+          shoulder_cm?: number | null;
           body_fat_pct?: number | null;
           chest_cm?: number | null;
           created_at?: string;
@@ -296,6 +304,10 @@ export type Database = {
         };
         Update: {
           arm_cm?: number | null;
+          calf_cm?: number | null;
+          hip_cm?: number | null;
+          abdomen_cm?: number | null;
+          shoulder_cm?: number | null;
           body_fat_pct?: number | null;
           chest_cm?: number | null;
           created_at?: string;
@@ -428,6 +440,318 @@ export type Database = {
           source?: string;
           started_at?: string;
           title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      nutrition_foods: {
+        Row: {
+          carbs_g: number;
+          cooked_factor: number | null;
+          cooked_from: string | null;
+          created_at: string;
+          fat_g: number;
+          id: string;
+          kcal: number;
+          name: string;
+          protein_g: number;
+          source: string;
+          unit_grams: number | null;
+          unit_label: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          carbs_g?: number;
+          cooked_factor?: number | null;
+          cooked_from?: string | null;
+          created_at?: string;
+          fat_g?: number;
+          id?: string;
+          kcal: number;
+          name: string;
+          protein_g?: number;
+          source?: string;
+          unit_grams?: number | null;
+          unit_label?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          carbs_g?: number;
+          cooked_factor?: number | null;
+          cooked_from?: string | null;
+          created_at?: string;
+          fat_g?: number;
+          id?: string;
+          kcal?: number;
+          name?: string;
+          protein_g?: number;
+          source?: string;
+          unit_grams?: number | null;
+          unit_label?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      nutrition_plans: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          id: string;
+          name: string;
+          notes: string | null;
+          starts_on: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          name: string;
+          notes?: string | null;
+          starts_on?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          name?: string;
+          notes?: string | null;
+          starts_on?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      nutrition_plan_meals: {
+        Row: {
+          id: string;
+          name: string;
+          notes: string | null;
+          plan_id: string;
+          position: number;
+          user_id: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          notes?: string | null;
+          plan_id: string;
+          position?: number;
+          user_id?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          notes?: string | null;
+          plan_id?: string;
+          position?: number;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      nutrition_plan_groups: {
+        Row: {
+          id: string;
+          kind: string;
+          meal_id: string;
+          name: string;
+          notes: string | null;
+          position: number;
+          user_id: string;
+        };
+        Insert: {
+          id?: string;
+          kind: string;
+          meal_id: string;
+          name: string;
+          notes?: string | null;
+          position?: number;
+          user_id?: string;
+        };
+        Update: {
+          id?: string;
+          kind?: string;
+          meal_id?: string;
+          name?: string;
+          notes?: string | null;
+          position?: number;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      nutrition_plan_options: {
+        Row: {
+          amount: number;
+          food_id: string;
+          group_id: string;
+          id: string;
+          position: number;
+          unit: string;
+          user_id: string;
+        };
+        Insert: {
+          amount: number;
+          food_id: string;
+          group_id: string;
+          id?: string;
+          position?: number;
+          unit?: string;
+          user_id?: string;
+        };
+        Update: {
+          amount?: number;
+          food_id?: string;
+          group_id?: string;
+          id?: string;
+          position?: number;
+          unit?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      nutrition_logs: {
+        Row: {
+          created_at: string;
+          eaten_on: string;
+          food_id: string;
+          grams: number;
+          group_id: string | null;
+          id: string;
+          meal_id: string | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          eaten_on: string;
+          food_id: string;
+          grams: number;
+          group_id?: string | null;
+          id?: string;
+          meal_id?: string | null;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          eaten_on?: string;
+          food_id?: string;
+          grams?: number;
+          group_id?: string | null;
+          id?: string;
+          meal_id?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      nutrition_meal_checks: {
+        Row: {
+          day: string;
+          id: string;
+          meal_id: string;
+          note: string | null;
+          status: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          day: string;
+          id?: string;
+          meal_id: string;
+          note?: string | null;
+          status: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          day?: string;
+          id?: string;
+          meal_id?: string;
+          note?: string | null;
+          status?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      nutrition_cheats: {
+        Row: {
+          ai_notes: string | null;
+          carbs_g: number | null;
+          created_at: string;
+          description: string;
+          eaten_on: string;
+          estimated_by: string;
+          fat_g: number | null;
+          id: string;
+          kcal: number | null;
+          protein_g: number | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          ai_notes?: string | null;
+          carbs_g?: number | null;
+          created_at?: string;
+          description: string;
+          eaten_on: string;
+          estimated_by?: string;
+          fat_g?: number | null;
+          id?: string;
+          kcal?: number | null;
+          protein_g?: number | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          ai_notes?: string | null;
+          carbs_g?: number | null;
+          created_at?: string;
+          description?: string;
+          eaten_on?: string;
+          estimated_by?: string;
+          fat_g?: number | null;
+          id?: string;
+          kcal?: number | null;
+          protein_g?: number | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      nutrition_reviews: {
+        Row: {
+          adherence: number | null;
+          created_at: string;
+          id: string;
+          notes: string | null;
+          phase: string | null;
+          review_on: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          adherence?: number | null;
+          created_at?: string;
+          id?: string;
+          notes?: string | null;
+          phase?: string | null;
+          review_on: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          adherence?: number | null;
+          created_at?: string;
+          id?: string;
+          notes?: string | null;
+          phase?: string | null;
+          review_on?: string;
           updated_at?: string;
           user_id?: string;
         };

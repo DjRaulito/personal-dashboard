@@ -25,12 +25,16 @@ export function TrendChart({
   unit,
   label,
   secondary,
+  tone = "gym",
 }: {
   points: { date: string; value: number; secondary?: number }[];
   unit: string;
   label: string;
   secondary?: string;
+  tone?: "gym" | "nutrition";
 }) {
+  const color =
+    tone === "gym" ? { bg: "bg-gym", stroke: "var(--gym)" } : { bg: "bg-nutrition", stroke: "var(--nutrition)" };
   if (points.length < 2) return null;
   const step = Math.ceil(points.length / 150);
   const data = points.filter((_, i) => i % step === 0 || i === points.length - 1);
@@ -53,7 +57,7 @@ export function TrendChart({
     <figure>
       <figcaption className="text-muted mb-4 flex flex-wrap gap-4 text-sm">
         <span className="flex items-center gap-2">
-          <span aria-hidden="true" className="bg-gym inline-block h-2.5 w-2.5 rounded-[3px]" /> {label}
+          <span aria-hidden="true" className={`${color.bg} inline-block h-2.5 w-2.5 rounded-[3px]`} /> {label}
         </span>
         {secondary && (
           <span className="flex items-center gap-2">
@@ -97,7 +101,7 @@ export function TrendChart({
             <path
               d={path((p) => p.value)}
               fill="none"
-              stroke="var(--gym)"
+              stroke={color.stroke}
               strokeWidth="2.5"
               strokeLinejoin="round"
               strokeLinecap="round"
@@ -106,7 +110,7 @@ export function TrendChart({
           </svg>
           <span
             aria-hidden="true"
-            className="bg-gym border-surface absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2"
+            className={`${color.bg} border-surface absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2`}
             style={{ left: "100%", top: `${y(last.value)}%` }}
           />
           <ul className="absolute inset-0 flex">
