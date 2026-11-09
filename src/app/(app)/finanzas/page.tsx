@@ -1,149 +1,138 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CashflowChart, CategoryBars, NetWorthChart } from "@/components/finance/charts";
+import { NetWorthChart } from "@/components/finance/charts";
+import { AllocationBar } from "@/components/investments/charts";
 import { buttonClass, EmptyState, Tile, TileTitle } from "@/components/ui";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/finance/accounts";
-import { categoryLabels } from "@/lib/finance/categories";
 import { formatCents } from "@/lib/finance/money";
 import { financePeriods, monthsBetween } from "@/lib/finance/periods";
-import { getAccounts, getCategories } from "@/lib/finance/server";
+import { getAccounts } from "@/lib/finance/server";
+import { getPortfolio } from "@/lib/investments/server";
+import { monthEndValues, positionRows } from "@/lib/investments/view";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Finanzas · Personal Dashboard" };
+export const metadata: Metadata = { title: "Patrimonio · Finanzas" };
 
-export default async function FinanceOverview() {
-  const p = financePeriods(new Date());
+export default async function NetWorthPage() {
+  const p = financePeriods(new Date(), 24);
   const supabase = await createClient();
-  const [accounts, categories, cashflow, spending, netWorth, uncategorized] = await Promise.all([
+  const [accounts, pf, accountHistory] = await Promise.all([
     getAccounts(),
-    getCategories(),
-    supabase.rpc("monthly_cashflow", { p_from: p.windowStart, p_to: p.nextMonthStart }),
-    supabase.rpc("category_spending", { p_from: p.monthStart, p_to: p.nextMonthStart }),
+    getPortfolio(),
     supabase.rpc("net_worth_by_month", { p_from: p.windowStart, p_to: p.monthStart }),
-    supabase.from("transactions").select("id", { count: "exact", head: true }).is("category_id", null),
   ]);
 
-  if (accounts.length === 0) {
+  if (accounts.length === 0 && pf.operations.length === 0) {
     return (
       <Tile>
-        <EmptyState>
-          Empieza creando tus cuentas (banco, tarjeta, efectivo, broker) y luego importa un extracto.
-        </EmptyState>
+        <EmptyState>Crea tus cuentas e importa tu cartera para ver tu patrimonio.</EmptyState>
         <div className="flex justify-center gap-2">
-          <Link href="/finanzas/cuentas" className={buttonClass.primary}>
-            Crear cuenta
+          <Link href="/finanzas/cuentas" className={buttonClass.secondary}>
+            Crear cuentas
+          </Link>
+          <Link href="/finanzas/inversiones/importar" className={buttonClass.primary}>
+            Importar cartera
           </Link>
         </div>
       </Tile>
     );
   }
 
-  const currency = accounts[0].currency;
-  const netWorthNow = accounts.reduce((sum, a) => sum + a.balance_cents, 0);
-  const byMonth = new Map((cashflow.data ?? []).map((r) => [r.month, r]));
-  const months = monthsBetween(p.windowStart, p.nextMonthStart).map((month) => ({
-    month,
-    income: byMonth.get(month)?.income_cents ?? 0,
-    expense: byMonth.get(month)?.expense_cents ?? 0,
-  }));
-  const current = months[months.length - 1];
-  const labels = categoryLabels(categories);
-  const categoryItems = (spending.data ?? []).slice(0, 8).map((s) => ({
-    id: s.category_id ?? "sin",
-    label: s.category_id ? (labels.get(s.category_id) ?? "—") : "Sin categoría",
-    cents: s.spent_cents,
-    href: `/finanzas/movimientos?mes=${p.monthKey}&tipo=gastos&categoria=${s.category_id ?? "sin"}`,
-  }));
-  // El último punto del patrimonio es el saldo actual
-  const netWorthSeries = [
-    ...(netWorth.data ?? []).map((r) => ({ month: r.month, cents: r.net_worth_cents })),
-    { month: p.monthStart, cents: netWorthNow },
+  const cash = accounts.reduce((s, a) => s + a.balance_cents, 0);
+  const rows = positionRows(pf.input, pf.positions, pf.assets);
+  const invested = Math.round(rows.reduce((s, r) => s + r.valueEur, 0) * 100);
+  const total = cash + invested;
+
+  // Evolución: saldo de cuentas al cierre de mes + valor de la cartera ese día
+  const accountsByMonth = new Map((accountHistory.data ?? []).map((r) => [r.month, r.net_worth_cents]));
+  const portfolioByMonth = monthEndValues(pf.series);
+  const firstMonth = [
+    pf.series[0]?.date.slice(0, 7),
+    accountHistory.data?.find((r) => r.net_worth_cents !== 0)?.month.slice(0, 7),
+  ]
+    .filter(Boolean)
+    .sort()[0];
+  const months = monthsBetween(p.windowStart, p.monthStart).filter((m) => !firstMonth || m.slice(0, 7) >= firstMonth);
+  const history = [
+    ...months.map((m) => ({
+      month: m,
+      cents: (accountsByMonth.get(m) ?? 0) + Math.round((portfolioByMonth.get(m) ?? 0) * 100),
+    })),
+    { month: p.monthStart, cents: total },
   ];
-  const hasHistory = months.some((m) => m.income || m.expense);
-  const monthName = new Intl.DateTimeFormat("es-ES", { month: "long", timeZone: "UTC" }).format(
-    new Date(`${p.monthStart}T00:00:00Z`),
-  );
+  const prevMonth = history.at(-2)?.cents;
+
+  const byKind = (kind: string) =>
+    Math.round(rows.filter((r) => r.kind === kind).reduce((s, r) => s + r.valueEur, 0) * 100) / 100;
 
   return (
     <>
-      <section aria-label="Indicadores" className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+      <section aria-label="Patrimonio" className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-tile bg-finance text-ink p-6 sm:col-span-2">
-          <p className="text-sm font-semibold">Patrimonio neto</p>
-          <p className="font-display mt-3 text-5xl leading-none font-extrabold tracking-tight">
-            {formatCents(netWorthNow, currency)}
-          </p>
-          <p className="mt-3 text-sm font-medium">{accounts.filter((a) => !a.archived).length} cuentas activas</p>
+          <p className="text-sm font-semibold">Patrimonio total</p>
+          <p className="font-display mt-3 text-5xl leading-none font-extrabold tracking-tight">{formatCents(total)}</p>
+          {prevMonth != null && (
+            <p className="mt-3 text-sm font-medium">
+              {formatCents(total - prevMonth, "EUR", { signed: true })} desde el cierre del mes pasado
+            </p>
+          )}
         </div>
-        <Tile>
-          <p className="text-muted text-sm first-letter:uppercase">Gastos de {monthName}</p>
-          <p className="font-display mt-3 text-3xl font-extrabold tracking-tight">
-            {formatCents(current.expense, currency)}
-          </p>
-          <p className="text-muted mt-1 text-sm">Ingresos {formatCents(current.income, currency)}</p>
-        </Tile>
-        <Tile>
-          <p className="text-muted text-sm">Sin categoría</p>
-          <p className="font-display mt-3 text-3xl font-extrabold tracking-tight">
-            {(uncategorized.count ?? 0).toLocaleString("es-ES")}
-          </p>
-          <Link
-            href="/finanzas/movimientos?categoria=sin"
-            className="text-muted hover:text-text mt-1 inline-block text-sm underline-offset-2 hover:underline"
-          >
-            Revisar
-          </Link>
-        </Tile>
+        <Link
+          href="/finanzas/inversiones"
+          className="rounded-tile border-border bg-surface hover:border-border-strong border p-6 transition-colors duration-200"
+        >
+          <span className="text-muted block text-sm">Inversiones</span>
+          <span className="font-display mt-3 block text-3xl font-extrabold tracking-tight">
+            {formatCents(invested)}
+          </span>
+          <span className="text-muted mt-1 block text-sm">{rows.length} posiciones</span>
+        </Link>
+        <Link
+          href="/finanzas/cuentas"
+          className="rounded-tile border-border bg-surface hover:border-border-strong border p-6 transition-colors duration-200"
+        >
+          <span className="text-muted block text-sm">Liquidez</span>
+          <span className="font-display mt-3 block text-3xl font-extrabold tracking-tight">{formatCents(cash)}</span>
+          <span className="text-muted mt-1 block text-sm">{accounts.filter((a) => !a.archived).length} cuentas</span>
+        </Link>
       </section>
 
       <div className="grid gap-3.5 lg:grid-cols-5">
         <Tile className="lg:col-span-3">
-          <TileTitle>Ingresos y gastos · 12 meses</TileTitle>
+          <TileTitle>Evolución del patrimonio</TileTitle>
           <div className="mt-5">
-            {hasHistory ? (
-              <CashflowChart data={months} currency={currency} />
+            {history.length > 1 ? (
+              <NetWorthChart data={history} currency="EUR" />
             ) : (
-              <EmptyState>Aún no hay movimientos. Importa un extracto para ver la evolución.</EmptyState>
+              <EmptyState>La evolución aparecerá cuando haya más de un mes de datos.</EmptyState>
             )}
           </div>
         </Tile>
         <Tile className="lg:col-span-2">
-          <TileTitle dot="bg-expense">
-            <span className="first-letter:uppercase">Gasto por categoría · {monthName}</span>
-          </TileTitle>
+          <TileTitle>Reparto</TileTitle>
           <div className="mt-4">
-            {categoryItems.length > 0 ? (
-              <CategoryBars items={categoryItems} currency={currency} />
-            ) : (
-              <EmptyState>Sin gastos este mes.</EmptyState>
-            )}
+            <AllocationBar
+              parts={[
+                { label: "Liquidez", value: cash / 100, className: "bg-content" },
+                { label: "Fondos", value: byKind("fund") + byKind("etf"), className: "bg-finance" },
+                { label: "Acciones", value: byKind("stock"), className: "bg-nutrition" },
+                { label: "Planes y otros", value: byKind("pension") + byKind("other"), className: "bg-attention" },
+              ]}
+            />
           </div>
-        </Tile>
-      </div>
-
-      <div className="grid gap-3.5 lg:grid-cols-5">
-        <Tile className="lg:col-span-3">
-          <TileTitle>Patrimonio · 12 meses</TileTitle>
-          <div className="mt-5">
-            <NetWorthChart data={netWorthSeries} currency={currency} />
-          </div>
-        </Tile>
-        <Tile className="lg:col-span-2">
-          <TileTitle>Cuentas</TileTitle>
-          <ul className="mt-4 flex flex-col gap-2">
+          <ul className="mt-6 flex flex-col gap-2">
             {accounts
               .filter((a) => !a.archived)
               .map((a) => (
-                <li key={a.id}>
-                  <Link
-                    href={`/finanzas/movimientos?cuenta=${a.id}`}
-                    className="bg-surface-2 rounded-inner hover:bg-border flex items-center justify-between gap-3 px-4 py-3 transition-colors duration-200"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate font-medium">{a.name}</span>
-                      <span className="text-muted block text-xs">{ACCOUNT_TYPE_LABELS[a.type]}</span>
-                    </span>
-                    <span className="font-semibold tabular-nums">{formatCents(a.balance_cents, a.currency)}</span>
-                  </Link>
+                <li
+                  key={a.id}
+                  className="bg-surface-2 rounded-inner flex items-center justify-between gap-3 px-4 py-3 text-sm"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{a.name}</span>
+                    <span className="text-muted block text-xs">{ACCOUNT_TYPE_LABELS[a.type]}</span>
+                  </span>
+                  <span className="font-semibold tabular-nums">{formatCents(a.balance_cents, a.currency)}</span>
                 </li>
               ))}
           </ul>

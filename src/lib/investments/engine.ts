@@ -65,9 +65,11 @@ function eurPerUnit(fx: Map<string, PricePoint[]>, currency: string, date: strin
 // Posiciones (FIFO)
 // ---------------------------------------------------------------------------
 
-interface Lot {
+export interface Lot {
   quantity: number;
   costEur: number;
+  date: string;
+  price: number | null; // en la moneda del activo
 }
 
 export interface Position {
@@ -102,6 +104,15 @@ function sortOps(ops: EngineOperation[]) {
 }
 
 export function computePositions(input: EngineInput, upTo = input.today): Map<string, Position> {
+  return runFifo(input, upTo).positions;
+}
+
+/** Lotes abiertos por activo (FIFO), con fecha y precio de compra. */
+export function computeOpenLots(input: EngineInput, upTo = input.today): Map<string, Lot[]> {
+  return runFifo(input, upTo).lots;
+}
+
+function runFifo(input: EngineInput, upTo: string) {
   const assets = new Map(input.assets.map((a) => [a.id, a]));
   const lots = new Map<string, Lot[]>();
   const positions = new Map<string, Position>();
@@ -149,14 +160,17 @@ export function computePositions(input: EngineInput, upTo = input.today): Map<st
       const delta = splitDelta.get(k) ?? 0;
       if (qty > EPS && Math.abs(delta) > EPS) {
         const ratio = (qty + delta) / qty;
-        for (const l of assetLots) l.quantity *= ratio;
+        for (const l of assetLots) {
+          l.quantity *= ratio;
+          if (l.price != null) l.price /= ratio;
+        }
       }
       continue;
     }
 
     const cash = operationCashEur(op, asset, input.fx);
     if (op.type === "buy") {
-      assetLots.push({ quantity: op.quantity, costEur: cash });
+      assetLots.push({ quantity: op.quantity, costEur: cash, date: op.date, price: op.price });
       p.investedEur += cash;
     } else if (op.type === "sell") {
       let remaining = op.quantity;
@@ -189,7 +203,7 @@ export function computePositions(input: EngineInput, upTo = input.today): Map<st
     p.valueEur =
       p.quantity && p.lastPrice != null ? p.quantity * p.lastPrice * eurPerUnit(input.fx, asset.currency, upTo) : 0;
   }
-  return positions;
+  return { positions, lots };
 }
 
 // Serie de precios de un activo: precios guardados + precios de sus operaciones como respaldo

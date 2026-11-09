@@ -5,8 +5,8 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 ## Estado actual
 
 - **Fase:** 3 — Finanzas: patrimonio, inversiones y métricas (rediseño)
-- **Última tarea hecha:** pantallas de finanzas (resumen con gráficas, cuentas, movimientos, importador, categorías y reglas)
-- **Siguiente tarea:** recibir exportaciones de Raúl (cartera de Investing, operaciones de MyInvestor y MEXEM desde 2024) para escribir los importadores de inversiones
+- **Última tarea hecha:** rediseño de Finanzas (patrimonio, inversiones con rentabilidades por periodo, gastos mes a mes, métricas) e importador de cartera
+- **Siguiente tarea:** Raúl importa su cartera en Finanzas → Inversiones → Importar y revisa las órdenes dudosas; comprobar precios de todos los activos. Después: presupuestos, huchas y pagos recurrentes
 
 ## Fase 0 — Cimientos
 
@@ -69,14 +69,17 @@ Estructura nueva de Finanzas:
 - **Métricas:** tasa de ahorro, gasto medio, aportaciones vs. rentabilidad, etc.
 - **Ajustes:** cuentas, categorías y reglas.
 
-Fuentes: carga inicial con la exportación de la cartera de Investing + operaciones de MyInvestor y MEXEM desde 2024. Después la app lleva el seguimiento y exporta a Investing. Precios diarios con un cron gratuito.
+Fuentes: carga inicial con la exportación de la cartera de Investing + operaciones de MyInvestor y MEXEM desde 2024. Después la app lleva el seguimiento y exporta a Investing. Los precios se actualizan al abrir Inversiones (sin cron ni clave de servicio).
 
-- [ ] Recibir exportaciones de ejemplo (no se suben al repo)
-- [ ] Modelo de datos de inversiones (activos, operaciones, precios diarios) + migración
-- [ ] Importadores: Investing, MyInvestor, MEXEM
-- [ ] Precios diarios (cron) e histórico desde 2024
-- [ ] Pantallas: Patrimonio, Inversiones, Gastos mes a mes, Métricas
-- [ ] Exportar a Investing
+- [x] Recibir exportaciones (Investing, órdenes de fondos y operaciones de valores de MyInvestor, información fiscal); no se suben al repo
+- [x] Migración `investments`: assets, investment_operations, asset_prices, fx_rates con RLS (aplicada)
+- [x] Importadores: Investing (lotes), MyInvestor fondos (sentido deducido) y valores; conciliación probada con los datos reales (16/16 posiciones cuadran)
+- [ ] Importador de MEXEM (falta su exportación; por ahora sus posiciones salen de Investing)
+- [x] Precios (Yahoo) y tipos de cambio (BCE) al abrir Inversiones, con relleno histórico; verificado desde Vercel
+- [x] Motor: FIFO, plusvalías, serie diaria, TWR 1D/1S/1M/3M/YTD/1A/3A/5A/Total, P/G diario
+- [x] Pantallas: Patrimonio, Inversiones (+ operaciones, ficha de activo, importar), Gastos mes a mes, Métricas, Ajustes
+- [x] Exportar a Investing (CSV de lotes abiertos)
+- [ ] Verificación con la cartera real en producción
 - [ ] Presupuestos, huchas y pagos recurrentes (de la antigua fase 3)
 
 ## Decisiones

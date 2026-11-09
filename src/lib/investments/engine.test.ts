@@ -148,3 +148,23 @@ describe("serie diaria y rentabilidad", () => {
     expect(periodStart("1M", "2026-03-31")).toBe("2026-03-03");
   });
 });
+
+describe("exportación a Investing", async () => {
+  const { investingCsv } = await import("./investing-export");
+  it("solo lotes abiertos, coma decimal y entre comillas", () => {
+    const input = base(
+      [
+        op({ type: "buy", date: "2025-01-01", quantity: 10, price: 10.5, cashEur: 105 }),
+        op({ type: "buy", date: "2025-02-01", quantity: 5, price: 12, cashEur: 60 }),
+        op({ type: "sell", date: "2025-03-01", quantity: 12, price: 13, cashEur: -156 }),
+      ],
+      [],
+      "2025-04-01",
+    );
+    const { csv, rows } = investingCsv(input, [
+      { id: "A", name: "Fondo X", isin: "IE00B4L5Y983", symbol: null, currency: "EUR" },
+    ]);
+    expect(rows).toBe(1);
+    expect(csv.split("\r\n")[1]).toBe('"IE00B4L5Y983","12","3","BUY","2025-02-01","0","EUR","Fondo X"');
+  });
+});
