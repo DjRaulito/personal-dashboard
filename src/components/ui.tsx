@@ -3,7 +3,7 @@ import { clsx } from "clsx";
 
 // Piezas de formulario comunes (ver DESIGN.md)
 export const inputClass =
-  "bg-surface-2 border-border-strong rounded-inner focus-visible:outline-content w-full border px-3.5 py-2.5 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50";
+  "bg-surface-2 text-text border-border-strong rounded-inner focus-visible:outline-content w-full border px-3.5 py-2.5 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50";
 
 export const buttonClass = {
   primary:

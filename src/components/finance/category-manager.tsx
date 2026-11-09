@@ -13,7 +13,7 @@ export function NewCategoryForm({ roots }: { roots: CategoryNode[] }) {
   }, [state]);
 
   return (
-    <form ref={formRef} action={action} className="flex flex-col gap-4">
+    <form autoComplete="off" ref={formRef} action={action} className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="Nombre" error={state.errors?.name}>
           <input name="name" required maxLength={60} className={inputClass} />
@@ -58,7 +58,7 @@ export function CategoryItem({ id, name, isRoot }: { id: string; name: string; i
 
   if (editing) {
     return (
-      <form action={action} className="flex flex-wrap items-center gap-2">
+      <form autoComplete="off" action={action} className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="id" value={id} />
         <input type="hidden" name="kind" value="expense" />
         <input
@@ -110,7 +110,9 @@ export function DeleteRuleButton({ id, pattern }: { id: string; pattern: string 
       type="button"
       disabled={pending}
       aria-label={`Borrar regla ${pattern}`}
-      onClick={() => startTransition(() => deleteRule(id))}
+      onClick={() => {
+        if (confirm("¿Borrar esta regla?")) startTransition(() => deleteRule(id));
+      }}
       className="text-expense text-xs hover:underline"
     >
       Borrar

@@ -23,7 +23,7 @@ export function AssetSettings({
   const [priceState, priceAction, pricePending] = useActionState(addManualPrice, { ok: false, message: "" });
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <form action={action} className="flex flex-col gap-4">
+      <form autoComplete="off" action={action} className="flex flex-col gap-4">
         <input type="hidden" name="id" value={asset.id} />
         <Field label="Nombre">
           <input name="name" defaultValue={asset.name} maxLength={120} required className={inputClass} />
@@ -55,7 +55,7 @@ export function AssetSettings({
           </button>
         </div>
       </form>
-      <form action={priceAction} className="flex flex-col gap-4">
+      <form autoComplete="off" action={priceAction} className="flex flex-col gap-4">
         <input type="hidden" name="asset_id" value={asset.id} />
         <p className="text-muted text-sm">
           Para planes de pensiones u otros activos sin cotización: añade el valor liquidativo de una fecha.

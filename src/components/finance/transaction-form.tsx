@@ -42,7 +42,7 @@ export function TransactionForm({
   const isExpense = transaction ? transaction.amount_cents < 0 : true;
 
   return (
-    <form ref={formRef} action={action} className="flex flex-col gap-4">
+    <form autoComplete="off" ref={formRef} action={action} className="flex flex-col gap-4">
       {transaction && <input type="hidden" name="id" value={transaction.id} />}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Field label="Concepto" error={state.errors?.description} className="sm:col-span-2">

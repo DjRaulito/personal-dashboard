@@ -12,7 +12,7 @@ export function OperationForm({ assets, today }: { assets: { id: string; name: s
   }, [state]);
 
   return (
-    <form ref={ref} action={action} className="flex flex-col gap-4">
+    <form autoComplete="off" ref={ref} action={action} className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
         <Field label="Activo" className="sm:col-span-2">
           <select name="asset_id" required className={inputClass}>

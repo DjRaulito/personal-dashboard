@@ -12,7 +12,7 @@ export function NewAssetForm() {
     if (state.ok) ref.current?.reset();
   }, [state]);
   return (
-    <form ref={ref} action={action} className="flex flex-col gap-4">
+    <form autoComplete="off" ref={ref} action={action} className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Field label="Nombre" className="sm:col-span-2">
           <input name="name" required maxLength={120} placeholder="Plan de pensiones Caser…" className={inputClass} />
