@@ -11,10 +11,11 @@ import {
   type FundOrder,
   type StockOperation,
 } from "@/lib/investments/myinvestor";
+import { parseMexemCsv, type MexemOperation } from "@/lib/investments/mexem";
 import { reconcile } from "@/lib/investments/reconcile";
 import { decodeText } from "@/lib/finance/read-sheet";
 
-type Slot = "investing" | "orders" | "stocks";
+type Slot = "investing" | "orders" | "stocks" | "mexem";
 
 const SLOTS: { key: Slot; label: string; hint: string; accept: string }[] = [
   {
@@ -35,13 +36,26 @@ const SLOTS: { key: Slot; label: string; hint: string; accept: string }[] = [
     hint: "MyInvestor → Bolsa → Operaciones → Exportar. Compras, ventas, dividendos y contrasplits.",
     accept: ".xls,.html,.htm",
   },
+  {
+    key: "mexem",
+    label: "Transacciones de MEXEM (CSV)",
+    hint: "MEXEM → Informes → Historial de transacciones → CSV. Compras, ventas y dividendos.",
+    accept: ".csv",
+  },
 ];
 
 export function PortfolioImporter() {
   const [investing, setInvesting] = useState<InvestingExport | null>(null);
   const [orders, setOrders] = useState<FundOrder[]>([]);
   const [stocks, setStocks] = useState<StockOperation[]>([]);
-  const [loaded, setLoaded] = useState<Record<Slot, string | null>>({ investing: null, orders: null, stocks: null });
+  const [mexem, setMexem] = useState<MexemOperation[]>([]);
+  const [replace, setReplace] = useState(true);
+  const [loaded, setLoaded] = useState<Record<Slot, string | null>>({
+    investing: null,
+    orders: null,
+    stocks: null,
+    mexem: null,
+  });
   const [error, setError] = useState<string | null>(null);
   const [flipped, setFlipped] = useState<Set<string>>(new Set());
   const [result, setResult] = useState<PortfolioImportResult | null>(null);
@@ -62,6 +76,10 @@ export function PortfolioImporter() {
         const parsed = parseFundOrdersCsv(text);
         if (!parsed.length) throw new Error("No encontré órdenes finalizadas en el archivo.");
         setOrders(parsed);
+      } else if (slot === "mexem") {
+        const parsed = parseMexemCsv(text);
+        if (!parsed.length) throw new Error("No encontré operaciones en el historial de MEXEM.");
+        setMexem(parsed);
       } else {
         const parsed = parseStockOperationsHtml(text);
         if (!parsed.length) throw new Error("No encontré operaciones de valores en el archivo.");
@@ -75,10 +93,10 @@ export function PortfolioImporter() {
 
   const rec = useMemo(
     () =>
-      investing || orders.length || stocks.length
-        ? reconcile({ investing, fundOrders: orders, stockOps: stocks })
+      investing || orders.length || stocks.length || mexem.length
+        ? reconcile({ investing, fundOrders: orders, stockOps: stocks, mexemOps: mexem })
         : null,
-    [investing, orders, stocks],
+    [investing, orders, stocks, mexem],
   );
 
   const doubtKey = (o: { date: string; isin: string; units: number }) => `myif:${o.date}:${o.isin}:${o.units}`;
@@ -111,13 +129,13 @@ export function PortfolioImporter() {
   function save() {
     if (!rec) return;
     startTransition(async () => {
-      setResult(await importPortfolio({ assets: rec.assets, operations }));
+      setResult(await importPortfolio({ assets: rec.assets, operations, replace }));
     });
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         {SLOTS.map((s) => (
           <Field key={s.key} label={s.label}>
             <input
@@ -244,6 +262,21 @@ export function PortfolioImporter() {
             </ul>
           )}
 
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={replace}
+              onChange={(e) => setReplace(e.target.checked)}
+              className="accent-finance mt-0.5 h-4 w-4"
+            />
+            <span>
+              Reemplazar lo importado antes
+              <span className="text-muted block text-xs">
+                Recomendado si subes todos los archivos. Borra las operaciones importadas (no las que añadiste a mano) y
+                vuelve a cargarlas.
+              </span>
+            </span>
+          </label>
           <div>
             <button
               type="button"

@@ -206,6 +206,55 @@ function runFifo(input: EngineInput, upTo: string) {
   return { positions, lots };
 }
 
+// ---------------------------------------------------------------------------
+// Splits: los precios históricos de mercado vienen ajustados a las unidades actuales.
+// Para valorar el pasado se pasan cantidades y precios de operaciones a esas unidades.
+// ---------------------------------------------------------------------------
+
+const splitCache = new WeakMap<EngineInput, Map<string, { date: string; ratio: number }[]>>();
+
+/** Splits de cada activo con su ratio (títulos después / antes). */
+export function splitEvents(input: EngineInput): Map<string, { date: string; ratio: number }[]> {
+  const hit = splitCache.get(input);
+  if (hit) return hit;
+  const out = new Map<string, { date: string; ratio: number }[]>();
+  const qty = new Map<string, number>();
+  const ops = sortOps(input.operations);
+  const deltas = new Map<string, number>();
+  for (const o of ops)
+    if (o.isSplit) {
+      const k = `${o.assetId}|${o.date}`;
+      deltas.set(k, (deltas.get(k) ?? 0) + (o.type === "buy" ? o.quantity : -o.quantity));
+    }
+  const done = new Set<string>();
+  for (const op of ops) {
+    if (!op.isSplit) {
+      if (op.type === "buy") qty.set(op.assetId, (qty.get(op.assetId) ?? 0) + op.quantity);
+      if (op.type === "sell") qty.set(op.assetId, (qty.get(op.assetId) ?? 0) - op.quantity);
+      continue;
+    }
+    // Todas las altas/bajas del mismo activo y día forman un único split
+    const k = `${op.assetId}|${op.date}`;
+    if (done.has(k)) continue;
+    done.add(k);
+    const delta = deltas.get(k) ?? 0;
+    const before = qty.get(op.assetId) ?? 0;
+    if (before > EPS && Math.abs(delta) > EPS) {
+      const list = out.get(op.assetId) ?? [];
+      list.push({ date: op.date, ratio: (before + delta) / before });
+      out.set(op.assetId, list);
+    }
+    qty.set(op.assetId, before + delta);
+  }
+  splitCache.set(input, out);
+  return out;
+}
+
+/** Producto de los ratios de los splits posteriores a la fecha (1 si no hay). */
+export function splitFactorAfter(input: EngineInput, assetId: string, date: string): number {
+  return (splitEvents(input).get(assetId) ?? []).reduce((f, s) => (s.date > date ? f * s.ratio : f), 1);
+}
+
 // Serie de precios de un activo: precios guardados + precios de sus operaciones como respaldo
 const priceCache = new WeakMap<EngineInput, Map<string, PricePoint[]>>();
 function priceSeries(input: EngineInput, assetId: string): PricePoint[] {
@@ -220,7 +269,8 @@ function priceSeries(input: EngineInput, assetId: string): PricePoint[] {
   const byDate = new Map<string, number>();
   for (const o of input.operations) {
     if (o.assetId === assetId && !o.isSplit && o.price && o.price > 0 && (o.type === "buy" || o.type === "sell")) {
-      byDate.set(o.date, o.price);
+      // Precio de la operación en unidades actuales (tras splits posteriores)
+      byDate.set(o.date, o.price / splitFactorAfter(input, assetId, o.date));
     }
   }
   for (const p of stored) byDate.set(p.date, p.value); // los precios de mercado mandan
@@ -269,7 +319,8 @@ export function dailySeries(input: EngineInput): DailyPoint[] {
     for (const [id, q] of qty) {
       if (q <= 1e-4) continue;
       const price = valueAt(series.get(id), date);
-      if (price != null) value += q * price * eurPerUnit(input.fx, assets.get(id)!.currency, date);
+      const units = q * splitFactorAfter(input, id, date);
+      if (price != null) value += units * price * eurPerUnit(input.fx, assets.get(id)!.currency, date);
     }
     invested += flow;
     const pnl = value - prevValue - flow;
