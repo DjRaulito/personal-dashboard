@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+/*
+ * Personal Dashboard — tokens de diseño (ver DESIGN.md)
+ * Modo oscuro siempre. Colores de módulo suaves, nunca saturados.
+ */
+:root {
+  --bg: #0b0b0e;
+  --surface: #16161b;
+  --surface-2: #1e1e24;
+  --border: #23232a;
+  --border-strong: #2e2e36;
+  --text: #f2f2f5;
+  --text-muted: #a3a3ae;
+  --ink-on-color: #0b0b0e;
+
+  --finance: #b9cc8a;
+  --gym: #de9a82;
+  --content: #93a3d4;
+  --nutrition: #86b8c4;
+  --attention: #d6c48e;
+
+  --radius-tile: 28px;
+  --radius-inner: 16px;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-ink: var(--ink-on-color);
+  --color-finance: var(--finance);
+  --color-gym: var(--gym);
+  --color-content: var(--content);
+  --color-nutrition: var(--nutrition);
+  --color-attention: var(--attention);
+  --radius-tile: var(--radius-tile);
+  --radius-inner: var(--radius-inner);
+  --font-sans: "Onest Variable", system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", system-ui, sans-serif;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Onest Variable", system-ui, sans-serif;
+  font-feature-settings: "tnum" 1;
+}

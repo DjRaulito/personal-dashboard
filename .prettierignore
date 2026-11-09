@@ -1,0 +1,6 @@
+.claude/
+.next/
+node_modules/
+playwright-report/
+test-results/
+package-lock.json
