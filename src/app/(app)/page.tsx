@@ -3,16 +3,16 @@ import { CalendarEvents } from "@/components/calendar-events";
 import { PageHeader, PageShell } from "@/components/page-header";
 import { daysFromToday } from "@/lib/calendar/range";
 import { getCalendarEvents } from "@/lib/calendar/server";
-import { formatLongDate } from "@/lib/datetime";
+import { dayKey, formatLongDate } from "@/lib/datetime";
 import { formatCents } from "@/lib/finance/money";
 import { financePeriods } from "@/lib/finance/periods";
+import { getUpcomingPayments } from "@/lib/finance/planning-server";
 import { getAccounts } from "@/lib/finance/server";
 import { getPortfolio } from "@/lib/investments/server";
 import { createClient } from "@/lib/supabase/server";
 
 // Widgets que se rellenarán en fases posteriores. Sin datos, se muestra "—".
 const PENDING_WIDGETS = [
-  { title: "Próximos pagos", phase: 3, color: "bg-attention", span: "md:col-span-2" },
   { title: "Último entreno", phase: 4, color: "bg-gym", span: "md:col-span-3" },
   { title: "Kcal del día", phase: 5, color: "bg-nutrition", span: "md:col-span-3" },
 ] as const;
@@ -22,12 +22,13 @@ export default async function Home() {
   const range = daysFromToday(now, 2);
   const supabase = await createClient();
   const p = financePeriods(now);
-  const [{ data: profile }, agenda, accounts, { data: cashflow }, portfolio] = await Promise.all([
+  const [{ data: profile }, agenda, accounts, { data: cashflow }, portfolio, payments] = await Promise.all([
     supabase.from("profiles").select("display_name").maybeSingle(),
     getCalendarEvents(range),
     getAccounts(),
     supabase.rpc("monthly_cashflow", { p_from: p.monthStart, p_to: p.nextMonthStart }),
     getPortfolio(),
+    getUpcomingPayments(dayKey(now), 14),
   ]);
   const portfolioValue = [...portfolio.positions.values()].reduce((s, x) => s + x.valueEur, 0);
   const hasAccounts = accounts.length > 0 || portfolio.operations.length > 0;
@@ -74,6 +75,35 @@ export default async function Home() {
             <span className="text-muted mt-1 block text-sm">{hasAccounts ? "Ver finanzas" : "Crea tus cuentas"}</span>
           </Link>
         ))}
+
+        <Link
+          href="/finanzas/plan"
+          className="rounded-tile border-border bg-surface hover:border-border-strong flex flex-col border p-6 transition-[border-color,transform] duration-150 active:scale-[0.98] motion-reduce:active:scale-100 md:col-span-2"
+        >
+          <span className="flex items-center gap-3">
+            <span aria-hidden="true" className="bg-attention h-2.5 w-2.5 rounded-full" />
+            <span className="font-semibold">Próximos pagos</span>
+          </span>
+          {payments.upcoming.length ? (
+            <ul className="mt-4 flex flex-col gap-1.5 text-sm">
+              {payments.upcoming.slice(0, 4).map(({ item, date }) => (
+                <li key={`${item.id}-${date}`} className="flex items-baseline gap-2">
+                  <span className="text-muted w-12 shrink-0 tabular-nums">
+                    {new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "UTC" }).format(
+                      new Date(`${date}T00:00:00Z`),
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                  <span className="shrink-0 tabular-nums">{formatCents(item.amount_cents)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <span className="text-muted mt-4 block text-sm">
+              {payments.count ? "Nada en las próximas dos semanas." : "Añade tus pagos recurrentes"}
+            </span>
+          )}
+        </Link>
 
         {PENDING_WIDGETS.map((w) => (
           <article key={w.title} className={`rounded-tile border-border bg-surface border p-6 ${w.span}`}>

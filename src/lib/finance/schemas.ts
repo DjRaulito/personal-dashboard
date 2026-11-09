@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ACCOUNT_TYPES } from "./accounts";
 import { mappingSchema } from "./import";
 import { parseAmountToCents } from "./money";
+import { FREQUENCIES } from "./planning";
 
 const amount = z
   .string()
@@ -99,3 +100,52 @@ export function fieldErrors(error: z.ZodError): Record<string, string> {
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// Planificación: presupuestos, huchas y pagos recurrentes
+// ---------------------------------------------------------------------------
+
+const positiveAmount = amount.refine((c) => c > 0, "El importe debe ser mayor que cero");
+
+const optionalDate = z
+  .string()
+  .optional()
+  .transform((v) => (v ? v : null))
+  .pipe(z.iso.date("Fecha no válida").nullable());
+
+export const budgetFormSchema = z.object({
+  category_id: z.uuid("Elige una categoría"),
+  amount: positiveAmount,
+});
+
+export const goalFormSchema = z.object({
+  id: optionalUuid,
+  name: z.string().trim().min(1, "Pon un nombre").max(60),
+  target: positiveAmount,
+  saved: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim() || "0")
+    .pipe(amount)
+    .refine((c) => c >= 0, "No puede ser negativo"),
+  account_id: optionalUuid,
+  target_date: optionalDate,
+});
+
+export const recurringFormSchema = z.object({
+  id: optionalUuid,
+  name: z.string().trim().min(1, "Pon un nombre").max(60),
+  direction: z.enum(["gasto", "ingreso"]),
+  amount: positiveAmount,
+  frequency: z.enum(FREQUENCIES),
+  next_due: z.iso.date("Fecha no válida"),
+  category_id: optionalUuid,
+  account_id: optionalUuid,
+  match_pattern: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((v) => v || null)
+    .refine((v) => v === null || v.length >= 2, "Escribe al menos 2 letras"),
+});

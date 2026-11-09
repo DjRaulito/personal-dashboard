@@ -5,8 +5,8 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 ## Estado actual
 
 - **Fase:** 3 — Finanzas: patrimonio, inversiones y métricas (rediseño)
-- **Última tarea hecha:** rediseño de Finanzas (patrimonio, inversiones con rentabilidades por periodo, gastos mes a mes, métricas) e importador de cartera
-- **Siguiente tarea:** Raúl importa su cartera en Finanzas → Inversiones → Importar y revisa las órdenes dudosas; comprobar precios de todos los activos. Después: presupuestos, huchas y pagos recurrentes
+- **Última tarea hecha:** pestaña Plan: presupuestos mensuales, huchas y pagos recurrentes (con detección automática) y widget "Próximos pagos" en la portada
+- **Siguiente tarea:** Raúl crea sus presupuestos, huchas y pagos recurrentes en Finanzas → Plan; pasar `web-design-guidelines` a Finanzas y cerrar la fase 3. Después: fase 4 (Gimnasio)
 
 ## Fase 0 — Cimientos
 
@@ -81,8 +81,11 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
 - [x] Motor: FIFO, plusvalías, serie diaria, TWR 1D/1S/1M/3M/YTD/1A/3A/5A/Total, P/G diario
 - [x] Pantallas: Patrimonio, Inversiones (+ operaciones, ficha de activo, importar), Gastos mes a mes, Métricas, Ajustes
 - [x] Exportar a Investing (CSV de lotes abiertos)
-- [ ] Verificación con la cartera real en producción
-- [ ] Presupuestos, huchas y pagos recurrentes (de la antigua fase 3)
+- [x] Verificación con la cartera real en producción (precios al día en todas las posiciones abiertas el 9 nov 2026)
+- [x] Migración `budgets_goals_recurring`: budgets, savings_goals y recurring_payments con RLS (aplicada)
+- [x] Pestaña Plan: presupuestos por categoría con aviso de ritmo, huchas (saldo de cuenta o a mano, aportación mensual necesaria) y pagos recurrentes (vencimientos, se dan por pagados al aparecer el cargo, detección en los movimientos)
+- [x] Portada: widget "Próximos pagos" (14 días)
+- [ ] Pasar `web-design-guidelines` a Finanzas antes de cerrar la fase
 
 ## Decisiones
 
