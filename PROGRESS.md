@@ -4,9 +4,9 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 
 ## Estado actual
 
-- **Fase:** 2 — Finanzas: núcleo
+- **Fase:** 3 — Finanzas: patrimonio, inversiones y métricas (rediseño)
 - **Última tarea hecha:** pantallas de finanzas (resumen con gráficas, cuentas, movimientos, importador, categorías y reglas)
-- **Siguiente tarea:** Raúl importa un extracto real (verificación de la fase 2); ajustar reglas según lo que quede sin categorizar. Después, fase 3
+- **Siguiente tarea:** recibir exportaciones de Raúl (cartera de Investing, operaciones de MyInvestor y MEXEM desde 2024) para escribir los importadores de inversiones
 
 ## Fase 0 — Cimientos
 
@@ -46,7 +46,7 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 
 ## Orden de fases (revisado el 9 nov 2026)
 
-0 Cimientos · 1 Acceso y calendario · 2 Finanzas: núcleo · 3 Finanzas: control y ahorro · 4 Gimnasio · 5 Nutrición · 6 IA, cruces y extras · 7 Agentes · 8 Contenido · 9 APK final y pulido.
+0 Cimientos · 1 Acceso y calendario · 2 Finanzas: núcleo · 3 Finanzas: patrimonio, inversiones y métricas · 4 Gimnasio · 5 Nutrición · 6 IA, cruces y extras · 7 Agentes · 8 Contenido · 9 APK final y pulido.
 Contenido y la APK pasan al final porque ahora mismo no se van a usar.
 
 ## Fase 2 — Finanzas: núcleo
@@ -59,10 +59,31 @@ Contenido y la APK pasan al final porque ahora mismo no se van a usar.
 - [ ] Pasar `web-design-guidelines` antes de cerrar la fase
 - [ ] Verificación: importas un extracto real y el 80 % queda categorizado solo
 
+## Fase 3 — Finanzas: patrimonio, inversiones y métricas (rediseño pedido el 9 nov 2026)
+
+Estructura nueva de Finanzas:
+
+- **Patrimonio:** total (cuentas + inversiones + planes), evolución y reparto.
+- **Inversiones:** posiciones, valor, coste, plusvalías latentes y realizadas; rentabilidad 1D, 1S, 1M, 3M, YTD, 1A, 3A, 5A y desde el inicio (en % y en €); ganancias/pérdidas diarias; operaciones; exportar a Investing.
+- **Gastos:** vista mes a mes (total, por categoría, lista con añadir/editar/borrar) e importación de extractos.
+- **Métricas:** tasa de ahorro, gasto medio, aportaciones vs. rentabilidad, etc.
+- **Ajustes:** cuentas, categorías y reglas.
+
+Fuentes: carga inicial con la exportación de la cartera de Investing + operaciones de MyInvestor y MEXEM desde 2024. Después la app lleva el seguimiento y exporta a Investing. Precios diarios con un cron gratuito.
+
+- [ ] Recibir exportaciones de ejemplo (no se suben al repo)
+- [ ] Modelo de datos de inversiones (activos, operaciones, precios diarios) + migración
+- [ ] Importadores: Investing, MyInvestor, MEXEM
+- [ ] Precios diarios (cron) e histórico desde 2024
+- [ ] Pantallas: Patrimonio, Inversiones, Gastos mes a mes, Métricas
+- [ ] Exportar a Investing
+- [ ] Presupuestos, huchas y pagos recurrentes (de la antigua fase 3)
+
 ## Decisiones
 
 - Login solo con Google vía Supabase Auth (sin Clerk).
 - Gimnasio por CSV exportado de Hevy (sin Hevy Pro).
+- Inversiones: fondos MyInvestor, acciones/ETFs (MyInvestor y MEXEM) y planes de pensiones. Historial desde 2024.
 - APK carga la web publicada (requiere conexión).
 - Contenido: YouTube, Instagram y TikTok.
 - Extractos bancarios: carpeta "Extractos" de Google Drive (PDF).
