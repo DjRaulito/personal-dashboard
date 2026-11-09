@@ -34,17 +34,6 @@ export default async function PlanPage() {
           </div>
         </Tile>
       )}
-      {plan && (
-        <details className="text-sm">
-          <summary className="text-muted cursor-pointer select-none">¿Plan nuevo de la nutricionista?</summary>
-          <p className="text-muted mt-2">
-            Crea uno nuevo: el actual se guarda como inactivo y lo apuntado en días anteriores se conserva.
-          </p>
-          <div className="mt-3">
-            <CreatePlanForm />
-          </div>
-        </details>
-      )}
     </>
   );
 }

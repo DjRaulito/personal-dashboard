@@ -325,15 +325,6 @@ export async function addGroup(mealId: string, name: string, kind: string, posit
   refresh();
 }
 
-export async function updateGroup(id: string, name: string, kind: string) {
-  const supabase = await session();
-  await supabase
-    .from("nutrition_plan_groups")
-    .update({ name: z.string().trim().min(1).max(60).parse(name), kind: z.enum(GROUP_KINDS).parse(kind) })
-    .eq("id", uuid.parse(id));
-  refresh();
-}
-
 export async function deleteGroup(id: string) {
   const supabase = await session();
   await supabase.from("nutrition_plan_groups").delete().eq("id", uuid.parse(id));
