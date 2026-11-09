@@ -15,9 +15,9 @@ export default function ImportPortfolioPage() {
         <TileTitle>Importar cartera</TileTitle>
       </div>
       <p className="text-muted mt-2 max-w-3xl text-sm">
-        Une la exportación de Investing con las operaciones de MyInvestor. Las acciones salen de las operaciones del
-        broker; los fondos, de las órdenes (con el ISIN y el importe exactos); y lo que solo esté en Investing (por
-        ejemplo MEXEM), de sus lotes.
+        Une la exportación de Investing con las operaciones de MyInvestor y MEXEM. Las acciones salen de las operaciones
+        de los brokers; los fondos, de las órdenes (con el ISIN y el importe exactos); y lo que solo esté en Investing
+        (por ejemplo otro broker), de sus lotes.
       </p>
       <div className="mt-5">
         <PortfolioImporter />

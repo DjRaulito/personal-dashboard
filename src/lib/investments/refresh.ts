@@ -3,7 +3,7 @@ import { dayKey } from "@/lib/datetime";
 import type { createClient } from "@/lib/supabase/server";
 import { addDays, valueAt } from "./engine";
 import { fetchFxSeries } from "./fx";
-import { currencyFactor, investingToYahoo, yahooDailyCloses, yahooSearch } from "./yahoo";
+import { currencyFactor, investingToYahoo, yahooDailyCloses, yahooSearch, type YahooQuote } from "./yahoo";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -18,6 +18,36 @@ const fxCurrency = (c: string) => (c === "GBX" ? "GBP" : c);
 
 async function inBatches<T>(items: T[], size: number, fn: (item: T) => Promise<void>) {
   for (let i = 0; i < items.length; i += size) await Promise.all(items.slice(i, i + size).map(fn));
+}
+
+/**
+ * Busca un símbolo de Yahoo con cotizaciones recientes: por ISIN, por el símbolo de Investing
+ * y por nombre. Se queda con el primer candidato que devuelva cierres de las últimas semanas.
+ */
+async function resolveYahooSymbol(
+  a: { name: string; isin: string | null; symbol: string | null; market: string | null; price_symbol: string | null },
+  today: string,
+): Promise<{ symbol: string; name: string | null } | null> {
+  const candidates: YahooQuote[] = [];
+  const add = (list: YahooQuote[]) => {
+    for (const q of list) if (!candidates.some((c) => c.symbol === q.symbol)) candidates.push(q);
+  };
+  if (a.price_symbol) add([{ symbol: a.price_symbol, name: null, quoteType: null }]);
+  if (a.isin) add(await yahooSearch(a.isin).catch(() => []));
+  const mapped = a.symbol ? investingToYahoo(a.symbol, a.market) : null;
+  if (mapped) add([{ symbol: mapped, name: null, quoteType: null }]);
+  add(await yahooSearch(a.name.replace(/\b(ADR|INC|PLC|SICAV|SA|SE)\b/gi, "").trim()).catch(() => []));
+
+  const from = addDays(today, -30);
+  for (const c of candidates.slice(0, 8)) {
+    try {
+      const { points } = await yahooDailyCloses(c.symbol, from, today);
+      if (points.length >= 3) return { symbol: c.symbol, name: c.name };
+    } catch {
+      // probar el siguiente
+    }
+  }
+  return null;
 }
 
 /** Descarga lo que falte de precios y tipos de cambio para la cartera del usuario. */
@@ -44,28 +74,34 @@ export async function refreshMarketData(supabase: Supabase): Promise<RefreshResu
   for (const [id, r] of range) if ((qty.get(id) ?? 0) > 1e-4) r.to = today;
   const firstDate = addDays(ops[0].trade_date, -7);
 
-  // 1. Resolver el símbolo de Yahoo de los activos que no lo tienen
+  // 1. Resolver el símbolo de Yahoo de los activos que no lo tienen o cuyo símbolo no da precios
+  // Menos de 5 cierres = el símbolo no sirve (o no se ha descargado nada todavía)
+  const counts = await Promise.all(
+    assets.map(async (a) => {
+      const { count } = await supabase
+        .from("asset_prices")
+        .select("asset_id", { count: "exact", head: true })
+        .eq("asset_id", a.id)
+        .eq("source", "yahoo");
+      return [a.id, count ?? 0] as const;
+    }),
+  );
+  const hasPrices = new Set(counts.filter(([, n]) => n >= 5).map(([id]) => id));
   await inBatches(
-    assets.filter((a) => a.price_source === "yahoo" && !a.price_symbol),
-    4,
+    assets.filter((a) => a.price_source === "yahoo" && (!a.price_symbol || !hasPrices.has(a.id))),
+    3,
     async (a) => {
       try {
-        let symbol: string | null = null;
-        let name: string | null = null;
-        if (a.isin) {
-          const hit = (await yahooSearch(a.isin))[0];
-          if (hit) ({ symbol, name } = hit);
-        }
-        if (!symbol && a.symbol) symbol = investingToYahoo(a.symbol, a.market);
-        if (!symbol) {
-          const hit = (await yahooSearch(a.name))[0];
-          if (hit) ({ symbol, name } = hit);
-        }
-        if (!symbol) return void result.errors.push(`Sin símbolo de Yahoo para ${a.name}`);
-        const update: { price_symbol: string; name?: string } = { price_symbol: symbol };
-        if (name && a.name === a.isin) update.name = name.slice(0, 120);
+        const hit = await resolveYahooSymbol(a, today);
+        if (!hit)
+          return void result.errors.push(`Sin precios en Yahoo para ${a.name}: ponlo a mano o indica su símbolo`);
+        if (hit.symbol === a.price_symbol) return;
+        const update: { price_symbol: string; name?: string } = { price_symbol: hit.symbol };
+        if (hit.name && a.name === a.isin) update.name = hit.name.slice(0, 120);
         await supabase.from("assets").update(update).eq("id", a.id);
-        a.price_symbol = symbol;
+        // Los precios del símbolo anterior no sirven
+        if (a.price_symbol) await supabase.from("asset_prices").delete().eq("asset_id", a.id).eq("source", "yahoo");
+        a.price_symbol = hit.symbol;
         if (update.name) a.name = update.name;
         result.resolved++;
       } catch (e) {

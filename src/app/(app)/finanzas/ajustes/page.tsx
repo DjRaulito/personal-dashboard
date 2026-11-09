@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { NewAssetForm } from "@/components/investments/new-asset-form";
 import { Tile, TileTitle } from "@/components/ui";
 import { getPortfolio } from "@/lib/investments/server";
 import { KIND_LABELS } from "@/lib/investments/view";
@@ -36,6 +37,16 @@ export default async function FinanceSettingsPage() {
           </Link>
         ))}
       </section>
+      <Tile>
+        <TileTitle>Añadir activo a mano</TileTitle>
+        <p className="text-muted mt-1 text-sm">
+          Para planes de pensiones u otros productos que no vienen en las importaciones. Después añade sus aportaciones
+          en Inversiones → Operaciones y su valor liquidativo en la ficha del activo.
+        </p>
+        <div className="mt-4">
+          <NewAssetForm />
+        </div>
+      </Tile>
       <Tile>
         <TileTitle>Activos ({pf.assets.length})</TileTitle>
         <p className="text-muted mt-1 text-sm">

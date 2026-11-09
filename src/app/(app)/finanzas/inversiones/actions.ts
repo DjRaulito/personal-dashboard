@@ -49,6 +49,8 @@ const draftOperation = z.object({
 const importSchema = z.object({
   assets: z.array(draftAsset).max(500),
   operations: z.array(draftOperation).min(1).max(5000),
+  /** Borra antes las operaciones importadas (no las manuales): para volver a cargar todo de cero. */
+  replace: z.boolean().default(false),
 });
 
 export interface PortfolioImportResult {
@@ -63,13 +65,33 @@ export async function importPortfolio(input: z.input<typeof importSchema>): Prom
   const parsed = importSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: "Datos de importación no válidos." };
   const { supabase } = await session();
-  const { assets, operations } = parsed.data;
+  const { assets, operations, replace } = parsed.data;
+
+  let touched: string[] = [];
+  if (replace) {
+    const { data: removed, error } = await supabase
+      .from("investment_operations")
+      .delete()
+      .neq("source", "manual")
+      .select("asset_id");
+    if (error) return { ok: false, message: "No se pudieron borrar las operaciones anteriores." };
+    touched = [...new Set((removed ?? []).map((r) => r.asset_id))];
+  }
 
   const { data: existing } = await supabase.from("assets").select("id, isin, symbol");
   const idByKey = new Map<string, string>();
   for (const a of assets) {
-    const hit = existing?.find((e) => (a.isin && e.isin === a.isin) || (!a.isin && a.symbol && e.symbol === a.symbol));
-    if (hit) idByKey.set(a.key, hit.id);
+    // Por ISIN; si no, por símbolo de Investing (y entonces se completa el ISIN que faltaba)
+    const hit =
+      existing?.find((e) => a.isin && e.isin === a.isin) ??
+      existing?.find((e) => a.symbol && e.symbol === a.symbol && (!e.isin || !a.isin));
+    if (hit) {
+      idByKey.set(a.key, hit.id);
+      if (!hit.isin && a.isin) {
+        await supabase.from("assets").update({ isin: a.isin, broker: a.broker }).eq("id", hit.id);
+        hit.isin = a.isin;
+      }
+    }
   }
   const toInsert = assets.filter((a) => !idByKey.has(a.key));
   if (toInsert.length) {
@@ -114,10 +136,18 @@ export async function importPortfolio(input: z.input<typeof importSchema>): Prom
     if (error) return { ok: false, message: `Error al guardar operaciones (llevaba ${inserted}).` };
     inserted += data.length;
   }
+  // Activos que se quedaron sin operaciones al reemplazar (p. ej. duplicados antiguos)
+  if (touched.length) {
+    const { data: still } = await supabase.from("investment_operations").select("asset_id").in("asset_id", touched);
+    const alive = new Set((still ?? []).map((r) => r.asset_id));
+    const orphans = touched.filter((id) => !alive.has(id));
+    if (orphans.length) await supabase.from("assets").delete().in("id", orphans);
+  }
+
   refresh();
   return {
     ok: true,
-    message: "Cartera importada.",
+    message: replace ? "Cartera reemplazada." : "Cartera importada.",
     newAssets: toInsert.length,
     newOperations: inserted,
   };
@@ -211,4 +241,35 @@ export async function addManualPrice(_: unknown, formData: FormData): Promise<{ 
   if (error) return { ok: false, message: "No se pudo guardar el precio." };
   refresh();
   return { ok: true, message: "Precio guardado." };
+}
+
+const newAssetForm = z.object({
+  name: z.string().trim().min(1).max(120),
+  isin: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .optional()
+    .transform((v) => v || null)
+    .pipe(
+      z
+        .string()
+        .regex(/^[A-Z]{2}[A-Z0-9]{9}\d$/, "ISIN no válido")
+        .nullable(),
+    ),
+  kind: z.enum(["fund", "stock", "etf", "pension", "other"]),
+  currency: z.string().regex(/^[A-Z]{3}$/),
+  price_source: z.enum(["yahoo", "manual"]),
+});
+
+/** Alta manual de un activo (p. ej. un plan de pensiones). */
+export async function createAsset(_: unknown, formData: FormData): Promise<{ ok: boolean; message: string }> {
+  const parsed = newAssetForm.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Revisa los campos." };
+  const { supabase } = await session();
+  const { error } = await supabase.from("assets").insert({ ...parsed.data, broker: "other" });
+  if (error)
+    return { ok: false, message: error.code === "23505" ? "Ese activo ya existe." : "No se pudo crear el activo." };
+  refresh();
+  return { ok: true, message: "Activo creado. Ahora añade sus aportaciones en Operaciones y su valor en la ficha." };
 }

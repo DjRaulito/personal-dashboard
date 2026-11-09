@@ -41,3 +41,14 @@ export const STOCK_OPS_HTML = `<html><body><table>
 <tr><td>2025-07-20</td><td>2025-07-22</td><td>6</td><td>GENERICO</td><td>CONTRASPLIT-ALTA</td><td>ES0000000005</td><td>EMPRESA EJEMPLO NUEVA</td><td>10</td><td>EUR</td><td>20.4</td><td>204.00</td></tr>
 <tr><td>2025-07-20</td><td>2025-07-22</td><td>5</td><td>GENERICO</td><td>CONTRASPLIT-BAJA</td><td>ES0000000004</td><td>EMPRESA EJEMPLO SA</td><td>100</td><td>EUR</td><td>2.04</td><td>204.00</td></tr>
 </table></body></html>`;
+
+export const MEXEM_CSV = `Statement,Header,Nombre del campo,Valor del campo
+Statement,Data,Title,Transaction History
+Transaction History,Header,Date,Account,Description,Transaction Type,Symbol,Quantity,Price,Price Currency,Gross Amount ,Commission,Net Amount
+Transaction History,Data,2025-07-13,U***00000,OTRA(US0000000009) Dividendo en efectivo USD 1.05 por acción (Dividendo ordinario),Dividend,OTRA,-,-,-,10.5,-,10.5
+Transaction History,Data,2025-07-13,U***00000,OTRA(US0000000009) Dividendo en efectivo USD 1.05 por acción - FEE,Other Fee,OTRA,-,-,-,-0.2,-,-0.2
+Transaction History,Data,2025-06-01,U***00000,Transferencia de Fondos Electrónica,Deposit,-,-,-,-,700.0,-,700.0
+Transaction History,Data,2025-02-15,U***00000,OTRA COSA HOLDING-SP ADR,Buy,OTRA.F,3.0,50.0,EUR,-150.0,-1.0,-151.0
+Transaction History,Data,2025-02-15,U***00000,OTRA COSA HOLDING-SP ADR,Buy,OTRA.F,1.0,50.0,EUR,-50.0,-,-50.0
+Transaction History,Data,2025-06-01,U***00000,EMPRESA EJEMPLO NUEVA SA,Buy,EJE,50,2.0,EUR,-100.0,-1.0,-101.0
+`;

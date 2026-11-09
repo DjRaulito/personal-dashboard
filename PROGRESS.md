@@ -74,7 +74,9 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
 - [x] Recibir exportaciones (Investing, órdenes de fondos y operaciones de valores de MyInvestor, información fiscal); no se suben al repo
 - [x] Migración `investments`: assets, investment_operations, asset_prices, fx_rates con RLS (aplicada)
 - [x] Importadores: Investing (lotes), MyInvestor fondos (sentido deducido) y valores; conciliación probada con los datos reales (16/16 posiciones cuadran)
-- [ ] Importador de MEXEM (falta su exportación; por ahora sus posiciones salen de Investing)
+- [x] Importador de MEXEM (historial de transacciones CSV de IBKR)
+- [x] Corrección: contrasplits con precios ajustados de Yahoo (Amper inflaba 2025) y búsqueda de símbolos que sí tengan precios
+- [x] Alta manual de activos (plan de pensiones Caser con valor liquidativo a mano)
 - [x] Precios (Yahoo) y tipos de cambio (BCE) al abrir Inversiones, con relleno histórico; verificado desde Vercel
 - [x] Motor: FIFO, plusvalías, serie diaria, TWR 1D/1S/1M/3M/YTD/1A/3A/5A/Total, P/G diario
 - [x] Pantallas: Patrimonio, Inversiones (+ operaciones, ficha de activo, importar), Gastos mes a mes, Métricas, Ajustes
@@ -86,7 +88,7 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
 
 - Login solo con Google vía Supabase Auth (sin Clerk).
 - Gimnasio por CSV exportado de Hevy (sin Hevy Pro).
-- Inversiones: fondos MyInvestor, acciones/ETFs (MyInvestor y MEXEM) y planes de pensiones. Historial desde 2024.
+- Inversiones: fondos MyInvestor, acciones/ETFs (MyInvestor y MEXEM) y plan de pensiones en Caser (valor a mano). Historial desde 2024.
 - APK carga la web publicada (requiere conexión).
 - Contenido: YouTube, Instagram y TikTok.
 - Extractos bancarios: carpeta "Extractos" de Google Drive (PDF).

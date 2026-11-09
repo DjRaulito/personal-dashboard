@@ -109,3 +109,40 @@ describe("conciliación", () => {
     expect(qty(otra.key)).toBe(4);
   });
 });
+
+describe("MEXEM", async () => {
+  const { MEXEM_CSV } = await import("./fixtures");
+  const { parseMexemCsv } = await import("./mexem");
+  const ops = parseMexemCsv(MEXEM_CSV);
+
+  it("agrupa ejecuciones, saca el ISIN de los dividendos e ignora depósitos", () => {
+    expect(ops.map((o) => `${o.date} ${o.type} ${o.symbol} ${o.quantity} ${o.netEur}`)).toEqual([
+      "2025-02-15 buy OTRA 4 -201",
+      "2025-06-01 buy EJE 50 -101",
+      "2025-07-13 dividend OTRA 0 10.5",
+      "2025-07-13 fee OTRA 0 -0.2",
+    ]);
+    expect(ops[0].isin).toBe("US0000000009");
+  });
+
+  it("sustituye los lotes de Investing y se une al valor de MyInvestor por nombre", () => {
+    const r = reconcile({
+      investing: parseInvestingCsv(INVESTING_CSV),
+      fundOrders: [],
+      stockOps: parseStockOperationsHtml(STOCK_OPS_HTML),
+      mexemOps: ops,
+    });
+    const otra = r.assets.find((a) => a.symbol === "OTRA.TG")!;
+    expect(otra).toMatchObject({ isin: "US0000000009", broker: "mexem" });
+    const otraOps = r.operations.filter((o) => o.assetKey === otra.key);
+    expect(otraOps.map((o) => o.source)).toEqual(["mexem", "mexem", "mexem"]);
+    expect(otraOps[0].cashEur).toBe(201);
+    // EJE: 10 tras el contrasplit (MyInvestor) + 50 de MEXEM, sin el lote de Investing duplicado
+    const eje = r.assets.find((a) => a.symbol === "EJE.MC")!;
+    const qty = r.operations
+      .filter((o) => o.assetKey === eje.key)
+      .reduce((s, o) => s + (o.type === "buy" ? o.quantity : o.type === "sell" ? -o.quantity : 0), 0);
+    expect(qty).toBe(60);
+    expect(r.operations.filter((o) => o.assetKey === eje.key && o.source === "investing")).toHaveLength(0);
+  });
+});

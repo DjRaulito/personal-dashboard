@@ -1,4 +1,5 @@
 import { marketCurrency, type InvestingExport, type InvestingLot } from "./investing-csv";
+import type { MexemOperation } from "./mexem";
 import type { FundOrder, StockOperation } from "./myinvestor";
 import { inferFundSides, type SidedOrder, type SideHint } from "./fund-sides";
 import type { DraftAsset, DraftOperation } from "./types";
@@ -232,13 +233,60 @@ function matchScore(group: InvestingAssetGroup, assetName: string, brokerOps: Dr
   return score;
 }
 
+/** Añade las operaciones de MEXEM a los activos del broker (por ISIN o por nombre) o crea activos nuevos. */
+function addMexem(stock: ReturnType<typeof brokerStock>, ops: MexemOperation[]) {
+  const keyBySymbol = new Map<string, string>();
+  for (const op of ops) {
+    if (keyBySymbol.has(op.symbol)) continue;
+    const name = op.type === "buy" || op.type === "sell" ? op.name : null;
+    let key = op.isin && stock.assets.has(op.isin) ? op.isin : null;
+    if (!key && name) {
+      const tokens = new Set(nameTokens(name));
+      for (const [k, a] of stock.assets) {
+        if (nameTokens(a.name).filter((t) => tokens.has(t)).length >= 2) key = k;
+      }
+    }
+    if (!key) key = op.isin ?? `MEXEM:${op.symbol}`;
+    keyBySymbol.set(op.symbol, key);
+  }
+  for (const op of ops) {
+    const key = keyBySymbol.get(op.symbol)!;
+    if (!stock.assets.has(key)) {
+      const trade = ops.find((o) => o.symbol === op.symbol && (o.type === "buy" || o.type === "sell"));
+      stock.assets.set(key, {
+        key,
+        name: trade?.name ?? op.symbol,
+        isin: op.isin,
+        symbol: null,
+        market: null,
+        kind: "stock",
+        currency: trade?.currency ?? "EUR",
+        broker: "mexem",
+      });
+    }
+    stock.operations.push({
+      assetKey: key,
+      type: op.type,
+      date: op.date,
+      quantity: op.type === "buy" || op.type === "sell" ? op.quantity : 0,
+      price: op.price,
+      cashEur: -op.netEur,
+      grossLocal: -op.netEur,
+      source: "mexem",
+      externalId: `mexem:${op.date}:${op.symbol}:${op.type}:${op.quantity}`,
+    });
+  }
+}
+
 export function reconcile(input: {
   investing: InvestingExport | null;
   fundOrders: FundOrder[];
   stockOps: StockOperation[];
+  mexemOps?: MexemOperation[];
 }): ReconcileResult {
   const warnings: string[] = [];
   const stock = brokerStock(input.stockOps);
+  addMexem(stock, input.mexemOps ?? []);
   const assets = new Map(stock.assets);
   const operations = [...stock.operations];
   const opsByAsset = (key: string) => operations.filter((o) => o.assetKey === key);

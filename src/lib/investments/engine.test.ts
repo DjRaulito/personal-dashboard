@@ -168,3 +168,32 @@ describe("exportación a Investing", async () => {
     expect(csv.split("\r\n")[1]).toBe('"IE00B4L5Y983","12","3","BUY","2025-02-01","0","EUR","Fondo X"');
   });
 });
+
+describe("splits con precios ajustados", () => {
+  // 3200 títulos a 0,15 €; contrasplit 25:1 el día 5 -> 128 títulos. Yahoo da 3,75 € también antes del split.
+  const input = base(
+    [
+      op({ type: "buy", date: "2025-01-01", quantity: 3200, price: 0.15, cashEur: 480 }),
+      op({ type: "sell", date: "2025-01-05", quantity: 3200, price: 0, cashEur: 0, isSplit: true }),
+      op({ type: "buy", date: "2025-01-05", quantity: 128, price: 0, cashEur: 0, isSplit: true }),
+    ],
+    [
+      ["2025-01-01", 3.75],
+      ["2025-01-06", 3.75],
+    ],
+    "2025-01-08",
+  );
+
+  it("el valor no salta en el split", () => {
+    const s = dailySeries(input);
+    expect(s.map((p) => Math.round(p.valueEur))).toEqual([480, 480, 480, 480, 480, 480, 480, 480]);
+    const total = periodReturns(s, "2025-01-08").find((r) => r.period === "TOTAL")!;
+    expect(total.returnPct).toBeCloseTo(0);
+  });
+
+  it("sin precios de mercado usa el de la operación ajustado", () => {
+    const s = dailySeries({ ...input, prices: new Map() });
+    expect(Math.round(s[0].valueEur)).toBe(480);
+    expect(Math.round(s.at(-1)!.valueEur)).toBe(480);
+  });
+});
