@@ -7,6 +7,153 @@ export type Database = {
   };
   public: {
     Tables: {
+      assets: {
+        Row: {
+          broker: string;
+          created_at: string;
+          currency: string;
+          id: string;
+          isin: string | null;
+          kind: string;
+          market: string | null;
+          name: string;
+          price_source: string;
+          price_symbol: string | null;
+          symbol: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          broker?: string;
+          created_at?: string;
+          currency?: string;
+          id?: string;
+          isin?: string | null;
+          kind?: string;
+          market?: string | null;
+          name: string;
+          price_source?: string;
+          price_symbol?: string | null;
+          symbol?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          broker?: string;
+          created_at?: string;
+          currency?: string;
+          id?: string;
+          isin?: string | null;
+          kind?: string;
+          market?: string | null;
+          name?: string;
+          price_source?: string;
+          price_symbol?: string | null;
+          symbol?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      investment_operations: {
+        Row: {
+          asset_id: string;
+          cash_eur_cents: number | null;
+          created_at: string;
+          external_id: string | null;
+          gross_local: number | null;
+          id: string;
+          is_split: boolean;
+          notes: string | null;
+          price: number | null;
+          quantity: number;
+          source: string;
+          trade_date: string;
+          type: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          asset_id: string;
+          cash_eur_cents?: number | null;
+          created_at?: string;
+          external_id?: string | null;
+          gross_local?: number | null;
+          id?: string;
+          is_split?: boolean;
+          notes?: string | null;
+          price?: number | null;
+          quantity?: number;
+          source?: string;
+          trade_date: string;
+          type: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          asset_id?: string;
+          cash_eur_cents?: number | null;
+          created_at?: string;
+          external_id?: string | null;
+          gross_local?: number | null;
+          id?: string;
+          is_split?: boolean;
+          notes?: string | null;
+          price?: number | null;
+          quantity?: number;
+          source?: string;
+          trade_date?: string;
+          type?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      asset_prices: {
+        Row: {
+          asset_id: string;
+          close: number;
+          price_date: string;
+          source: string;
+          user_id: string;
+        };
+        Insert: {
+          asset_id: string;
+          close: number;
+          price_date: string;
+          source?: string;
+          user_id?: string;
+        };
+        Update: {
+          asset_id?: string;
+          close?: number;
+          price_date?: string;
+          source?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      fx_rates: {
+        Row: {
+          currency: string;
+          eur_per_unit: number;
+          rate_date: string;
+          user_id: string;
+        };
+        Insert: {
+          currency: string;
+          eur_per_unit: number;
+          rate_date: string;
+          user_id?: string;
+        };
+        Update: {
+          currency?: string;
+          eur_per_unit?: number;
+          rate_date?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       accounts: {
         Row: {
           archived: boolean;
