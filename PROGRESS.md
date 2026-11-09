@@ -4,9 +4,9 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 
 ## Estado actual
 
-- **Fase:** 1 — Acceso, estructura y calendario
-- **Última tarea hecha:** migración núcleo aplicada, login con Google, layout, Ajustes y calendario (código)
-- **Siguiente tarea:** configurar Google OAuth (Google Cloud + Supabase + Vercel) y verificar el login real; después, Capacitor + APK
+- **Fase:** 2 — Finanzas: núcleo
+- **Última tarea hecha:** pantallas de finanzas (resumen con gráficas, cuentas, movimientos, importador, categorías y reglas)
+- **Siguiente tarea:** Raúl importa un extracto real (verificación de la fase 2); ajustar reglas según lo que quede sin categorizar. Después, fase 3
 
 ## Fase 0 — Cimientos
 
@@ -18,7 +18,7 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 - [x] Workflow de CI (lint + typecheck + tests + build + e2e)
 - [x] Repo en GitHub (DjRaulito/personal-dashboard) y primer push
 - [x] Proyecto en Vercel enlazado al repo y primer despliegue
-- [ ] Verificación: URL pública carga y CI en verde (falta confirmar CI)
+- [x] Verificación: URL pública carga y CI en verde
 
 ## Fase 1 — Acceso, estructura y calendario
 
@@ -30,10 +30,10 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 - [x] Pantalla de Ajustes (nombre, moneda, estado de conexiones, cerrar sesión)
 - [x] Google Calendar: vistas hoy / semana / mes (refresh token cifrado con AES-256-GCM en `integrations`)
 - [x] Portada con widget de agenda (hoy y mañana) y widgets vacíos de cada módulo
-- [ ] Configurar Google OAuth: cliente en Google Cloud, proveedor Google en Supabase, URLs de redirección y variables en Vercel
+- [x] Configurar Google OAuth: cliente en Google Cloud, proveedor Google en Supabase, URLs de redirección y variables en Vercel
 - [ ] Desactivar el registro público en Supabase Auth después del primer login
-- [ ] Capacitor + workflow que genera la APK de prueba
-- [ ] Verificación: entras con Google en web y APK y ves tu agenda real
+- [ ] ~~Capacitor + APK de prueba~~ → movido a la fase 9 (la APK va al final)
+- [ ] Verificación: entras con Google en web y APK y ves tu agenda real (web hecha el 9 nov 2026: perfil e integración de Google creados; falta APK)
 
 ### Pasos manuales pendientes (los hace Raúl)
 
@@ -43,6 +43,21 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 4. Supabase → Authentication → URL Configuration: Site URL = URL de Vercel; Redirect URLs = `https://<url-vercel>/auth/callback` y `http://localhost:3000/auth/callback`.
 5. Vercel (y `.env.local`): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TOKEN_ENCRYPTION_KEY` (`openssl rand -base64 32`). Redesplegar.
 6. Tras el primer login correcto: Supabase → Authentication → Sign In / Providers → desactivar "Allow new users to sign up".
+
+## Orden de fases (revisado el 9 nov 2026)
+
+0 Cimientos · 1 Acceso y calendario · 2 Finanzas: núcleo · 3 Finanzas: control y ahorro · 4 Gimnasio · 5 Nutrición · 6 IA, cruces y extras · 7 Agentes · 8 Contenido · 9 APK final y pulido.
+Contenido y la APK pasan al final porque ahora mismo no se van a usar.
+
+## Fase 2 — Finanzas: núcleo
+
+- [x] Migración `finance_core`: accounts, categories (set inicial en español), transactions (anti-duplicados), rules (54 reglas iniciales) e import_profiles, con RLS (aplicada)
+- [x] Funciones SQL de resumen: saldos, cashflow mensual, gasto por categoría y patrimonio por mes
+- [x] Lógica pura: importes en céntimos, parser de extractos, mapeo por banco, huella anti-duplicados, motor de reglas
+- [x] Pantallas: resumen con gráficas, cuentas, movimientos (filtros, búsqueda, edición masiva), importador, categorías y reglas
+- [x] Portada: patrimonio neto y gasto del mes con datos reales
+- [ ] Pasar `web-design-guidelines` antes de cerrar la fase
+- [ ] Verificación: importas un extracto real y el 80 % queda categorizado solo
 
 ## Decisiones
 

@@ -27,6 +27,7 @@ Dirección elegida: **Bento nocturno** (mezcla de "Bento vivo" + "Nocturno con a
 | `--content`       | `#93A3D4` | Contenido, calendario, ahorro (azul grisáceo) |
 | `--nutrition`     | `#86B8C4` | Nutrición (azul verdoso)                      |
 | `--attention`     | `#D6C48E` | Algo espera tu acción (arena)                 |
+| `--expense`       | `#C0745A` | Gastos en gráficas (pareja de `--finance`)    |
 
 Radios: bloques `28px`, elementos internos `16px`, píldoras `999px`.
 
@@ -43,6 +44,7 @@ Radios: bloques `28px`, elementos internos `16px`, píldoras `999px`.
 - **Píldora:** `rounded-full bg-surface-2 px-3 py-1 text-sm`.
 - **Anillos:** SVG con pista al 16 % de opacidad del mismo color y trazo redondeado.
 - **Gráficas de área:** línea de 2.5–3 px + degradado del mismo color del 30 % al 0 %.
+- **Gráficas en general:** barras ≤ 24 px con extremo redondeado de 4 px, rejilla de 1 px recesiva, leyenda si hay ≥ 2 series, textos en tokens de texto (nunca del color de la serie), tooltip al pasar el ratón y tabla de datos accesible. Ingresos = `--finance`, gastos = `--expense` (pareja validada para daltonismo con el validador de la skill dataviz).
 
 ## Prohibido (señales de "hecho con IA")
 

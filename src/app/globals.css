@@ -19,6 +19,8 @@
   --content: #93a3d4;
   --nutrition: #86b8c4;
   --attention: #d6c48e;
+  /* Gastos en gráficas (pareja validada con --finance para daltonismo) */
+  --expense: #c0745a;
 
   --radius-tile: 28px;
   --radius-inner: 16px;
@@ -38,6 +40,7 @@
   --color-content: var(--content);
   --color-nutrition: var(--nutrition);
   --color-attention: var(--attention);
+  --color-expense: var(--expense);
   --radius-tile: var(--radius-tile);
   --radius-inner: var(--radius-inner);
   --font-sans: "Onest Variable", system-ui, sans-serif;

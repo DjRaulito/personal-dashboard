@@ -7,6 +7,115 @@ export type Database = {
   };
   public: {
     Tables: {
+      accounts: {
+        Row: {
+          archived: boolean;
+          created_at: string;
+          currency: string;
+          id: string;
+          initial_balance_cents: number;
+          name: string;
+          type: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          archived?: boolean;
+          created_at?: string;
+          currency?: string;
+          id?: string;
+          initial_balance_cents?: number;
+          name: string;
+          type: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          archived?: boolean;
+          created_at?: string;
+          currency?: string;
+          id?: string;
+          initial_balance_cents?: number;
+          name?: string;
+          type?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      categories: {
+        Row: {
+          created_at: string;
+          id: string;
+          kind: string;
+          name: string;
+          parent_id: string | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          kind: string;
+          name: string;
+          parent_id?: string | null;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          kind?: string;
+          name?: string;
+          parent_id?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "categories_parent_id_fkey";
+            columns: ["parent_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      import_profiles: {
+        Row: {
+          account_id: string | null;
+          created_at: string;
+          id: string;
+          mapping: Json;
+          name: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          account_id?: string | null;
+          created_at?: string;
+          id?: string;
+          mapping: Json;
+          name: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          account_id?: string | null;
+          created_at?: string;
+          id?: string;
+          mapping?: Json;
+          name?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "import_profiles_account_id_fkey";
+            columns: ["account_id"];
+            isOneToOne: false;
+            referencedRelation: "accounts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       integrations: {
         Row: {
           account_email: string | null;
@@ -70,9 +179,124 @@ export type Database = {
         };
         Relationships: [];
       };
+      rules: {
+        Row: {
+          amount_sign: string;
+          category_id: string;
+          created_at: string;
+          id: string;
+          match_type: string;
+          pattern: string;
+          priority: number;
+          user_id: string;
+        };
+        Insert: {
+          amount_sign?: string;
+          category_id: string;
+          created_at?: string;
+          id?: string;
+          match_type?: string;
+          pattern: string;
+          priority?: number;
+          user_id?: string;
+        };
+        Update: {
+          amount_sign?: string;
+          category_id?: string;
+          created_at?: string;
+          id?: string;
+          match_type?: string;
+          pattern?: string;
+          priority?: number;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "rules_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      transactions: {
+        Row: {
+          account_id: string;
+          amount_cents: number;
+          booked_on: string;
+          category_id: string | null;
+          created_at: string;
+          description: string;
+          id: string;
+          import_hash: string | null;
+          notes: string | null;
+          source: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          account_id: string;
+          amount_cents: number;
+          booked_on: string;
+          category_id?: string | null;
+          created_at?: string;
+          description: string;
+          id?: string;
+          import_hash?: string | null;
+          notes?: string | null;
+          source?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          account_id?: string;
+          amount_cents?: number;
+          booked_on?: string;
+          category_id?: string | null;
+          created_at?: string;
+          description?: string;
+          id?: string;
+          import_hash?: string | null;
+          notes?: string | null;
+          source?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "transactions_account_id_fkey";
+            columns: ["account_id"];
+            isOneToOne: false;
+            referencedRelation: "accounts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "transactions_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: { [_ in never]: never };
-    Functions: { [_ in never]: never };
+    Functions: {
+      account_balances: { Args: never; Returns: { account_id: string; balance_cents: number }[] };
+      category_spending: {
+        Args: { p_from: string; p_to: string };
+        Returns: { category_id: string; spent_cents: number }[];
+      };
+      monthly_cashflow: {
+        Args: { p_from: string; p_to: string };
+        Returns: { expense_cents: number; income_cents: number; month: string }[];
+      };
+      net_worth_by_month: {
+        Args: { p_from: string; p_to: string };
+        Returns: { month: string; net_worth_cents: number }[];
+      };
+    };
     Enums: { [_ in never]: never };
     CompositeTypes: { [_ in never]: never };
   };
