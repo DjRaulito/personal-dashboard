@@ -105,6 +105,7 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
 - Gimnasio por CSV exportado de Hevy (sin Hevy Pro).
 - Inversiones: fondos MyInvestor, acciones/ETFs (MyInvestor y MEXEM) y plan de pensiones en Caser (valor a mano). Historial desde 2024.
 - APK carga la web publicada (requiere conexión).
+- Icono de la app (favicon, icono de Apple y manifiesto) a partir de la imagen de Raúl: recortada a cuadrado sobre negro; `public/icon-512.png` servirá también para la APK.
 - Contenido: YouTube, Instagram y TikTok.
 - Extractos bancarios: carpeta "Extractos" de Google Drive (PDF).
 - Cuenta con acceso (lista blanca): rmolina2003.rm@gmail.com. La lista vive en `private.allowed_emails` (no expuesta por la API); un trigger sobre `auth.users` rechaza cualquier otro email.
