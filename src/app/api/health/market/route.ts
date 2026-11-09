@@ -22,10 +22,23 @@ export async function GET(request: NextRequest) {
   const name = request.nextUrl.searchParams.get("name")?.slice(0, 60) ?? null;
   if (isin || name) {
     const validIsin = isin && /^[A-Z]{2}[A-Z0-9]{9}\d$/.test(isin) ? isin : null;
+    const sp = request.nextUrl.searchParams;
+    const price = Number(sp.get("price"));
+    const date = sp.get("date");
+    const reference = price > 0 && date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? { date, price } : null;
+    const currency = /^[A-Z]{3}$/.test(sp.get("currency") ?? "") ? sp.get("currency")! : "EUR";
     return NextResponse.json(
       await check(() =>
         resolveYahooSymbol(
-          { name: name ?? validIsin ?? "", isin: validIsin, symbol: null, market: null, price_symbol: null },
+          {
+            name: name ?? validIsin ?? "",
+            isin: validIsin,
+            symbol: null,
+            market: null,
+            price_symbol: null,
+            currency,
+            reference,
+          },
           to,
         ),
       ),
