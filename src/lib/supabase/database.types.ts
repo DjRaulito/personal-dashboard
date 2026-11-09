@@ -154,6 +154,117 @@ export type Database = {
         };
         Relationships: [];
       };
+      budgets: {
+        Row: {
+          amount_cents: number;
+          category_id: string;
+          created_at: string;
+          id: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          amount_cents: number;
+          category_id: string;
+          created_at?: string;
+          id?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          amount_cents?: number;
+          category_id?: string;
+          created_at?: string;
+          id?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      recurring_payments: {
+        Row: {
+          account_id: string | null;
+          active: boolean;
+          amount_cents: number;
+          category_id: string | null;
+          created_at: string;
+          frequency: string;
+          id: string;
+          match_pattern: string | null;
+          name: string;
+          next_due: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          account_id?: string | null;
+          active?: boolean;
+          amount_cents: number;
+          category_id?: string | null;
+          created_at?: string;
+          frequency?: string;
+          id?: string;
+          match_pattern?: string | null;
+          name: string;
+          next_due: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          account_id?: string | null;
+          active?: boolean;
+          amount_cents?: number;
+          category_id?: string | null;
+          created_at?: string;
+          frequency?: string;
+          id?: string;
+          match_pattern?: string | null;
+          name?: string;
+          next_due?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      savings_goals: {
+        Row: {
+          account_id: string | null;
+          archived: boolean;
+          created_at: string;
+          id: string;
+          name: string;
+          saved_cents: number;
+          target_cents: number;
+          target_date: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          account_id?: string | null;
+          archived?: boolean;
+          created_at?: string;
+          id?: string;
+          name: string;
+          saved_cents?: number;
+          target_cents: number;
+          target_date?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          account_id?: string | null;
+          archived?: boolean;
+          created_at?: string;
+          id?: string;
+          name?: string;
+          saved_cents?: number;
+          target_cents?: number;
+          target_date?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       accounts: {
         Row: {
           archived: boolean;
