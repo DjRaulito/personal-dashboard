@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Apple, CalendarDays, Clapperboard, Dumbbell, House, Settings, Wallet, type LucideIcon } from "lucide-react";
 import { clsx } from "clsx";
 import { isActive, NAV_ITEMS, type NavIcon } from "@/lib/navigation";
+import { LinkPending } from "./link-pending";
 
 const ICONS: Record<NavIcon, LucideIcon> = {
   home: House,
@@ -38,12 +39,13 @@ export function AppNav() {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={clsx(
-                  "focus-visible:outline-text flex flex-col items-center gap-1 px-1 py-2.5 text-[11px] font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:-outline-offset-2 md:flex-row md:gap-3 md:rounded-full md:px-4 md:py-2.5 md:text-sm",
+                  "focus-visible:outline-text relative flex flex-col items-center gap-1 px-1 py-2.5 text-[11px] font-medium transition-colors transition-transform duration-200 focus-visible:outline-2 focus-visible:-outline-offset-2 active:scale-95 motion-reduce:active:scale-100 md:flex-row md:gap-3 md:rounded-full md:px-4 md:py-2.5 md:text-sm",
                   active ? "text-text md:bg-surface-2" : "text-muted hover:text-text",
                 )}
               >
                 <Icon aria-hidden="true" className={clsx("h-5 w-5", active && "text-finance")} strokeWidth={1.75} />
                 <span className="max-w-full truncate">{item.label}</span>
+                <LinkPending className="absolute top-1.5 right-1/4 md:static md:ml-auto" />
               </Link>
             </li>
           );

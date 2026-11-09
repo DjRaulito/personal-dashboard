@@ -60,3 +60,26 @@ describe("Frankfurter", () => {
     expect(fx.get("GBP")![0].value).toBeCloseTo(1.25);
   });
 });
+
+describe("Morningstar", async () => {
+  const { parseMorningstarSearch, parseMorningstarSeries } = await import("./morningstar");
+  it("búsqueda", () => {
+    const text = 'Fondo X EUR|{"i":"F000015MMA","n":"Fondo X EUR","t":2}|FONDO\nbasura';
+    expect(parseMorningstarSearch(text)).toEqual([{ id: "F000015MMA", name: "Fondo X EUR" }]);
+  });
+  it("serie", () => {
+    expect(parseMorningstarSeries([[Date.UTC(2026, 0, 2), 10.5]]).points).toEqual([
+      { date: "2026-01-02", value: 10.5 },
+    ]);
+  });
+});
+
+describe("Morningstar screener", async () => {
+  const { parseMorningstarScreener } = await import("./morningstar");
+  it("filas", () => {
+    expect(parseMorningstarScreener({ rows: [{ SecId: "F000015MMA", Name: "Fondo" }] })).toEqual([
+      { id: "F000015MMA", name: "Fondo" },
+    ]);
+    expect(parseMorningstarScreener({ nope: 1 })).toEqual([]);
+  });
+});

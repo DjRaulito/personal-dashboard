@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { clsx } from "clsx";
 import { AssetSettings } from "@/components/investments/asset-settings";
 import { OperationsTable } from "@/components/investments/operations-table";
-import { Tile, TileTitle } from "@/components/ui";
+import { BackLink, Tile, TileTitle } from "@/components/ui";
 import { formatCents } from "@/lib/finance/money";
 import { getPortfolio } from "@/lib/investments/server";
 import { KIND_LABELS } from "@/lib/investments/view";
@@ -34,10 +33,8 @@ export default async function AssetPage({ params }: { params: Promise<{ id: stri
 
   return (
     <>
+      <BackLink href="/finanzas/inversiones">Inversiones</BackLink>
       <Tile>
-        <Link href="/finanzas/inversiones" className="text-muted hover:text-text text-sm">
-          ← Inversiones
-        </Link>
         <h1 className="font-display mt-3 text-3xl font-extrabold tracking-tight">{asset.name}</h1>
         <p className="text-muted mt-1 text-sm">
           {KIND_LABELS[asset.kind]} · {asset.isin ?? asset.symbol ?? "sin ISIN"} · {asset.currency}

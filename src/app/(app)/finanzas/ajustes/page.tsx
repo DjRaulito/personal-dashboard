@@ -30,7 +30,7 @@ export default async function FinanceSettingsPage() {
           <Link
             key={l.href}
             href={l.href}
-            className="rounded-tile border-border bg-surface hover:border-border-strong border p-6 transition-colors duration-200"
+            className="rounded-tile border-border bg-surface hover:border-border-strong border p-6 transition-[border-color,transform] duration-150 active:scale-[0.98] motion-reduce:active:scale-100"
           >
             <span className="font-semibold">{l.title}</span>
             <span className="text-muted mt-1 block text-sm">{l.text}</span>

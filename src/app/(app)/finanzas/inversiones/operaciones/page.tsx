@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { OperationForm } from "@/components/investments/operation-form";
 import { OperationsTable } from "@/components/investments/operations-table";
-import { EmptyState, Tile, TileTitle } from "@/components/ui";
+import { BackLink, EmptyState, Tile, TileTitle } from "@/components/ui";
 import { getPortfolio } from "@/lib/investments/server";
 
 export const metadata: Metadata = { title: "Operaciones · Inversiones" };
@@ -25,10 +24,8 @@ export default async function OperationsPage() {
 
   return (
     <>
+      <BackLink href="/finanzas/inversiones">Inversiones</BackLink>
       <Tile>
-        <Link href="/finanzas/inversiones" className="text-muted hover:text-text text-sm">
-          ← Inversiones
-        </Link>
         <details className="mt-3">
           <summary className="cursor-pointer font-semibold select-none">Añadir operación a mano</summary>
           <div className="mt-4">

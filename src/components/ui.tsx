@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { clsx } from "clsx";
 
 // Piezas de formulario comunes (ver DESIGN.md)
@@ -6,11 +7,11 @@ export const inputClass =
 
 export const buttonClass = {
   primary:
-    "bg-finance text-ink focus-visible:outline-text inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-transform duration-200 hover:scale-[1.02] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 disabled:hover:scale-100 motion-reduce:transition-none motion-reduce:hover:scale-100",
+    "bg-finance text-ink focus-visible:outline-text inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-[transform,filter] duration-150 hover:scale-[1.02] hover:brightness-105 active:scale-[0.96] active:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 disabled:hover:scale-100 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100",
   secondary:
-    "border-border-strong hover:bg-surface-2 focus-visible:outline-content inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors duration-200 focus-visible:outline-2 disabled:opacity-50",
+    "border-border-strong hover:bg-surface-2 active:bg-border focus-visible:outline-content inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-[background-color,transform] duration-150 active:scale-[0.96] focus-visible:outline-2 disabled:opacity-50 motion-reduce:active:scale-100",
   danger:
-    "text-expense hover:bg-surface-2 focus-visible:outline-content inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors duration-200 focus-visible:outline-2 disabled:opacity-50",
+    "text-expense hover:bg-surface-2 active:bg-border focus-visible:outline-content inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-[background-color,transform] duration-150 active:scale-[0.96] focus-visible:outline-2 disabled:opacity-50 motion-reduce:active:scale-100",
 };
 
 export function Field({
@@ -60,4 +61,26 @@ export function FormMessage({ state }: { state: { ok: boolean; message?: string 
 
 export function EmptyState({ children }: { children: React.ReactNode }) {
   return <p className="text-muted py-6 text-center text-sm">{children}</p>;
+}
+
+/** Enlace de vuelta a la sección anterior. */
+export function BackLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="text-muted hover:text-text inline-flex items-center gap-1.5 self-start rounded-full py-1 text-sm transition-colors duration-150 active:opacity-70"
+    >
+      <span aria-hidden="true">←</span> {children}
+    </Link>
+  );
+}
+
+/** Bloque gris animado mientras carga una pantalla. */
+export function Skeleton({ className }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={clsx("bg-surface-2 rounded-inner animate-pulse motion-reduce:animate-none", className)}
+    />
+  );
 }
