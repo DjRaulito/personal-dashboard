@@ -22,7 +22,7 @@ export function RuleForm({
   }, [state]);
 
   return (
-    <form ref={formRef} action={action} className="flex flex-col gap-4">
+    <form autoComplete="off" ref={formRef} action={action} className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Si el concepto…" error={state.errors?.match_type}>
           <select name="match_type" defaultValue="contains" className={inputClass}>

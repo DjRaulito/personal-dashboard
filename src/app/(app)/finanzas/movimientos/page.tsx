@@ -64,7 +64,7 @@ export default async function TransactionsPage({
           <span className="text-muted text-sm">{total.toLocaleString("es-ES")} en total</span>
         </div>
 
-        <form method="get" action={BASE} className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+        <form autoComplete="off" method="get" action={BASE} className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
           <input
             name="q"
             type="search"

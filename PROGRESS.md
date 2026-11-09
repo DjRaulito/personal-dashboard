@@ -4,9 +4,9 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 
 ## Estado actual
 
-- **Fase:** 3 — Finanzas: patrimonio, inversiones y métricas (rediseño)
-- **Última tarea hecha:** pestaña Plan: presupuestos mensuales, huchas y pagos recurrentes (con detección automática) y widget "Próximos pagos" en la portada
-- **Siguiente tarea:** Raúl crea sus presupuestos, huchas y pagos recurrentes en Finanzas → Plan; pasar `web-design-guidelines` a Finanzas y cerrar la fase 3. Después: fase 4 (Gimnasio)
+- **Fase:** 3 cerrada → empieza la 4 (Gimnasio)
+- **Última tarea hecha:** revisión `web-design-guidelines` de Finanzas (foco visible, salto al contenido, confirmación al borrar, formularios sin autocompletado, táctil). Antes: pestaña Plan: presupuestos mensuales, huchas y pagos recurrentes (con detección automática) y widget "Próximos pagos" en la portada
+- **Siguiente tarea:** fase 4 — Gimnasio (importar CSV de Hevy). Pendiente de Raúl: crear presupuestos, huchas y pagos en Finanzas → Plan e importar un extracto real
 
 ## Fase 0 — Cimientos
 
@@ -56,7 +56,7 @@ Contenido y la APK pasan al final porque ahora mismo no se van a usar.
 - [x] Lógica pura: importes en céntimos, parser de extractos, mapeo por banco, huella anti-duplicados, motor de reglas
 - [x] Pantallas: resumen con gráficas, cuentas, movimientos (filtros, búsqueda, edición masiva), importador, categorías y reglas
 - [x] Portada: patrimonio neto y gasto del mes con datos reales
-- [ ] Pasar `web-design-guidelines` antes de cerrar la fase
+- [x] Pasar `web-design-guidelines` antes de cerrar la fase (hecho junto con la fase 3)
 - [ ] Verificación: importas un extracto real y el 80 % queda categorizado solo
 
 ## Fase 3 — Finanzas: patrimonio, inversiones y métricas (rediseño pedido el 9 nov 2026)
@@ -85,7 +85,7 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
 - [x] Migración `budgets_goals_recurring`: budgets, savings_goals y recurring_payments con RLS (aplicada)
 - [x] Pestaña Plan: presupuestos por categoría con aviso de ritmo, huchas (saldo de cuenta o a mano, aportación mensual necesaria) y pagos recurrentes (vencimientos, se dan por pagados al aparecer el cargo, detección en los movimientos)
 - [x] Portada: widget "Próximos pagos" (14 días)
-- [ ] Pasar `web-design-guidelines` a Finanzas antes de cerrar la fase
+- [x] Pasar `web-design-guidelines` a Finanzas antes de cerrar la fase
 
 ## Decisiones
 

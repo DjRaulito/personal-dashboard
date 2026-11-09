@@ -169,7 +169,7 @@ export function DailyPnlChart({ points }: { points: { date: string; pnl: number 
                 key={p.date}
                 tabIndex={0}
                 aria-label={`${fmtDate(p.date, { dateStyle: "long" })}: ${formatCents(Math.round(p.pnl * 100), "EUR", { signed: true })}`}
-                className="group hover:bg-surface-2/60 relative flex-1 rounded-sm outline-none"
+                className="group hover:bg-surface-2/60 focus-visible:bg-surface-2/60 relative flex-1 rounded-sm outline-none"
               >
                 <span
                   className={`absolute inset-x-0 mx-auto block max-w-3 ${up ? "bg-finance rounded-t-[3px]" : "bg-expense rounded-b-[3px]"}`}

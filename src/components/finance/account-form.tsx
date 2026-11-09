@@ -22,7 +22,7 @@ export function AccountForm({ account, onDone }: { account?: Account; onDone?: (
   }, [state, account, onDone]);
 
   return (
-    <form ref={formRef} action={action} className="flex flex-col gap-4">
+    <form autoComplete="off" ref={formRef} action={action} className="flex flex-col gap-4">
       {account && <input type="hidden" name="id" value={account.id} />}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Nombre" error={state.errors?.name}>

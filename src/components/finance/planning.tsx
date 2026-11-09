@@ -57,7 +57,7 @@ export function BudgetForm({
 }) {
   const { state, formAction, pending, ref } = useSavedForm(saveBudget, !!budget, onDone);
   return (
-    <form ref={ref} action={formAction} className="flex flex-wrap items-end gap-3">
+    <form autoComplete="off" ref={ref} action={formAction} className="flex flex-wrap items-end gap-3">
       {budget ? (
         <input type="hidden" name="category_id" value={budget.category_id} />
       ) : (
@@ -114,7 +114,9 @@ export function BudgetActions({
           disabled={pending}
           className={buttonClass.danger}
           aria-label={`Quitar presupuesto de ${label}`}
-          onClick={() => startTransition(() => deleteBudget(budget.id))}
+          onClick={() => {
+            if (confirm(`¿Quitar el presupuesto de ${label}?`)) startTransition(() => deleteBudget(budget.id));
+          }}
         >
           Quitar
         </button>
@@ -146,7 +148,7 @@ export function GoalForm({ accounts, goal, onDone }: { accounts: Option[]; goal?
   const { state, formAction, pending, ref } = useSavedForm(saveGoal, !!goal, onDone);
   const [linked, setLinked] = useState(!!goal?.account_id);
   return (
-    <form ref={ref} action={formAction} className="flex flex-col gap-4">
+    <form autoComplete="off" ref={ref} action={formAction} className="flex flex-col gap-4">
       {goal && <input type="hidden" name="id" value={goal.id} />}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Nombre" error={state.errors?.name}>
@@ -154,7 +156,7 @@ export function GoalForm({ accounts, goal, onDone }: { accounts: Option[]; goal?
             name="name"
             required
             maxLength={60}
-            placeholder="Fondo de emergencia"
+            placeholder="Fondo de emergencia…"
             defaultValue={goal?.name}
             className={inputClass}
           />
@@ -249,7 +251,11 @@ export function GoalActions({ goal, accounts }: { goal: GoalValues; accounts: Op
           <button type="button" disabled={pending} className={buttonClass.secondary} onClick={() => contribute(-1)}>
             Sacar
           </button>
-          {error && <span className="text-attention text-xs">{error}</span>}
+          {error && (
+            <span role="alert" className="text-attention text-xs">
+              {error}
+            </span>
+          )}
         </div>
       )}
       <div className="flex flex-wrap gap-1">
@@ -315,7 +321,7 @@ export function RecurringForm({
 }) {
   const { state, formAction, pending, ref } = useSavedForm(saveRecurring, !!item, onDone);
   return (
-    <form ref={ref} action={formAction} className="flex flex-col gap-4">
+    <form autoComplete="off" ref={ref} action={formAction} className="flex flex-col gap-4">
       {item && <input type="hidden" name="id" value={item.id} />}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Field label="Nombre" error={state.errors?.name} className="sm:col-span-2">
@@ -384,7 +390,7 @@ export function RecurringForm({
           <input
             name="match_pattern"
             maxLength={100}
-            placeholder="NETFLIX"
+            placeholder="NETFLIX…"
             defaultValue={item?.match_pattern ?? ""}
             className={inputClass}
           />
