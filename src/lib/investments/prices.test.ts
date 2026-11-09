@@ -73,3 +73,13 @@ describe("Morningstar", async () => {
     ]);
   });
 });
+
+describe("Morningstar screener", async () => {
+  const { parseMorningstarScreener } = await import("./morningstar");
+  it("filas", () => {
+    expect(parseMorningstarScreener({ rows: [{ SecId: "F000015MMA", Name: "Fondo" }] })).toEqual([
+      { id: "F000015MMA", name: "Fondo" },
+    ]);
+    expect(parseMorningstarScreener({ nope: 1 })).toEqual([]);
+  });
+});

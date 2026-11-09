@@ -39,12 +39,23 @@ const seriesSchema = z.array(z.tuple([z.number(), z.number()]));
 
 /** Cierres diarios en EUR. */
 export async function morningstarDailyCloses(id: string, from: string, to: string) {
-  const url =
-    `https://tools.morningstar.es/api/rest.svc/timeseries_price/2nhcdckzon?id=${encodeURIComponent(id)}%5D2%5D0%5DFOESP%24%24ALL` +
+  const query =
+    `?id=${encodeURIComponent(id)}%5D2%5D0%5DFOESP%24%24ALL` +
     `&currencyId=EUR&idtype=Morningstar&frequency=daily&startDate=${from}&endDate=${to}&outputType=COMPACTJSON`;
-  const res = await fetch(url, { headers: { "User-Agent": UA }, cache: "no-store" });
-  if (!res.ok) throw new Error(`Morningstar ${res.status}`);
-  return parseMorningstarSeries(await res.json());
+  let lastError: unknown;
+  for (const host of [
+    "https://lt.morningstar.com/api/rest.svc/timeseries_price/klr5zyak8x",
+    "https://tools.morningstar.es/api/rest.svc/timeseries_price/2nhcdckzon",
+  ]) {
+    try {
+      const res = await fetch(`${host}${query}`, { headers: { "User-Agent": UA }, cache: "no-store" });
+      if (res.ok) return parseMorningstarSeries(await res.json());
+      lastError = new Error(`Morningstar ${res.status}`);
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  throw lastError;
 }
 
 export function parseMorningstarSeries(json: unknown) {
