@@ -8,6 +8,20 @@ const UA = "Mozilla/5.0 (compatible; personal-dashboard/1.0)";
 
 /** Busca el id de Morningstar (p. ej. F000015MMA) de un ISIN. */
 export async function morningstarSearch(isin: string): Promise<{ id: string; name: string | null }[]> {
+  // 1) Buscador de lt.morningstar.com (JSON); 2) buscador de morningstar.es (texto)
+  try {
+    const url =
+      "https://lt.morningstar.com/api/rest.svc/klr5zyak8x/security/screener?page=1&pageSize=5&outputType=json&version=1" +
+      "&languageId=es-ES&currencyId=EUR&universeIds=FOESP%24%24ALL%7CFOEUR%24%24ALL&securityDataPoints=SecId%7CName%7CIsin" +
+      `&term=${encodeURIComponent(isin)}`;
+    const res = await fetch(url, { headers: { "User-Agent": UA }, cache: "no-store" });
+    if (res.ok) {
+      const hits = parseMorningstarScreener(await res.json());
+      if (hits.length) return hits;
+    }
+  } catch {
+    // probar el otro buscador
+  }
   const res = await fetch(
     `https://www.morningstar.es/es/util/SecuritySearch.ashx?q=${encodeURIComponent(isin)}&limit=5`,
     {
@@ -17,6 +31,15 @@ export async function morningstarSearch(isin: string): Promise<{ id: string; nam
   );
   if (!res.ok) throw new Error(`Morningstar ${res.status}`);
   return parseMorningstarSearch(await res.text());
+}
+
+const screenerSchema = z.object({
+  rows: z.array(z.object({ SecId: z.string(), Name: z.string().optional() })).default([]),
+});
+
+export function parseMorningstarScreener(json: unknown): { id: string; name: string | null }[] {
+  const parsed = screenerSchema.safeParse(json);
+  return parsed.success ? parsed.data.rows.map((r) => ({ id: r.SecId, name: r.Name ?? null })) : [];
 }
 
 /** La respuesta son líneas "Nombre|{json}|..."; el json trae "i" (id) y "n" (nombre). */
