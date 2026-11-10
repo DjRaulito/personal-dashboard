@@ -134,3 +134,15 @@ export async function handleMcp(msg: unknown, call: BrainCall): Promise<Record<s
       return fail(req.id, -32601, "Método no soportado");
   }
 }
+
+/** Token de la petición: cabecera Bearer o, para clientes que solo admiten una dirección, `?token=`. */
+export function extractToken(authorization: string | null, url: string): string | null {
+  const bearer = authorization?.match(/^Bearer\s+(\S+)$/i)?.[1];
+  if (bearer) return bearer;
+  try {
+    const q = new URL(url).searchParams.get("token");
+    return q && /^brain_[\w-]+$/.test(q) ? q : null;
+  } catch {
+    return null;
+  }
+}

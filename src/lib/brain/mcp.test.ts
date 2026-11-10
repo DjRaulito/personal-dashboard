@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { BRAIN_TOOLS, handleMcp } from "./mcp";
+import { BRAIN_TOOLS, extractToken, handleMcp } from "./mcp";
 import { hashToken, memoryFormSchema, newToken, parseTags } from "./schemas";
 
 describe("servidor MCP", () => {
@@ -81,5 +81,14 @@ describe("formulario y tokens", () => {
     expect(hash).toBe(hashToken(token));
     expect(hash).toHaveLength(64);
     expect(newToken().token).not.toBe(token);
+  });
+});
+
+describe("token de la petición", () => {
+  it("acepta la cabecera Bearer o ?token= en la dirección", () => {
+    expect(extractToken("Bearer brain_abc", "https://x.app/api/brain/mcp")).toBe("brain_abc");
+    expect(extractToken(null, "https://x.app/api/brain/mcp?token=brain_abc-_1")).toBe("brain_abc-_1");
+    expect(extractToken(null, "https://x.app/api/brain/mcp?token=otra")).toBeNull();
+    expect(extractToken(null, "https://x.app/api/brain/mcp")).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { handleMcp, type BrainCall } from "@/lib/brain/mcp";
+import { extractToken, handleMcp, type BrainCall } from "@/lib/brain/mcp";
 
 // Endpoint MCP del cerebro: lo usan Claude, ChatGPT, Cursor, Hermes… con un token (Bearer).
 // No hay sesión: la función brain_call de Supabase comprueba el token y solo toca los datos de su dueño.
@@ -10,7 +10,7 @@ export const maxDuration = 30;
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 
 export async function POST(request: Request) {
-  const token = request.headers.get("authorization")?.match(/^Bearer\s+(\S+)$/i)?.[1];
+  const token = extractToken(request.headers.get("authorization"), request.url);
   if (!token) return json({ jsonrpc: "2.0", id: null, error: { code: -32001, message: "Falta el token" } }, 401);
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
