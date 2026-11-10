@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Apple, CalendarDays, Clapperboard, Dumbbell, House, Settings, Wallet, type LucideIcon } from "lucide-react";
+import { Apple, CalendarDays, Clapperboard, Dumbbell, House, Settings, Sparkles, Wallet, type LucideIcon } from "lucide-react";
 import { clsx } from "clsx";
 import { isActive, NAV_ITEMS, type NavIcon } from "@/lib/navigation";
 import { LinkPending } from "./link-pending";
@@ -14,6 +14,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   content: Clapperboard,
   gym: Dumbbell,
   nutrition: Apple,
+  ai: Sparkles,
   settings: Settings,
 };
 
@@ -34,7 +35,7 @@ export function AppNav() {
           const Icon = ICONS[item.icon];
           const active = isActive(item.href, pathname);
           return (
-            <li key={item.href}>
+            <li key={item.href} className={clsx(item.desktopOnly && "hidden md:block")}>
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
