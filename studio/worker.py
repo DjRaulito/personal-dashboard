@@ -15,6 +15,7 @@ import os
 import sys
 import time
 import traceback
+import urllib.error
 import urllib.parse
 import urllib.request
 import zlib
@@ -29,6 +30,7 @@ WORK = Path(os.environ.get("STUDIO_WORKDIR", "/tmp/studio"))
 FONTS = Path(os.environ.get("STUDIO_FONTS", WORK / "fonts"))
 SCENE_GAP = 0.25  # respiro entre escenas (s)
 IMAGE_API = os.environ.get("STUDIO_IMAGE_API", "https://image.pollinations.ai/prompt")
+IMAGE_API_KEYED = os.environ.get("STUDIO_IMAGE_API_KEYED", "https://gen.pollinations.ai/image")
 
 
 # ---------------------------------------------------------------------------
@@ -206,25 +208,33 @@ def produce(job: dict, progress: Progress) -> tuple[Path, Path, float]:
 
 
 def generate_images(scenes: list[dict], width: int, height: int, seed: int, progress: Progress) -> dict[int, Path]:
-    """Imágenes IA gratuitas (Pollinations) para las escenas sin clip. Si el servicio no responde,
-    esas escenas usan el fondo animado. Se desactiva con STUDIO_AI_IMAGES=0."""
+    """Imágenes IA gratuitas (Pollinations) para las escenas sin clip. Con POLLINATIONS_API_KEY (gratis,
+    enter.pollinations.ai) van en paralelo y sin límite; sin clave, una cada ~16 s (límite anónimo) y
+    como mucho STUDIO_AI_IMAGES_MAX. Si el servicio no responde, esas escenas usan el fondo animado.
+    Se desactiva con STUDIO_AI_IMAGES=0."""
     missing = [i for i, s in enumerate(scenes) if not s.get("clips")]
     if not missing or os.environ.get("STUDIO_AI_IMAGES", "1") == "0":
         return {}
+    key = os.environ.get("POLLINATIONS_API_KEY", "").strip()
+    if not key:
+        missing = missing[: int(os.environ.get("STUDIO_AI_IMAGES_MAX", "14"))]
     progress(58, f"Generando {len(missing)} imágenes con IA")
     w, h = (768, 1344) if height > width else (1344, 768)
     style = "cinematic photo, dramatic lighting, rich colors, shallow depth of field, no text, no watermark"
+    failures: list[str] = []
 
     def one(i: int) -> tuple[int, Path | None]:
-        prompt = f"{scenes[i].get('query', '').strip()}, {style}"
-        url = (
-            f"{IMAGE_API}/{urllib.parse.quote(prompt)}?width={w}&height={h}&seed={seed + i}&nologo=true&model=flux"
-        )
+        prompt = urllib.parse.quote(f"{scenes[i].get('query', '').strip()}, {style}")
+        params = f"width={w}&height={h}&seed={seed + i}&nologo=true&model=flux"
+        url = f"{IMAGE_API_KEYED}/{prompt}?{params}" if key else f"{IMAGE_API}/{prompt}?{params}"
+        headers = {"User-Agent": "personal-dashboard-studio"}
+        if key:
+            headers["Authorization"] = f"Bearer {key}"
         out = WORK / f"img_{i}.jpg"
-        for attempt in range(2):
+        for attempt in range(3):
             try:
-                req = urllib.request.Request(url, headers={"User-Agent": "personal-dashboard-studio"})
-                with urllib.request.urlopen(req, timeout=90) as res:
+                req = urllib.request.Request(url, headers=headers)
+                with urllib.request.urlopen(req, timeout=120) as res:
                     out.write_bytes(res.read())
                 from PIL import Image
 
@@ -232,16 +242,32 @@ def generate_images(scenes: list[dict], width: int, height: int, seed: int, prog
                     if min(img.size) < 256:
                         raise ValueError("imagen pequeña")
                 return i, out
-            except Exception:
-                time.sleep(3 * (attempt + 1))
+            except urllib.error.HTTPError as e:
+                failures.append(f"HTTP {e.code}")
+                time.sleep(16 if e.code == 429 else 4 * (attempt + 1))
+            except Exception as e:  # sin URL en el registro: el repo es público
+                failures.append(type(e).__name__)
+                time.sleep(4 * (attempt + 1))
         return i, None
 
     found: dict[int, Path] = {}
-    with ThreadPoolExecutor(max_workers=3) as pool:
-        for i, path in pool.map(one, missing):
+    if key:
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            for i, path in pool.map(one, missing):
+                if path:
+                    found[i] = path
+    else:
+        for n, i in enumerate(missing):
+            started = time.monotonic()
+            _, path = one(i)
             if path:
                 found[i] = path
-    print(f"imágenes IA: {len(found)} de {len(missing)}")
+            if n + 1 < len(missing):
+                time.sleep(max(0.0, 16 - (time.monotonic() - started)))
+    summary = f"imágenes IA: {len(found)} de {len(missing)}"
+    if failures:
+        summary += f" (fallos: {', '.join(sorted(set(failures)))})"
+    print(summary)
     return found
 
 

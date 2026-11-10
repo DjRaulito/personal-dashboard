@@ -33,6 +33,7 @@ jobs:
       SUPABASE_URL: ${{ inputs.supabase_url }}
       SUPABASE_PUBLISHABLE_KEY: ${{ inputs.supabase_key }}
       STUDIO_WORKER_TOKEN: ${{ secrets.STUDIO_WORKER_TOKEN }}
+      POLLINATIONS_API_KEY: ${{ secrets.POLLINATIONS_API_KEY }}
       HF_HUB_DISABLE_TELEMETRY: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
     steps:
