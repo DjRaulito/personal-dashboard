@@ -40,14 +40,51 @@ interface GeminiContent {
   parts: GeminiPart[];
 }
 
-async function geminiRequest(body: Record<string, unknown>): Promise<GeminiContent> {
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
+// Modelo que funciona de verdad: Google retira modelos y devuelve 404; entonces buscamos otro vigente.
+let resolvedModel: string | null = null;
+
+/** Elige un modelo Flash estable de los que Google ofrece ahora (sin lite, preview ni exp). */
+export function pickGeminiModel(names: string[]): string | null {
+  const ids = names.map((n) => n.replace(/^models\//, ""));
+  const flash = ids.filter((id) => /^gemini-[\d.]+-flash$/.test(id));
+  const version = (id: string) => parseFloat(id.split("-")[1]);
+  flash.sort((a, b) => version(b) - version(a));
+  return flash[0] ?? null;
+}
+
+async function listGeminiModels(): Promise<string[]> {
+  const res = await fetch(`${GEMINI_BASE}/models?pageSize=200`, {
+    headers: { "x-goog-api-key": process.env.GEMINI_API_KEY! },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  const data = (await res.json()) as { models?: { name: string; supportedGenerationMethods?: string[] }[] };
+  return (data.models ?? [])
+    .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
+    .map((m) => m.name);
+}
+
+function postGemini(model: string, body: Record<string, unknown>): Promise<Response> {
+  return fetch(`${GEMINI_BASE}/models/${model}:generateContent`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(TIMEOUT_MS),
     cache: "no-store",
   });
+}
+
+async function geminiRequest(body: Record<string, unknown>): Promise<GeminiContent> {
+  let res = await postGemini(resolvedModel ?? GEMINI_MODEL, body);
+  if (res.status === 404) {
+    const alt = pickGeminiModel(await listGeminiModels());
+    if (alt && alt !== (resolvedModel ?? GEMINI_MODEL)) {
+      res = await postGemini(alt, body);
+      if (res.ok) resolvedModel = alt;
+    }
+  }
   if (!res.ok) throw new Error(`Gemini ${res.status}`);
   const data = (await res.json()) as { candidates?: { content?: GeminiContent }[] };
   const content = data.candidates?.[0]?.content;
