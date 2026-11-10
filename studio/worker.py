@@ -23,7 +23,6 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import captions
-import fx
 import render
 
 WORK = Path(os.environ.get("STUDIO_WORKDIR", "/tmp/studio"))
@@ -99,6 +98,9 @@ def upload_to_drive(session_url: str, path: Path, mime: str) -> str:
 
 
 def produce(job: dict, progress: Progress) -> tuple[Path, Path, float]:
+    # fx usa numpy: se importa aquí porque «claim» y «fail» corren antes de instalar dependencias
+    import fx
+
     vertical = job["format"] == "short"
     width, height = (1080, 1920) if vertical else (1920, 1080)
     scenes = job["script"]["scenes"]
