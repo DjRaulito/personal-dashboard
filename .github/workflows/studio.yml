@@ -4,27 +4,23 @@ name: VoiceStudio
 # montaje) y lo sube al Google Drive del usuario con la sesión de subida que creó la app.
 # El repo es público: solo recibe el id del trabajo; el guion y los enlaces los pide a la base de
 # datos con la clave STUDIO_WORKER_TOKEN y no se imprimen en el registro.
-run-name: studio-${{ inputs.job_id || 'demo' }}
+run-name: studio-${{ inputs.job_id }}
 
 on:
   workflow_dispatch:
     inputs:
       job_id:
-        description: Id del trabajo de vídeo
+        description: Id del trabajo de vídeo («demo» para un vídeo de prueba sin la app)
         required: true
       supabase_url:
         description: URL pública de Supabase
-        required: true
+        required: false
       supabase_key:
         description: Clave publicable de Supabase (es pública)
-        required: true
-  # TEMPORAL: prueba del montaje en la rama de trabajo (se quita antes de unir a main)
-  push:
-    branches: [claude/personal-dashboard-fase-1-woofz3]
-    paths: [studio/**, .github/workflows/studio.yml]
+        required: false
 
 concurrency:
-  group: studio-${{ inputs.job_id || github.sha }}
+  group: studio-${{ inputs.job_id == 'demo' && github.run_id || inputs.job_id }}
 
 permissions:
   contents: read
@@ -49,7 +45,7 @@ jobs:
 
       - name: Reclamar el trabajo
         id: claim
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ inputs.job_id != 'demo' }}
         run: python3 studio/worker.py claim "${{ inputs.job_id }}"
 
       - uses: actions/setup-python@v5
@@ -83,12 +79,12 @@ jobs:
         run: python -m unittest test_captions
 
       - name: Montaje
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ inputs.job_id != 'demo' }}
         working-directory: studio
         run: python worker.py render "${{ inputs.job_id }}"
 
       - name: Demo (voz IA y voz clonada)
-        if: ${{ github.event_name == 'push' }}
+        if: ${{ inputs.job_id == 'demo' }}
         working-directory: studio
         run: |
           /usr/bin/time -v python worker.py demo ai 2>&1 | grep -E "^\[|demo lista|aviso|Elapsed|Maximum resident"
@@ -106,7 +102,7 @@ jobs:
           cp "$STUDIO_WORKDIR/video.mp4" "$RUNNER_TEMP/demo-clone.mp4"
 
       - uses: actions/upload-artifact@v4
-        if: ${{ github.event_name == 'push' && always() }}
+        if: ${{ inputs.job_id == 'demo' && always() }}
         with:
           name: studio-demo
           path: ${{ runner.temp }}/demo-*.mp4
@@ -114,5 +110,5 @@ jobs:
           if-no-files-found: ignore
 
       - name: Avisar del fallo a la app
-        if: ${{ failure() && github.event_name == 'workflow_dispatch' }}
+        if: ${{ failure() && inputs.job_id != 'demo' }}
         run: python3 studio/worker.py fail "${{ inputs.job_id }}" "El montaje se cortó antes de terminar (revisa el registro de GitHub Actions)."

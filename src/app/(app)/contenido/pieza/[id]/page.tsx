@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { MetricForm, MetricList } from "@/components/content/metric-form";
 import { PieceForm } from "@/components/content/piece-form";
 import { RevenueLinks } from "@/components/content/revenue-links";
 import { toLocalInput } from "@/components/content/format";
-import { BackLink, Tile, TileTitle } from "@/components/ui";
+import { BackLink, buttonClass, Tile, TileTitle } from "@/components/ui";
 import { aiConfigured } from "@/lib/ai/llm";
 import type { PieceFormat, PieceStatus, Platform } from "@/lib/content/catalog";
 import { getLinkableTransactions, getPiece } from "@/lib/content/server";
@@ -63,6 +64,15 @@ export default async function PiecePage({ params }: { params: Promise<{ id: stri
         </Tile>
 
         <div className="flex flex-col gap-3.5 lg:col-span-2">
+          {(piece.format === "short" || piece.format === "long") && (
+            <Tile>
+              <TileTitle dot="bg-content">VoiceStudio</TileTitle>
+              <p className="text-muted mt-1 text-sm">Convierte esta pieza en un vídeo terminado, sin grabar nada.</p>
+              <Link href={`/contenido/estudio?pieza=${piece.id}`} className={`${buttonClass.secondary} mt-4`}>
+                Crear vídeo
+              </Link>
+            </Tile>
+          )}
           <Tile>
             <TileTitle dot="bg-finance">Ingresos</TileTitle>
             <div className="mt-3">

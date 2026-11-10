@@ -100,8 +100,14 @@ def produce(job: dict, progress: Progress) -> tuple[Path, Path, float]:
     # 1. Voz
     sample = None
     if job["voice_mode"] == "clone":
-        progress(5, "Descargando tu muestra de voz")
-        raw = download(job["assets"]["voice_sample_url"], WORK / "sample.src")
+        progress(5, "Preparando tu muestra de voz")
+        raw = WORK / "sample.src"
+        if job.get("voice_sample"):
+            import base64
+
+            raw.write_bytes(base64.b64decode(job["voice_sample"]))
+        else:  # demo: muestra local
+            download(job["assets"]["voice_sample_url"], raw)
         sample = WORK / "sample.wav"
         render.run(["ffmpeg", "-y", "-v", "error", "-i", str(raw), "-ac", "1", "-ar", "24000", "-t", "60", str(sample)])
 
@@ -189,6 +195,7 @@ def main() -> int:
     if command == "claim":
         job = rpc(sys.argv[2], "claim")
         (WORK / "job.json").write_text(json.dumps(job))
+        os.chmod(WORK / "job.json", 0o600)
         if out := os.environ.get("GITHUB_OUTPUT"):
             with open(out, "a") as f:
                 f.write(f"voice_mode={job['voice_mode']}\n")

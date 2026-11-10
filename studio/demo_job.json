@@ -5,7 +5,10 @@
   "script": {
     "title": "Tres errores al empezar en el gimnasio",
     "scenes": [
-      { "text": "¿Llevas meses en el gimnasio sin ver cambios? Puede que cometas uno de estos tres errores.", "clips": [] },
+      {
+        "text": "¿Llevas meses en el gimnasio sin ver cambios? Puede que cometas uno de estos tres errores.",
+        "clips": []
+      },
       { "text": "Primero: cambiar de rutina cada semana. El cuerpo necesita repetir para progresar.", "clips": [] },
       { "text": "Segundo: no apuntar los pesos. Si no lo mides, no sabes si mejoras.", "clips": [] },
       { "text": "Y tercero: dormir poco. El músculo crece cuando descansas, no cuando entrenas.", "clips": [] },

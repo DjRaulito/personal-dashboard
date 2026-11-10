@@ -1598,7 +1598,8 @@ export type Database = {
           autopilot_voice: string;
           updated_at: string;
           user_id: string;
-          voice_sample_path: string | null;
+          voice_sample: string | null;
+          voice_sample_mime: string | null;
           worker_token_hash: string | null;
         };
         Insert: {
@@ -1610,7 +1611,8 @@ export type Database = {
           autopilot_voice?: string;
           updated_at?: string;
           user_id?: string;
-          voice_sample_path?: string | null;
+          voice_sample?: string | null;
+          voice_sample_mime?: string | null;
           worker_token_hash?: string | null;
         };
         Update: {
@@ -1622,7 +1624,8 @@ export type Database = {
           autopilot_voice?: string;
           updated_at?: string;
           user_id?: string;
-          voice_sample_path?: string | null;
+          voice_sample?: string | null;
+          voice_sample_mime?: string | null;
           worker_token_hash?: string | null;
         };
         Relationships: [];
