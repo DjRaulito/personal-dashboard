@@ -101,7 +101,7 @@ jobs:
           job["script"]["scenes"] = job["script"]["scenes"][:2]
           json.dump(job, open("demo_job.json", "w"))
           EOF
-          /usr/bin/time -v python worker.py demo clone 2>&1 | grep -E "^\[|demo lista|aviso|imágenes IA|escena [0-9]+:|Elapsed|Maximum resident|Error"
+          /usr/bin/time -v python worker.py demo clone 2>&1 | grep -E "^\[|demo lista|aviso|voz clonada|imágenes IA|escena [0-9]+:|Elapsed|Maximum resident|Error"
           cp "$STUDIO_WORKDIR/video.mp4" "$RUNNER_TEMP/demo-clone.mp4"
 
       - uses: actions/upload-artifact@v4
