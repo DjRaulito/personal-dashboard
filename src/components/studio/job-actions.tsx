@@ -95,7 +95,7 @@ export function ScriptEditor({ jobId, script }: { jobId: string; script: VideoSc
         <input name="title" defaultValue={script.title} maxLength={120} className={inputClass} />
       </label>
       <label className="flex flex-col gap-1.5 text-sm">
-        <span className="text-muted">Gancho (rótulo gigante del primer segundo)</span>
+        <span className="text-muted">Gancho (titular del primer segundo)</span>
         <input name="hook" defaultValue={script.hook ?? ""} maxLength={48} className={inputClass} />
       </label>
       <ol className="flex flex-col gap-3">
@@ -104,7 +104,7 @@ export function ScriptEditor({ jobId, script }: { jobId: string; script: VideoSc
             <label htmlFor={`scene-${i}`} className="text-muted flex justify-between gap-2">
               <span>Escena {i + 1}</span>
               <span className="truncate text-xs">
-                Plano: {scene.query}
+                Plano: {scene.query.split("|")[0].trim()}
                 {scene.clips.length === 0 && " · imagen IA"}
               </span>
             </label>
@@ -117,24 +117,14 @@ export function ScriptEditor({ jobId, script }: { jobId: string; script: VideoSc
               maxLength={1200}
               className={clsx(inputClass, "resize-y leading-relaxed")}
             />
-            <div className="flex gap-2">
-              <input
-                name={`emphasis-${i}`}
-                defaultValue={scene.emphasis ?? ""}
-                maxLength={32}
-                placeholder="Rótulo en pantalla (opcional)"
-                aria-label={`Rótulo de la escena ${i + 1}`}
-                className={clsx(inputClass, "min-w-0 flex-1")}
-              />
-              <input
-                name={`emoji-${i}`}
-                defaultValue={scene.emoji ?? ""}
-                maxLength={16}
-                placeholder="😀"
-                aria-label={`Emoji de la escena ${i + 1}`}
-                className={clsx(inputClass, "w-16 text-center")}
-              />
-            </div>
+            <input
+              name={`emphasis-${i}`}
+              defaultValue={scene.emphasis ?? ""}
+              maxLength={32}
+              placeholder="Rótulo en pantalla (opcional)"
+              aria-label={`Rótulo de la escena ${i + 1}`}
+              className={inputClass}
+            />
           </li>
         ))}
       </ol>

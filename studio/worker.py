@@ -118,7 +118,18 @@ def produce(job: dict, progress: Progress) -> tuple[Path, Path, float]:
         else:  # demo: muestra local
             download(job["assets"]["voice_sample_url"], raw)
         sample = WORK / "sample.wav"
-        render.run(["ffmpeg", "-y", "-v", "error", "-i", str(raw), "-ac", "1", "-ar", "24000", "-t", "60", str(sample)])
+        # El modelo solo escucha los primeros ~10 s: se quitan silencios y respiraciones largas para
+        # que esos segundos sean voz, se limpia el ruido grave y se iguala el volumen
+        clean = (
+            "highpass=f=70,"
+            "silenceremove=start_periods=1:start_threshold=-42dB:stop_periods=-1:stop_duration=0.35:stop_threshold=-42dB:stop_silence=0.2,"
+            "loudnorm=I=-18:TP=-2"
+        )
+        render.run(
+            ["ffmpeg", "-y", "-v", "error", "-i", str(raw), "-af", clean, "-ac", "1", "-ar", "24000", "-t", "40", str(sample)]
+        )
+        if render.duration(sample) < 4:  # si la limpieza se comió la voz, la muestra tal cual
+            render.run(["ffmpeg", "-y", "-v", "error", "-i", str(raw), "-ac", "1", "-ar", "24000", "-t", "40", str(sample)])
 
     progress(8, "Cargando la voz")
     import tts
@@ -180,17 +191,15 @@ def produce(job: dict, progress: Progress) -> tuple[Path, Path, float]:
     visuals = WORK / "visuals.mp4"
     render.concat_video(segments, visuals)
 
-    # 5. Rótulos, emojis, música y efectos
-    progress(84, "Animando rótulos y música")
-    plan = fx.plan_overlay(
-        scenes, starts, durations, width, height, total, pal, FONTS, WORK / "emoji", job["script"].get("hook")
-    )
+    # 5. Titulares, música y efectos
+    progress(84, "Animando titulares y música")
+    plan = fx.plan_overlay(scenes, starts, durations, width, height, total, pal, FONTS, job["script"].get("hook"))
     music = sfx = None
     try:
         music = WORK / "music.wav"
         fx.write_wav(fx.music(total, job["script"].get("mood") or "energetic", seed), music)
         sfx = WORK / "sfx.wav"
-        fx.write_wav(fx.sfx_track(total, starts[1:], [s.start for s in plan.sprites if s.pop < 0.4], seed), sfx)
+        fx.write_wav(fx.sfx_track(total, starts[1:], [], seed), sfx)
     except Exception as e:
         print(f"aviso: sin música ({type(e).__name__})")
         music = sfx = None
@@ -221,14 +230,19 @@ def generate_images(scenes: list[dict], width: int, height: int, seed: int, prog
     if not key:
         missing = missing[: int(os.environ.get("STUDIO_AI_IMAGES_MAX", "14"))]
     progress(58, f"Generando {len(missing)} imágenes con IA")
-    w, h = (768, 1344) if height > width else (1344, 768)
-    style = "cinematic photo, dramatic lighting, rich colors, shallow depth of field, no text, no watermark"
+    # Con clave, a la resolución final (sin ampliar); sin clave, el tamaño que admite el servicio anónimo
+    if key:
+        w, h = (1080, 1920) if height > width else (1920, 1080)
+    else:
+        w, h = (768, 1344) if height > width else (1344, 768)
+    style = "photorealistic cinematic still, natural light, 35mm, shallow depth of field, high detail, no text, no watermark"
     failures: list[str] = []
     refused = False  # 401/402/403: el servicio pide clave o crédito; no insistir
 
     def one(i: int) -> tuple[int, Path | None]:
         nonlocal refused
-        prompt = urllib.parse.quote(f"{scenes[i].get('query', '').strip()}, {style}")
+        subject = (scenes[i].get("query") or "").split("|")[0].strip()
+        prompt = urllib.parse.quote(f"{subject}, {style}")
         params = f"width={w}&height={h}&seed={seed + i}&nologo=true&model=flux"
         url = f"{IMAGE_API_KEYED}/{prompt}?{params}" if key else f"{IMAGE_API}/{prompt}?{params}"
         headers = {"User-Agent": "personal-dashboard-studio"}

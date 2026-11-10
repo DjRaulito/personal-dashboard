@@ -36,7 +36,7 @@ class CaptionsTest(unittest.TestCase):
         words = [Word("uno", 0, 0.5), Word("dos", 0.5, 1.0)]
         ass = build_ass(words, 1080, 1920, True)
         self.assertEqual(ass.count("Dialogue:"), 2)
-        self.assertIn("UNO", ass)
+        self.assertIn("uno", ass)
 
 
 if __name__ == "__main__":

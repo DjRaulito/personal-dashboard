@@ -1,3 +1,4 @@
-# Voz clonada (Chatterbox Multilingual, MIT)
-chatterbox-tts==0.1.7
+# Voz clonada (Chatterbox Multilingual, MIT). Desde GitHub (versión fijada): la de PyPI aún no
+# carga el V3 ni los afinados por idioma (español de España).
+chatterbox-tts @ git+https://github.com/resemble-ai/chatterbox@ab55923c27757c90cfcc407baa57dc25a7d25217
 torchaudio==2.6.0
