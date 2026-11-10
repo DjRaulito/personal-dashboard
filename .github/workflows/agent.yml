@@ -1,0 +1,101 @@
+name: Agente Claude Code
+
+# Lo lanza la app (centro de agentes) con la API de GitHub. Corre Claude Code en modo no
+# interactivo con la suscripción de Raúl (secreto CLAUDE_CODE_OAUTH_TOKEN, de `claude setup-token`).
+# El repo es público: la tarea y los registros se pueden ver, así que nada de datos personales.
+run-name: agent-${{ inputs.run_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Id de la ejecución en la app
+        required: true
+      prompt:
+        description: Instrucciones y tarea
+        required: true
+      max_turns:
+        description: Pasos máximos
+        default: "10"
+      allow_code:
+        description: Puede cambiar el código
+        default: "false"
+      allow_web:
+        description: Puede buscar en internet
+        default: "false"
+      branch:
+        description: Rama donde guardar los cambios
+        required: true
+
+concurrency:
+  group: agent-${{ inputs.run_id }}
+
+permissions:
+  contents: write
+
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder_key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm install -g @anthropic-ai/claude-code
+
+      - name: Claude Code
+        id: claude
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          PROMPT: ${{ inputs.prompt }}
+          MAX_TURNS: ${{ inputs.max_turns }}
+          ALLOW_CODE: ${{ inputs.allow_code }}
+          ALLOW_WEB: ${{ inputs.allow_web }}
+        run: |
+          tools="Read,Glob,Grep,Bash(git diff:*),Bash(git status:*),Bash(ls:*)"
+          if [ "$ALLOW_CODE" = "true" ]; then
+            tools="$tools,Edit,Write,Bash(npm run lint:*),Bash(npm run typecheck:*),Bash(npm test:*),Bash(npx prettier:*)"
+          fi
+          if [ "$ALLOW_WEB" = "true" ]; then
+            tools="$tools,WebSearch,WebFetch"
+          fi
+          set +e
+          claude -p "$PROMPT" --max-turns "$MAX_TURNS" --allowedTools "$tools" --output-format json > "$RUNNER_TEMP/out.json"
+          code=$?
+          set -e
+          mkdir -p "$RUNNER_TEMP/agent-result"
+          jq -r '.result // "Claude Code no devolvió texto."' "$RUNNER_TEMP/out.json" > "$RUNNER_TEMP/agent-result/result.md" \
+            || echo "Claude Code terminó con error ($code)." > "$RUNNER_TEMP/agent-result/result.md"
+          exit $code
+
+      - name: Guardar cambios en una rama
+        if: ${{ success() && inputs.allow_code == 'true' }}
+        env:
+          BRANCH: ${{ inputs.branch }}
+          RUN_ID: ${{ inputs.run_id }}
+        run: |
+          pushed=false
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name "dashboard-agent"
+            git config user.email "dashboard-agent@users.noreply.github.com"
+            git checkout -b "$BRANCH"
+            git add -A
+            git commit -m "Agente: cambios de la ejecución $RUN_ID"
+            git push origin "$BRANCH"
+            pushed=true
+          fi
+          echo "{\"branch_pushed\": $pushed}" > "$RUNNER_TEMP/agent-result/meta.json"
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: agent-result
+          path: ${{ runner.temp }}/agent-result/
+          retention-days: 7
+          if-no-files-found: ignore
