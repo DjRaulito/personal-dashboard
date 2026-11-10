@@ -222,8 +222,10 @@ def generate_images(scenes: list[dict], width: int, height: int, seed: int, prog
     w, h = (768, 1344) if height > width else (1344, 768)
     style = "cinematic photo, dramatic lighting, rich colors, shallow depth of field, no text, no watermark"
     failures: list[str] = []
+    refused = False  # 401/402/403: el servicio pide clave o crédito; no insistir
 
     def one(i: int) -> tuple[int, Path | None]:
+        nonlocal refused
         prompt = urllib.parse.quote(f"{scenes[i].get('query', '').strip()}, {style}")
         params = f"width={w}&height={h}&seed={seed + i}&nologo=true&model=flux"
         url = f"{IMAGE_API_KEYED}/{prompt}?{params}" if key else f"{IMAGE_API}/{prompt}?{params}"
@@ -244,6 +246,9 @@ def generate_images(scenes: list[dict], width: int, height: int, seed: int, prog
                 return i, out
             except urllib.error.HTTPError as e:
                 failures.append(f"HTTP {e.code}")
+                if e.code in (401, 402, 403):
+                    refused = True
+                    return i, None
                 time.sleep(16 if e.code == 429 else 4 * (attempt + 1))
             except Exception as e:  # sin URL en el registro: el repo es público
                 failures.append(type(e).__name__)
@@ -258,11 +263,13 @@ def generate_images(scenes: list[dict], width: int, height: int, seed: int, prog
                     found[i] = path
     else:
         for n, i in enumerate(missing):
+            if refused:
+                break
             started = time.monotonic()
             _, path = one(i)
             if path:
                 found[i] = path
-            if n + 1 < len(missing):
+            if n + 1 < len(missing) and not refused:
                 time.sleep(max(0.0, 16 - (time.monotonic() - started)))
     summary = f"imágenes IA: {len(found)} de {len(missing)}"
     if failures:
