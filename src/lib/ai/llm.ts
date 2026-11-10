@@ -58,7 +58,7 @@ export function geminiCandidates(names: string[]): string[] {
 async function listGeminiModels(): Promise<string[]> {
   const res = await fetch(`${GEMINI_BASE}/models?pageSize=200`, {
     headers: { "x-goog-api-key": process.env.GEMINI_API_KEY! },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+    signal: AbortSignal.timeout(8000),
     cache: "no-store",
   });
   if (!res.ok) return [];
@@ -68,44 +68,53 @@ async function listGeminiModels(): Promise<string[]> {
     .map((m) => m.name);
 }
 
-function postGemini(model: string, body: Record<string, unknown>): Promise<Response> {
-  return fetch(`${GEMINI_BASE}/models/${model}:generateContent`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-    cache: "no-store",
-  });
+const GEMINI_ATTEMPT_MS = 20000;
+
+/** Una llamada a un modelo; devuelve null si no responde a tiempo o se corta la conexión. */
+async function postGemini(model: string, body: Record<string, unknown>): Promise<Response | null> {
+  // thinkingLevel solo existe en Gemini 3+: con otros modelos daría 400
+  const config = body.generationConfig as Record<string, unknown> | undefined;
+  const send =
+    config && !/^gemini-([3-9]|\d{2})/.test(model)
+      ? { ...body, generationConfig: { ...config, thinkingConfig: undefined } }
+      : body;
+  try {
+    return await fetch(`${GEMINI_BASE}/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
+      body: JSON.stringify(send),
+      signal: AbortSignal.timeout(GEMINI_ATTEMPT_MS),
+      cache: "no-store",
+    });
+  } catch {
+    return null;
+  }
 }
 
+// Se puede cambiar de modelo si no existe (404), está saturado (503/429) o no contesta a tiempo
+const switchable = (r: Response | null) => !r || r.status === 404 || r.status === 503 || r.status === 429;
+
 async function geminiRequest(body: Record<string, unknown>): Promise<GeminiContent> {
-  let res = await postGemini(resolvedModel ?? GEMINI_MODEL, body);
-  if (res.status === 404) {
-    // Modelo retirado: prueba los que Google ofrece ahora (máx. 3) y recuerda el que funcione
-    const current = resolvedModel ?? GEMINI_MODEL;
-    for (const alt of geminiCandidates(await listGeminiModels())
-      .filter((m) => m !== current)
-      .slice(0, 3)) {
+  const first = resolvedModel ?? GEMINI_MODEL;
+  let model = first;
+  let res = await postGemini(model, body);
+  if (switchable(res)) {
+    // Prueba otros modelos Flash que Google ofrezca ahora (máx. 3) y recuerda el que funcione
+    const alts = geminiCandidates(await listGeminiModels().catch(() => []))
+      .filter((m) => m !== first)
+      .slice(0, 3);
+    for (const alt of alts) {
       const r = await postGemini(alt, body);
-      if (r.ok || r.status !== 404) {
+      if (r?.ok || !switchable(r)) {
         res = r;
-        if (r.ok) resolvedModel = alt;
+        model = alt;
         break;
       }
+      res = res ?? r;
     }
   }
-  // 503 (saturado) y 429 (límite): suelen ser momentáneos; reintenta con espera corta
-  for (const wait of [1200, 2500]) {
-    if (res.status !== 503 && res.status !== 429) break;
-    await new Promise((r) => setTimeout(r, wait));
-    res = await postGemini(resolvedModel ?? GEMINI_MODEL, body);
-  }
-  // Sigue saturado: prueba con la versión lite, que suele tener hueco
-  if (res.status === 503 || res.status === 429) {
-    const lite = `${resolvedModel ?? GEMINI_MODEL}-lite`;
-    const resLite = await postGemini(lite, body);
-    if (resLite.ok) res = resLite;
-  }
+  if (res?.ok) resolvedModel = model;
+  if (!res) throw new Error("Gemini no respondió a tiempo con ningún modelo");
   if (!res.ok) {
     // El mensaje de Google dice la causa real (modelo, clave, cuota…)
     const detail = await res
