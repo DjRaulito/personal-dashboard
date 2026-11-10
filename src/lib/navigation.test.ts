@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { isActive, NAV_ITEMS } from "./navigation";
 
 describe("navegación", () => {
-  it("incluye las siete secciones del plan", () => {
+  it("incluye las secciones del plan", () => {
     expect(NAV_ITEMS.map((i) => i.label)).toEqual([
       "Inicio",
       "Finanzas",
@@ -10,8 +10,13 @@ describe("navegación", () => {
       "Contenido",
       "Gimnasio",
       "Nutrición",
+      "IA",
       "Ajustes",
     ]);
+  });
+
+  it("en móvil caben siete", () => {
+    expect(NAV_ITEMS.filter((i) => !i.desktopOnly)).toHaveLength(7);
   });
 
   it("marca la sección activa", () => {

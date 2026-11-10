@@ -5,17 +5,25 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { AiUnavailableError, askJson } from "@/lib/ai/llm";
 import { fieldErrors, type FormState } from "@/lib/finance/schemas";
+import { imageSchema } from "@/lib/ai/image";
 import {
   cheatEstimateSchema,
+  cheatPhotoPrompt,
+  cheatPhotoSchema,
   cheatPrompt,
   foodEstimateSchema,
   foodPrompt,
+  mealLogPrompt,
+  mealLogSchema,
   mealPrompt,
   mealSuggestionSchema,
+  resolveMealLog,
   resolveProposals,
   SYSTEM_NUTRITION,
   type CheatEstimate,
+  type CheatPhotoEstimate,
   type FoodEstimate,
+  type ResolvedMealLog,
   type ResolvedProposal,
 } from "@/lib/nutrition/ai";
 import catalog from "@/lib/nutrition/catalog.json";
@@ -120,6 +128,92 @@ export async function setMealCheck(dayKey: string, mealId: string, status: strin
     );
   }
   refresh();
+}
+
+/** Marca como «según el plan» todas las comidas del día que aún no tienen estado. */
+export async function markRestAsPlanned(dayKey: string): Promise<number> {
+  const d = day.parse(dayKey);
+  const supabase = await session();
+  const [plan, current] = await Promise.all([getActivePlan(), getDay(d)]);
+  const pending = (plan?.meals ?? []).filter((m) => !current.checks.has(m.id));
+  if (pending.length === 0) return 0;
+  const { error } = await supabase.from("nutrition_meal_checks").upsert(
+    pending.map((m) => ({ day: d, meal_id: m.id, status: "done" })),
+    { onConflict: "user_id,day,meal_id" },
+  );
+  if (error) throw new Error("No se pudo marcar.");
+  refresh();
+  return pending.length;
+}
+
+/**
+ * Copia lo comido otro día (registros y estado). Con mealId, solo esa comida; sin él, todas las
+ * comidas del día destino que estén vacías (sin registros ni estado).
+ */
+export async function copyFromDay(fromKey: string, toKey: string, mealId?: string): Promise<number> {
+  const from = day.parse(fromKey);
+  const to = day.parse(toKey);
+  const only = mealId ? uuid.parse(mealId) : null;
+  const supabase = await session();
+  const [plan, source, target] = await Promise.all([getActivePlan(), getDay(from), getDay(to)]);
+  const meals = (plan?.meals ?? []).filter((m) =>
+    only ? m.id === only : !target.checks.has(m.id) && !target.logs.some((l) => l.meal_id === m.id),
+  );
+  const ids = new Set(meals.map((m) => m.id));
+  const logs = source.logs.filter((l) => l.meal_id && ids.has(l.meal_id));
+  const checks = meals.filter((m) => source.checks.has(m.id));
+  if (logs.length === 0 && checks.length === 0) return 0;
+  if (logs.length) {
+    const { error } = await supabase.from("nutrition_logs").insert(
+      logs.map((l) => ({
+        eaten_on: to,
+        meal_id: l.meal_id,
+        group_id: l.group_id,
+        food_id: l.food_id,
+        grams: l.grams,
+      })),
+    );
+    if (error) throw new Error("No se pudo copiar.");
+  }
+  if (checks.length) {
+    await supabase.from("nutrition_meal_checks").upsert(
+      checks.map((m) => ({ day: to, meal_id: m.id, status: source.checks.get(m.id)!.status })),
+      { onConflict: "user_id,day,meal_id" },
+    );
+  }
+  refresh();
+  return new Set([...logs.map((l) => l.meal_id), ...checks.map((m) => m.id)]).size;
+}
+
+/** Texto libre o foto de lo que has comido → alimentos del catálogo con gramos (no guarda nada). */
+export async function parseMealLog(
+  dayKey: string,
+  mealId: string,
+  text: string,
+  image?: unknown,
+): Promise<AiResult<ResolvedMealLog>> {
+  await session();
+  day.parse(dayKey);
+  const clean = z.string().max(500).catch("").parse(text).trim();
+  const img = image === undefined ? null : imageSchema.safeParse(image);
+  if (img && !img.success) return { ok: false, message: "La foto no es válida o es demasiado grande." };
+  if (!clean && !img) return { ok: false, message: "Escribe qué has comido o haz una foto." };
+  const [plan, foods] = await Promise.all([getActivePlan(), getFoods()]);
+  const meal = plan?.meals.find((m) => m.id === uuid.parse(mealId));
+  if (!meal) return { ok: false, message: "No se encontró la comida en el plan." };
+  const foodMap = new Map(foods.map((f) => [f.id, f]));
+  return runAi(async () => {
+    const suggestion = await askJson(
+      mealLogSchema,
+      SYSTEM_NUTRITION,
+      mealLogPrompt(meal.name, meal.groups, foods, foodMap, clean, Boolean(img)),
+      img?.data,
+    );
+    const resolved = resolveMealLog(suggestion, meal.groups, foodMap);
+    if (resolved.items.length === 0 && resolved.unknown.length === 0)
+      throw new Error("No he reconocido ningún alimento. Prueba a describirlo con otras palabras.");
+    return resolved;
+  });
 }
 
 /** Propuestas de comida con IA para completar lo que falta de una comida del plan. */
@@ -414,6 +508,15 @@ export async function estimateCheat(description: string): Promise<AiResult<Cheat
   const clean = z.string().trim().min(3).max(1000).safeParse(description);
   if (!clean.success) return { ok: false, message: "Describe primero lo que comiste." };
   return runAi(() => askJson(cheatEstimateSchema, SYSTEM_NUTRITION, cheatPrompt(clean.data)));
+}
+
+/** Kcal y macros a partir de una foto del plato (y lo que se haya escrito como pista). */
+export async function estimateCheatPhoto(image: unknown, hint: string): Promise<AiResult<CheatPhotoEstimate>> {
+  await session();
+  const img = imageSchema.safeParse(image);
+  if (!img.success) return { ok: false, message: "La foto no es válida o es demasiado grande." };
+  const text = z.string().max(1000).catch("").parse(hint).trim();
+  return runAi(() => askJson(cheatPhotoSchema, SYSTEM_NUTRITION, cheatPhotoPrompt(text), img.data));
 }
 
 // ---------------------------------------------------------------------------

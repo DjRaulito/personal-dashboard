@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { DayActions } from "@/components/nutrition/day-actions";
 import { MealTracker } from "@/components/nutrition/meal-tracker";
 import { CreatePlanForm, LoadCatalogButton } from "@/components/nutrition/setup";
 import { buttonClass, Tile, TileTitle } from "@/components/ui";
@@ -20,10 +21,12 @@ export default async function NutritionTodayPage({ searchParams }: { searchParam
   const { dia } = await searchParams;
   const today = dayKey(new Date());
   const day = dia && /^\d{4}-\d{2}-\d{2}$/.test(dia) && dia <= today ? dia : today;
-  const [plan, foods, data, cheats, reviews] = await Promise.all([
+  const prevDay = shift(day, -1);
+  const [plan, foods, data, prev, cheats, reviews] = await Promise.all([
     getActivePlan(),
     getFoods(),
     getDay(day),
+    getDay(prevDay),
     getCheats(),
     getReviews(),
   ]);
@@ -49,6 +52,16 @@ export default async function NutritionTodayPage({ searchParams }: { searchParam
   const planned = sumTotals(plan.meals.flatMap((m) => m.groups.map((g) => groupPortionTotals(g, foodMap))));
   const checked = plan.meals.filter((m) => data.checks.has(m.id));
   const ok = checked.filter((m) => data.checks.get(m.id)!.status === "done").length;
+  const isEmpty = (mealId: string) => !data.checks.has(mealId) && !data.logs.some((l) => l.meal_id === mealId);
+  const yesterdayOf = (mealId: string) => {
+    const logs = prev.logs.filter((l) => l.meal_id === mealId);
+    if (logs.length === 0 && !prev.checks.has(mealId)) return null;
+    const summary = logs.length
+      ? logs.map((l) => `${Math.round(l.grams)} g ${foodMap.get(l.food_id)?.name ?? "?"}`).join(", ")
+      : "Marcada como hecha";
+    return { day: prevDay, summary };
+  };
+  const canCopy = plan.meals.some((m) => isEmpty(m.id) && yesterdayOf(m.id) !== null);
   const lastReview = reviews[0]?.review_on ?? null;
   const cheatsSince = cheats.filter((c) => !lastReview || c.eaten_on > lastReview).length;
   const label = new Intl.DateTimeFormat(APP_LOCALE, {
@@ -120,6 +133,8 @@ export default async function NutritionTodayPage({ searchParams }: { searchParam
         </Tile>
       </section>
 
+      <DayActions day={day} yesterday={prevDay} pendingMeals={plan.meals.length - checked.length} canCopy={canCopy} />
+
       <div className="grid gap-3.5 xl:grid-cols-2">
         {plan.meals.map((m) => (
           <MealTracker
@@ -129,6 +144,7 @@ export default async function NutritionTodayPage({ searchParams }: { searchParam
             foodList={foods}
             initialLogs={data.logs.filter((l) => l.meal_id === m.id)}
             initialStatus={data.checks.get(m.id)?.status ?? null}
+            yesterday={yesterdayOf(m.id)}
           />
         ))}
       </div>

@@ -6,11 +6,13 @@ import {
   deleteFood,
   deleteReview,
   estimateCheat,
+  estimateCheatPhoto,
   estimateFood,
   saveCheat,
   saveFood,
   saveReview,
 } from "@/app/(app)/nutricion/actions";
+import { PhotoButton } from "@/components/ai/photo-button";
 import { buttonClass, Field, FormMessage, inputClass } from "@/components/ui";
 import type { FormState } from "@/lib/finance/schemas";
 
@@ -356,6 +358,27 @@ export function CheatForm({ today }: { today: string }) {
         >
           {aiPending ? "Estimando…" : "Estimar kcal con IA"}
         </button>
+        <PhotoButton
+          label="Foto del plato"
+          busy={aiPending}
+          onError={setAiMessage}
+          onImage={(image) =>
+            startAi(async () => {
+              setAiMessage(null);
+              const res = await estimateCheatPhoto(image, description);
+              if (!res.ok) return setAiMessage(res.message);
+              const d = res.data;
+              if (!description.trim() && d.description) setDescription(d.description);
+              setMacros({
+                kcal: String(Math.round(d.kcal)),
+                protein_g: String(Math.round(d.protein_g)),
+                carbs_g: String(Math.round(d.carbs_g)),
+                fat_g: String(Math.round(d.fat_g)),
+              });
+              setAi({ by: "ai", notes: d.notes });
+            })
+          }
+        />
         <button type="submit" disabled={pending} className={buttonClass.primary}>
           {pending ? "Guardando…" : "Guardar cheat meal"}
         </button>

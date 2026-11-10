@@ -1,6 +1,9 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { CalendarEvents } from "@/components/calendar-events";
+import { WeeklySummaryAsync } from "@/components/home/weekly-summary";
 import { PageHeader, PageShell } from "@/components/page-header";
+import { Skeleton } from "@/components/ui";
 import { daysFromToday } from "@/lib/calendar/range";
 import { getCalendarEvents } from "@/lib/calendar/server";
 import { dayKey, formatLongDate } from "@/lib/datetime";
@@ -176,6 +179,10 @@ export default async function Home() {
             <span className="text-muted mt-4 block text-sm">Configura tu plan nutricional</span>
           )}
         </Link>
+
+        <Suspense fallback={<Skeleton className="rounded-tile h-56 md:col-span-6" />}>
+          <WeeklySummaryAsync today={today} />
+        </Suspense>
       </section>
     </PageShell>
   );

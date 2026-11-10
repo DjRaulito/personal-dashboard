@@ -2,12 +2,23 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { clsx } from "clsx";
-import { addLogs, clearMealLogs, deleteLog, setMealCheck, suggestMeal } from "@/app/(app)/nutricion/actions";
+import { Check, Copy, MessageSquareText, SlidersHorizontal } from "lucide-react";
+import {
+  addLogs,
+  clearMealLogs,
+  copyFromDay,
+  deleteLog,
+  parseMealLog,
+  setMealCheck,
+  suggestMeal,
+} from "@/app/(app)/nutricion/actions";
+import { PhotoButton } from "@/components/ai/photo-button";
 import { buttonClass, inputClass } from "@/components/ui";
+import type { ImageInput } from "@/lib/ai/image";
+import type { ResolvedMealLog, ResolvedProposal } from "@/lib/nutrition/ai";
 
 // Campos compactos en línea: sin el ancho completo de los formularios normales
 const compact = inputClass.replace("w-full ", "");
-import type { ResolvedProposal } from "@/lib/nutrition/ai";
 import {
   groupPortionTotals,
   groupProgress,
@@ -262,23 +273,241 @@ function GroupRow({
   );
 }
 
+const linkButton =
+  "text-muted hover:text-text inline-flex items-center gap-1.5 rounded-full py-1 text-sm transition-colors duration-150 active:opacity-70 disabled:opacity-50";
+
+/** Texto corto de una opción para el chip: "150 g Pechuga de pollo", "2 × Huevo". */
+function optionLabel(o: ReturnType<typeof groupProgress>["options"][number]) {
+  const name = o.food?.name ?? "?";
+  if (o.units !== null) return `${o.units.toLocaleString("es-ES")} × ${name}`;
+  return `${o.option.unit === "ml" ? `${o.grams} ml` : grams(o.grams)} ${name}`;
+}
+
+/** Un toque por grupo: cada chip apunta lo que falta con esa opción del plan. */
+function QuickGroups({
+  groups,
+  logs,
+  foods,
+  busy,
+  onAdd,
+  onDelete,
+}: {
+  groups: PlanGroup[];
+  logs: TrackerLog[];
+  foods: Map<string, Food>;
+  busy: boolean;
+  onAdd: (items: { group_id: string | null; food_id: string; grams: number }[]) => void;
+  onDelete: (id: string) => void;
+}) {
+  const visible = groups.filter((g) => g.kind !== "veg" && g.options.length > 0);
+  const loose = logs.filter((l) => !l.group_id || !visible.some((g) => g.id === l.group_id));
+  return (
+    <ul className="mt-4 flex flex-col gap-3">
+      {visible.map((g) => {
+        const p = groupProgress(g, logs, foods);
+        const complete = p.remaining < 0.05;
+        return (
+          <li key={g.id}>
+            <p className="flex items-center gap-2 text-xs">
+              <span className={clsx("font-medium", complete ? "text-nutrition" : "text-muted")}>{g.name}</span>
+              {complete ? (
+                <Check aria-label="completo" className="text-nutrition h-3.5 w-3.5" strokeWidth={2.5} />
+              ) : (
+                p.eaten > 0 && <span className="text-muted tabular-nums">falta {pct(p.remaining)}</span>
+              )}
+            </p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {p.logs.map((l) => (
+                <span
+                  key={l.id}
+                  className="bg-nutrition/15 text-text flex items-center gap-1 rounded-full py-1 pr-1 pl-3 text-xs tabular-nums"
+                >
+                  {grams(l.grams)} {foods.get(l.food_id)?.name ?? "?"}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onDelete(l.id)}
+                    aria-label={`Quitar ${foods.get(l.food_id)?.name ?? "alimento"}`}
+                    className="text-muted hover:text-text hover:bg-border flex h-6 w-6 items-center justify-center rounded-full transition-colors"
+                  >
+                    <span aria-hidden="true">×</span>
+                  </button>
+                </span>
+              ))}
+              {!complete &&
+                p.options.map((o) => (
+                  <button
+                    key={o.option.id}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onAdd([{ group_id: g.id, food_id: o.option.food_id, grams: o.grams }])}
+                    className="border-border-strong hover:border-nutrition hover:text-text text-muted rounded-full border px-3 py-1 text-xs tabular-nums transition-[border-color,color,transform] duration-150 active:scale-95 disabled:opacity-50 motion-reduce:active:scale-100"
+                  >
+                    + {optionLabel(o)}
+                  </button>
+                ))}
+            </div>
+          </li>
+        );
+      })}
+      {loose.length > 0 && (
+        <li className="flex flex-wrap gap-1.5">
+          {loose.map((l) => (
+            <span key={l.id} className="bg-surface-2 flex items-center gap-1 rounded-full py-1 pr-1 pl-3 text-xs">
+              {grams(l.grams)} {foods.get(l.food_id)?.name ?? "?"}
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onDelete(l.id)}
+                aria-label={`Quitar ${foods.get(l.food_id)?.name ?? "alimento"}`}
+                className="text-muted hover:text-text hover:bg-border flex h-6 w-6 items-center justify-center rounded-full transition-colors"
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </span>
+          ))}
+        </li>
+      )}
+    </ul>
+  );
+}
+
+/** Describir con palabras o con una foto lo que has comido; la IA lo pasa a alimentos y gramos. */
+function DescribeMeal({
+  day,
+  mealId,
+  foods,
+  busy,
+  onApply,
+}: {
+  day: string;
+  mealId: string;
+  foods: Map<string, Food>;
+  busy: boolean;
+  onApply: (items: ResolvedMealLog["items"]) => void;
+}) {
+  const [text, setText] = useState("");
+  const [result, setResult] = useState<ResolvedMealLog | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  const run = (image?: ImageInput) =>
+    start(async () => {
+      setMessage(null);
+      setResult(null);
+      const res = await parseMealLog(day, mealId, text, image);
+      if (res.ok) setResult(res.data);
+      else setMessage(res.message);
+    });
+
+  return (
+    <div className="bg-surface-2 rounded-inner mt-3 flex flex-col gap-3 p-3.5">
+      <form
+        className="flex flex-col gap-2 sm:flex-row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (text.trim()) run();
+        }}
+      >
+        <label className="sr-only" htmlFor={`describe-${mealId}`}>
+          Qué has comido
+        </label>
+        <input
+          id={`describe-${mealId}`}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          maxLength={500}
+          autoComplete="off"
+          placeholder="Pollo con arroz y una manzana…"
+          className={`${inputClass} min-w-0 flex-1 py-2 text-sm`}
+        />
+        <div className="flex gap-2">
+          <button type="submit" disabled={pending || !text.trim()} className={`${buttonClass.secondary} text-xs`}>
+            {pending ? "Leyendo…" : "Calcular"}
+          </button>
+          <PhotoButton label="Foto" busy={pending} onImage={(img) => run(img)} onError={setMessage} />
+        </div>
+      </form>
+      {message && (
+        <p role="alert" className="text-attention text-sm">
+          {message}
+        </p>
+      )}
+      {result && (
+        <div className="flex flex-col gap-2 text-sm" aria-live="polite">
+          {result.items.length > 0 && (
+            <ul className="flex flex-col gap-0.5 tabular-nums">
+              {result.items.map((it, i) => (
+                <li key={i}>
+                  {grams(it.grams)} {foods.get(it.food_id)?.name ?? "?"}
+                </li>
+              ))}
+            </ul>
+          )}
+          {result.unknown.length > 0 && (
+            <p className="text-attention text-xs">
+              No está en tus alimentos: {result.unknown.join(", ")}. Añádelo en Alimentos si quieres contarlo.
+            </p>
+          )}
+          {result.notes && <p className="text-muted text-xs">IA: {result.notes}</p>}
+          <div className="flex gap-2">
+            {result.items.length > 0 && (
+              <button
+                type="button"
+                disabled={busy}
+                className={`${buttonClass.primary} py-2 text-xs`}
+                onClick={() => {
+                  onApply(result.items);
+                  setResult(null);
+                  setText("");
+                }}
+              >
+                Apuntar
+              </button>
+            )}
+            <button type="button" onClick={() => setResult(null)} className={`${buttonClass.secondary} text-xs`}>
+              Descartar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const isComplete = (groups: PlanGroup[], logs: TrackerLog[], foods: Map<string, Food>) => {
+  const relevant = groups.filter((g) => g.kind !== "veg" && g.options.length > 0);
+  return relevant.length > 0 && relevant.every((g) => groupProgress(g, logs, foods).remaining < 0.05);
+};
+
 export function MealTracker({
   day,
   meal,
   foodList,
   initialLogs,
   initialStatus,
+  yesterday,
 }: {
   day: string;
   meal: { id: string; name: string; notes: string | null; groups: PlanGroup[] };
   foodList: Food[];
   initialLogs: TrackerLog[];
   initialStatus: Status | null;
+  /** Lo que se apuntó en esta comida el día anterior (para «Igual que ayer»). */
+  yesterday: { day: string; summary: string } | null;
 }) {
   const foods = useMemo(() => new Map(foodList.map((f) => [f.id, f])), [foodList]);
   const [logs, setLogs] = useState(initialLogs);
   const [status, setStatus] = useState<Status | null>(initialStatus);
-  const [open, setOpen] = useState(initialLogs.length > 0);
+  // Si el servidor cambia los datos (copiar ayer, marcar el día…), se sincroniza el estado local
+  const signature = `${initialStatus}|${initialLogs.map((l) => l.id).join(",")}`;
+  const [seen, setSeen] = useState(signature);
+  if (seen !== signature) {
+    setSeen(signature);
+    setLogs(initialLogs);
+    setStatus(initialStatus);
+  }
+  const [panel, setPanel] = useState<"none" | "describe" | "grams">("none");
   const [error, setError] = useState<string | null>(null);
   const [wishes, setWishes] = useState("");
   const [proposals, setProposals] = useState<ResolvedProposal[] | null>(null);
@@ -287,17 +516,20 @@ export function MealTracker({
 
   const eaten = totalsOf(logs, foods);
   const planned = sumTotals(meal.groups.map((g) => groupPortionTotals(g, foods)));
-  const progressAll = meal.groups
-    .filter((g) => g.kind !== "veg" && g.options.length > 0)
-    .map((g) => groupProgress(g, logs, foods));
-  const done = progressAll.length > 0 && progressAll.every((p) => p.remaining < 0.05);
+  const done = isComplete(meal.groups, logs, foods);
 
-  const add = (items: { group_id: string; food_id: string; grams: number }[]) =>
+  const add = (items: { group_id: string | null; food_id: string; grams: number }[]) =>
     startTransition(async () => {
       setError(null);
       try {
         const saved = await addLogs(items.map((i) => ({ ...i, day, meal_id: meal.id })));
-        setLogs((prev) => [...prev, ...saved]);
+        const next = [...logs, ...saved];
+        setLogs(next);
+        // Comida completa sin estado: se marca como hecha sola
+        if (status === null && isComplete(meal.groups, next, foods)) {
+          setStatus("done");
+          await setMealCheck(day, meal.id, "done");
+        }
       } catch {
         setError("No se pudo apuntar. Inténtalo de nuevo.");
       }
@@ -316,6 +548,16 @@ export function MealTracker({
       await setMealCheck(day, meal.id, next);
     });
 
+  const copyYesterday = () =>
+    startTransition(async () => {
+      setError(null);
+      try {
+        await copyFromDay(yesterday!.day, day, meal.id);
+      } catch {
+        setError("No se pudo copiar.");
+      }
+    });
+
   const ask = () =>
     startAi(async () => {
       setError(null);
@@ -324,6 +566,9 @@ export function MealTracker({
       if (res.ok) setProposals(res.data);
       else setError(res.message);
     });
+
+  const toggle = (p: typeof panel) => setPanel((v) => (v === p ? "none" : p));
+  const empty = logs.length === 0 && status === null;
 
   return (
     <article className="rounded-tile border-border bg-surface border p-5 sm:p-6">
@@ -361,16 +606,58 @@ export function MealTracker({
         ))}
       </div>
 
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="text-muted hover:text-text mt-4 text-sm transition-colors"
-      >
-        {open ? "Ocultar calculadora" : logs.length ? `Ver lo apuntado (${logs.length})` : "Calcular lo que como"}
-      </button>
+      {panel !== "grams" && status !== "skipped" && status !== "cheat" && (
+        <QuickGroups groups={meal.groups} logs={logs} foods={foods} busy={pending} onAdd={add} onDelete={remove} />
+      )}
 
-      {open && (
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
+        {yesterday && empty && (
+          <button
+            type="button"
+            onClick={copyYesterday}
+            disabled={pending}
+            className={linkButton}
+            title={yesterday.summary}
+          >
+            <Copy aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
+            Igual que ayer
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => toggle("describe")}
+          aria-expanded={panel === "describe"}
+          className={linkButton}
+        >
+          <MessageSquareText aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
+          Describir o foto
+        </button>
+        <button type="button" onClick={() => toggle("grams")} aria-expanded={panel === "grams"} className={linkButton}>
+          <SlidersHorizontal aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
+          {panel === "grams" ? "Cerrar gramos" : "Ajustar gramos"}
+        </button>
+      </div>
+
+      {error && (
+        <p role="alert" className="text-attention bg-surface-2 rounded-inner mt-3 px-3.5 py-2.5 text-sm">
+          {error}
+        </p>
+      )}
+
+      {panel === "describe" && (
+        <DescribeMeal
+          day={day}
+          mealId={meal.id}
+          foods={foods}
+          busy={pending}
+          onApply={(items) => {
+            add(items);
+            setPanel("none");
+          }}
+        />
+      )}
+
+      {panel === "grams" && (
         <div className="mt-2">
           <ul className="divide-border divide-y">
             {meal.groups.map((g) => (
@@ -431,48 +718,41 @@ export function MealTracker({
             </div>
           )}
 
-          <div aria-live="polite">
-            {error && (
-              <p role="alert" className="text-attention bg-surface-2 rounded-inner mt-3 px-3.5 py-2.5 text-sm">
-                {error}
-              </p>
-            )}
-            {proposals && (
-              <ul className="mt-3 grid gap-2.5 md:grid-cols-3">
-                {proposals.map((p, i) => (
-                  <li key={i} className="bg-surface-2 rounded-inner flex flex-col p-4 text-sm">
-                    <p className="font-semibold">{p.title}</p>
-                    {p.description && <p className="text-muted mt-1 text-xs">{p.description}</p>}
-                    <ul className="mt-2 flex flex-1 flex-col gap-0.5 text-xs tabular-nums">
-                      {p.items.map((it) => {
-                        const food = foods.get(it.food_id);
-                        const cooked = foodList.find((f) => f.cooked_from === it.food_id && f.cooked_factor);
-                        return (
-                          <li key={`${it.option_id}-${it.group_id}`}>
-                            {grams(it.grams)} {food?.name ?? "?"}
-                            {cooked && (
-                              <span className="text-muted"> (≈ {grams(it.grams * cooked.cooked_factor!)} cocido)</span>
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                    <button
-                      type="button"
-                      disabled={pending}
-                      className={`${buttonClass.secondary} mt-3 text-xs`}
-                      onClick={() => {
-                        add(p.items.map(({ group_id, food_id, grams: g }) => ({ group_id, food_id, grams: g })));
-                        setProposals(null);
-                      }}
-                    >
-                      Apuntar esta
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          {proposals && (
+            <ul className="mt-3 grid gap-2.5 md:grid-cols-3" aria-live="polite">
+              {proposals.map((p, i) => (
+                <li key={i} className="bg-surface-2 rounded-inner flex flex-col p-4 text-sm">
+                  <p className="font-semibold">{p.title}</p>
+                  {p.description && <p className="text-muted mt-1 text-xs">{p.description}</p>}
+                  <ul className="mt-2 flex flex-1 flex-col gap-0.5 text-xs tabular-nums">
+                    {p.items.map((it) => {
+                      const food = foods.get(it.food_id);
+                      const cooked = foodList.find((f) => f.cooked_from === it.food_id && f.cooked_factor);
+                      return (
+                        <li key={`${it.option_id}-${it.group_id}`}>
+                          {grams(it.grams)} {food?.name ?? "?"}
+                          {cooked && (
+                            <span className="text-muted"> (≈ {grams(it.grams * cooked.cooked_factor!)} cocido)</span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    className={`${buttonClass.secondary} mt-3 text-xs`}
+                    onClick={() => {
+                      add(p.items.map(({ group_id, food_id, grams: g }) => ({ group_id, food_id, grams: g })));
+                      setProposals(null);
+                    }}
+                  >
+                    Apuntar esta
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </article>

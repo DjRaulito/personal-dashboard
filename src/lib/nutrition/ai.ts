@@ -30,6 +30,22 @@ export function cheatPrompt(description: string): string {
   ].join("\n");
 }
 
+export const cheatPhotoSchema = cheatEstimateSchema.extend({
+  description: z.string().max(300).optional().default(""),
+});
+export type CheatPhotoEstimate = z.infer<typeof cheatPhotoSchema>;
+
+export function cheatPhotoPrompt(hint: string): string {
+  return [
+    "Mira la foto del plato y estima las calorías y macros totales de lo que se ve.",
+    "Calcula el tamaño de las raciones por el plato, los cubiertos y el envase. Si hay varias personas, cuenta solo una ración.",
+    hint ? `Detalles que da el usuario: """${hint.slice(0, 500)}"""` : "",
+    'Devuelve: {"description": "qué comida es, en pocas palabras", "kcal": número, "protein_g": número, "carbs_g": número, "fat_g": número, "notes": "qué has supuesto, en una frase"}',
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 // ---------------------------------------------------------------------------
 // Macros de un alimento nuevo
 // ---------------------------------------------------------------------------
@@ -147,4 +163,91 @@ export function resolveProposals(
     }
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Registro rápido: texto libre o foto → alimentos y gramos del catálogo
+// ---------------------------------------------------------------------------
+
+export const mealLogSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        food_id: z.string().nullable().optional(),
+        name: z.string().max(80).optional().default(""),
+        grams: z.coerce.number().min(0).max(5000),
+        group_id: z.string().nullable().optional(),
+      }),
+    )
+    .max(15),
+  notes: z.string().max(300).optional().default(""),
+});
+export type MealLogSuggestion = z.infer<typeof mealLogSchema>;
+
+export function mealLogPrompt(
+  mealName: string,
+  groups: PlanGroup[],
+  catalog: Food[],
+  foods: Map<string, Food>,
+  text: string,
+  withPhoto: boolean,
+): string {
+  const groupLines = groups
+    .filter((g) => g.kind !== "veg")
+    .map(
+      (g) =>
+        `  · group_id "${g.id}" — ${g.name}: ${g.options.map((o) => foods.get(o.food_id)?.name ?? "?").join(", ")}`,
+    );
+  const foodLines = catalog.map(
+    (f) =>
+      `  · food_id "${f.id}": ${f.name}${f.unit_label && f.unit_grams ? ` (1 ${f.unit_label} = ${f.unit_grams} g)` : ""}`,
+  );
+  return [
+    `El usuario cuenta qué ha comido en "${mealName}". Conviértelo en alimentos de su catálogo con gramos.`,
+    withPhoto
+      ? "Mira la foto y calcula las cantidades por el tamaño del plato y los cubiertos."
+      : "Si no dice cantidades, usa la ración habitual del plan.",
+    "Los gramos son en CRUDO si el alimento del catálogo es crudo; usa la versión cocida del catálogo si existe y lo que se ve o se dice es cocido.",
+    "Grupos de la comida en su plan (asigna cada alimento a su grupo si encaja; si no, group_id null):",
+    ...groupLines,
+    "Catálogo (usa solo estos food_id; si algo no está, pon food_id null y su nombre en name):",
+    ...foodLines,
+    "Ignora la verdura libre, el agua, el café solo y las especias.",
+    text ? `Lo que dice: """${text.slice(0, 500)}"""` : "",
+    'Devuelve: {"items": [{"food_id": "..." o null, "name": "nombre", "grams": número, "group_id": "..." o null}], "notes": "qué has supuesto, en una frase"}',
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export interface ResolvedMealLog {
+  items: { food_id: string; grams: number; group_id: string | null }[];
+  unknown: string[];
+  notes: string;
+}
+
+/** Valida los ids que devuelve la IA y asigna grupo por las opciones del plan si falta. */
+export function resolveMealLog(
+  suggestion: MealLogSuggestion,
+  groups: PlanGroup[],
+  foods: Map<string, Food>,
+): ResolvedMealLog {
+  const groupIds = new Set(groups.map((g) => g.id));
+  const groupFor = (foodId: string) => {
+    const food = foods.get(foodId);
+    const raw = food?.cooked_from ?? foodId;
+    return groups.find((g) => g.kind !== "veg" && g.options.some((o) => o.food_id === raw || o.food_id === foodId))?.id;
+  };
+  const items: ResolvedMealLog["items"] = [];
+  const unknown: string[] = [];
+  for (const it of suggestion.items) {
+    if (!it.food_id || !foods.has(it.food_id)) {
+      if (it.name.trim()) unknown.push(it.name.trim());
+      continue;
+    }
+    if (!(it.grams > 0)) continue;
+    const group_id = it.group_id && groupIds.has(it.group_id) ? it.group_id : (groupFor(it.food_id) ?? null);
+    items.push({ food_id: it.food_id, grams: Math.round(it.grams), group_id });
+  }
+  return { items, unknown, notes: suggestion.notes };
 }

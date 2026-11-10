@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
-import { saveTransaction } from "@/app/(app)/finanzas/actions";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { saveTransaction, scanReceipt } from "@/app/(app)/finanzas/actions";
+import { PhotoButton } from "@/components/ai/photo-button";
 import { buttonClass, Field, FormMessage, inputClass } from "@/components/ui";
 import type { categoryOptions } from "@/lib/finance/categories";
 import { CategoryOptions } from "./category-select";
@@ -31,6 +32,18 @@ export function TransactionForm({
 }) {
   const [state, action, pending] = useActionState(saveTransaction, { ok: false });
   const formRef = useRef<HTMLFormElement>(null);
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
+  const [scanning, startScan] = useTransition();
+
+  // Rellena el formulario con lo leído del ticket; se revisa y se guarda a mano
+  function fill(values: Record<string, string | null>) {
+    const form = formRef.current;
+    if (!form) return;
+    for (const [name, value] of Object.entries(values)) {
+      const el = form.elements.namedItem(name);
+      if (value !== null && (el instanceof HTMLInputElement || el instanceof HTMLSelectElement)) el.value = value;
+    }
+  }
 
   useEffect(() => {
     if (state.ok) {
@@ -44,6 +57,37 @@ export function TransactionForm({
   return (
     <form autoComplete="off" ref={formRef} action={action} className="flex flex-col gap-4">
       {transaction && <input type="hidden" name="id" value={transaction.id} />}
+      {!transaction && (
+        <div className="flex flex-wrap items-center gap-3">
+          <PhotoButton
+            label="Leer un ticket"
+            busy={scanning}
+            onError={setScanMessage}
+            onImage={(image) =>
+              startScan(async () => {
+                setScanMessage(null);
+                const res = await scanReceipt(image);
+                if (!res.ok) return setScanMessage(res.message);
+                const r = res.data;
+                fill({
+                  description: r.description,
+                  booked_on: r.booked_on,
+                  amount: r.amount,
+                  direction: "gasto",
+                  category_id: r.category_id,
+                  notes: r.notes,
+                });
+                setScanMessage("Ticket leído: revisa los datos y pulsa «Añadir movimiento».");
+              })
+            }
+          />
+          {scanMessage && (
+            <p role="status" className="text-muted text-sm">
+              {scanMessage}
+            </p>
+          )}
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Field label="Concepto" error={state.errors?.description} className="sm:col-span-2">
           <input

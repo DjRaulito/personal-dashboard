@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { cheatEstimateSchema, mealPrompt, mealSuggestionSchema, resolveProposals } from "./ai";
+import {
+  cheatEstimateSchema,
+  mealLogPrompt,
+  mealLogSchema,
+  mealPrompt,
+  mealSuggestionSchema,
+  resolveMealLog,
+  resolveProposals,
+} from "./ai";
 import type { Food, PlanGroup } from "./portions";
 
 const foods = new Map<string, Food>(
@@ -107,6 +115,90 @@ describe("IA de nutrición", () => {
       kcal: 1450,
       carbs_g: 160,
       notes: "",
+    });
+  });
+});
+
+describe("registro rápido con IA", () => {
+  const foods = new Map(
+    [
+      {
+        id: "pollo",
+        name: "Pechuga de pollo",
+        kcal: 110,
+        protein_g: 23,
+        carbs_g: 0,
+        fat_g: 1.5,
+        unit_label: null,
+        unit_grams: null,
+      },
+      {
+        id: "arroz",
+        name: "Arroz",
+        kcal: 350,
+        protein_g: 7,
+        carbs_g: 78,
+        fat_g: 1,
+        unit_label: null,
+        unit_grams: null,
+      },
+      {
+        id: "arroz-cocido",
+        name: "Arroz cocido",
+        kcal: 130,
+        protein_g: 2.7,
+        carbs_g: 28,
+        fat_g: 0.3,
+        unit_label: null,
+        unit_grams: null,
+        cooked_from: "arroz",
+        cooked_factor: 2.5,
+      },
+    ].map((f) => [f.id, f]),
+  );
+  const groups = [
+    {
+      id: "g1",
+      name: "Proteína",
+      kind: "protein" as const,
+      options: [{ id: "o1", food_id: "pollo", amount: 150, unit: "g" as const }],
+    },
+    {
+      id: "g2",
+      name: "Hidratos",
+      kind: "carbs" as const,
+      options: [{ id: "o2", food_id: "arroz", amount: 80, unit: "g" as const }],
+    },
+  ];
+
+  it("lista grupos y catálogo en el prompt", () => {
+    const p = mealLogPrompt("Comida", groups, [...foods.values()], foods, "pollo con arroz", false);
+    expect(p).toContain('group_id "g1"');
+    expect(p).toContain('food_id "arroz-cocido": Arroz cocido');
+    expect(p).toContain("pollo con arroz");
+  });
+
+  it("valida ids, asigna grupo por el plan (también a los cocidos) y separa lo desconocido", () => {
+    const r = resolveMealLog(
+      mealLogSchema.parse({
+        items: [
+          { food_id: "pollo", grams: "148.6", group_id: "inventado" },
+          { food_id: "arroz-cocido", grams: 200 },
+          { food_id: null, name: "Salsa barbacoa", grams: 20 },
+          { food_id: "nope", name: "", grams: 10 },
+        ],
+        notes: "ración normal",
+      }),
+      groups,
+      foods,
+    );
+    expect(r).toEqual({
+      items: [
+        { food_id: "pollo", grams: 149, group_id: "g1" },
+        { food_id: "arroz-cocido", grams: 200, group_id: "g2" },
+      ],
+      unknown: ["Salsa barbacoa"],
+      notes: "ración normal",
     });
   });
 });
