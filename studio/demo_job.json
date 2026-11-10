@@ -4,15 +4,43 @@
   "voice": "es_male",
   "script": {
     "title": "Tres errores al empezar en el gimnasio",
+    "hook": "¿Sin resultados en el gym?",
+    "mood": "energetic",
     "scenes": [
       {
         "text": "¿Llevas meses en el gimnasio sin ver cambios? Puede que cometas uno de estos tres errores.",
+        "query": "frustrated man gym mirror",
+        "emoji": "🤔",
         "clips": []
       },
-      { "text": "Primero: cambiar de rutina cada semana. El cuerpo necesita repetir para progresar.", "clips": [] },
-      { "text": "Segundo: no apuntar los pesos. Si no lo mides, no sabes si mejoras.", "clips": [] },
-      { "text": "Y tercero: dormir poco. El músculo crece cuando descansas, no cuando entrenas.", "clips": [] },
-      { "text": "Guárdalo y sígueme para más consejos.", "clips": [] }
+      {
+        "text": "Primero: cambiar de rutina cada semana. El cuerpo necesita repetir para progresar.",
+        "query": "weightlifting barbell squat",
+        "emphasis": "Error 1: cambiar de rutina",
+        "emoji": "🔁",
+        "clips": []
+      },
+      {
+        "text": "Segundo: no apuntar los pesos. Si no lo mides, no sabes si mejoras.",
+        "query": "notebook writing workout log",
+        "emphasis": "Error 2: no apuntar",
+        "emoji": "📝",
+        "clips": []
+      },
+      {
+        "text": "Y tercero: dormir poco. El músculo crece cuando descansas, no cuando entrenas.",
+        "query": "man sleeping bed night",
+        "emphasis": "Error 3: dormir poco",
+        "emoji": "😴",
+        "clips": []
+      },
+      {
+        "text": "Guárdalo y sígueme para más consejos.",
+        "query": "athlete thumbs up gym",
+        "emphasis": "Sígueme",
+        "emoji": "💪",
+        "clips": []
+      }
     ]
   }
 }

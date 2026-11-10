@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   aiScriptSchema,
+  cleanEmoji,
   cleanHashtags,
   composeSchema,
   estimateSeconds,
@@ -54,5 +55,29 @@ describe("VoiceStudio · catálogo", () => {
     });
     expect(script.hashtags).toEqual([]);
     expect(script.description).toBe("");
+  });
+
+  it("acepta rótulos y emojis, y descarta lo que no encaja sin fallar", () => {
+    const parsed = aiScriptSchema.parse({
+      title: "Tres errores",
+      hook: "  ¿Sin resultados?  ",
+      mood: "trance",
+      scenes: [
+        { text: "Hola a todos", query: "gym", emphasis: "Error 1", emoji: "💪🏽 fuerza" },
+        { text: "Adiós", query: "sunset", emphasis: "x".repeat(80), emoji: "nada" },
+      ],
+    });
+    expect(parsed.hook).toBe("¿Sin resultados?");
+    expect(parsed.mood).toBe("energetic");
+    expect(parsed.scenes[0]).toMatchObject({ emphasis: "Error 1", emoji: "💪🏽" });
+    expect(parsed.scenes[1].emphasis).toBeUndefined();
+    expect(parsed.scenes[1].emoji).toBeUndefined();
+  });
+
+  it("limpia emojis", () => {
+    expect(cleanEmoji("👨‍💻")).toBe("👨‍💻");
+    expect(cleanEmoji("❤️")).toBe("❤️");
+    expect(cleanEmoji("")).toBeUndefined();
+    expect(cleanEmoji(3)).toBeUndefined();
   });
 });

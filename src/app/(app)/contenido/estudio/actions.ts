@@ -12,7 +12,14 @@ import { fieldErrors, type FormState } from "@/lib/finance/schemas";
 import { GoogleAuthError, DRIVE_FILE_SCOPE } from "@/lib/google/calendar";
 import { deleteDriveFile } from "@/lib/google/drive";
 import { getGoogleAccess } from "@/lib/google/server";
-import { composeSchema, scriptToText, settingsSchema, type VideoFormat, type VideoScript } from "@/lib/studio/catalog";
+import {
+  cleanEmoji,
+  composeSchema,
+  scriptToText,
+  settingsSchema,
+  type VideoFormat,
+  type VideoScript,
+} from "@/lib/studio/catalog";
 import { cancelStudioRun, setRepoSecret, studioGithubConfigured } from "@/lib/studio/github";
 import { queueRender, runJob, sessionStore } from "@/lib/studio/pipeline";
 
@@ -117,12 +124,21 @@ export async function saveScript(_: FormState, formData: FormData): Promise<Form
       text: String(formData.get(`scene-${i}`) ?? scene.text)
         .trim()
         .slice(0, 1200),
+      emphasis:
+        String(formData.get(`emphasis-${i}`) ?? scene.emphasis ?? "")
+          .trim()
+          .slice(0, 32) || undefined,
+      emoji: cleanEmoji(formData.get(`emoji-${i}`) ?? scene.emoji),
     }))
     .filter((scene) => scene.text.length > 1);
   if (scenes.length < 2) return { ok: false, message: "Deja al menos dos escenas con texto." };
+  const hook =
+    String(formData.get("hook") ?? script.hook ?? "")
+      .trim()
+      .slice(0, 48) || undefined;
   const { error } = await supabase
     .from("video_jobs")
-    .update({ script: { ...script, title, scenes } as never })
+    .update({ script: JSON.parse(JSON.stringify({ ...script, title, hook, scenes })) as never })
     .eq("id", jobId.data);
   if (error) return { ok: false, message: "No se pudo guardar el guion." };
   refresh(jobId.data);

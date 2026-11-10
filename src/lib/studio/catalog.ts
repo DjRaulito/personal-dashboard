@@ -82,16 +82,45 @@ export const settingsSchema = z.object({
   autopilot_voice: z.enum(VOICE_MODES),
 });
 
-/** Lo que devuelve la IA. `query` va en inglés: Pexels busca mejor así. */
+export const VIDEO_MOODS = ["energetic", "chill", "epic"] as const;
+export type VideoMood = (typeof VIDEO_MOODS)[number];
+
+/** Texto corto opcional: si la IA se pasa o no lo manda, se ignora en vez de fallar. */
+const shortText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .catch(undefined)
+    .transform((v) => v || undefined);
+
+/** Un solo emoji (o secuencia con ZWJ); cualquier otra cosa se descarta. */
+export function cleanEmoji(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const match = value
+    .trim()
+    .match(/^\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*/u);
+  return match?.[0];
+}
+
+/**
+ * Lo que devuelve la IA. `query` va en inglés: Pexels (y el generador de imágenes) busca mejor así.
+ * `hook`, `emphasis` y `emoji` son los rótulos animados que salen en pantalla.
+ */
 export const aiScriptSchema = z.object({
   title: z.string().min(3).max(120),
+  hook: shortText(48),
+  mood: z.enum(VIDEO_MOODS).catch("energetic"),
   description: z.string().max(2000).default(""),
   hashtags: z.array(z.string().max(40)).max(15).default([]),
   scenes: z
     .array(
       z.object({
         text: z.string().min(2).max(1200),
-        query: z.string().min(2).max(80),
+        query: z.string().min(2).max(120),
+        emphasis: shortText(32),
+        emoji: z.unknown().optional().transform(cleanEmoji),
       }),
     )
     .min(2)

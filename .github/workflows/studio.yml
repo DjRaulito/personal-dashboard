@@ -33,6 +33,7 @@ jobs:
       SUPABASE_URL: ${{ inputs.supabase_url }}
       SUPABASE_PUBLISHABLE_KEY: ${{ inputs.supabase_key }}
       STUDIO_WORKER_TOKEN: ${{ secrets.STUDIO_WORKER_TOKEN }}
+      POLLINATIONS_API_KEY: ${{ secrets.POLLINATIONS_API_KEY }}
       HF_HUB_DISABLE_TELEMETRY: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
     steps:
@@ -57,10 +58,12 @@ jobs:
       - name: Programas del sistema
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg espeak-ng > /dev/null
+          sudo apt-get install -y -qq ffmpeg espeak-ng libcairo2 > /dev/null
           mkdir -p "$STUDIO_FONTS"
           curl -sSfL -o "$STUDIO_FONTS/Montserrat.ttf" \
             "https://github.com/google/fonts/raw/main/ofl/montserrat/Montserrat%5Bwght%5D.ttf"
+          curl -sSfL -o "$STUDIO_FONTS/Anton-Regular.ttf" \
+            "https://github.com/google/fonts/raw/main/ofl/anton/Anton-Regular.ttf"
 
       - uses: actions/cache@v4
         with:
@@ -74,9 +77,9 @@ jobs:
             pip install -q -r studio/requirements-clone.txt --extra-index-url https://download.pytorch.org/whl/cpu
           fi
 
-      - name: Pruebas de los subtítulos
+      - name: Pruebas de los subtítulos y los efectos
         working-directory: studio
-        run: python -m unittest test_captions
+        run: python -m unittest test_captions test_fx
 
       - name: Montaje
         if: ${{ inputs.job_id != 'demo' }}
@@ -87,7 +90,7 @@ jobs:
         if: ${{ inputs.job_id == 'demo' }}
         working-directory: studio
         run: |
-          /usr/bin/time -v python worker.py demo ai 2>&1 | grep -E "^\[|demo lista|aviso|Elapsed|Maximum resident"
+          /usr/bin/time -v python worker.py demo ai 2>&1 | grep -E "^\[|demo lista|aviso|imágenes IA|escena [0-9]+:|Elapsed|Maximum resident"
           cp "$STUDIO_WORKDIR/video.mp4" "$RUNNER_TEMP/demo-ai.mp4"
           cp "$STUDIO_WORKDIR/narration.wav" "$RUNNER_TEMP/sample.wav"
           python - <<'EOF'
@@ -98,7 +101,7 @@ jobs:
           job["script"]["scenes"] = job["script"]["scenes"][:2]
           json.dump(job, open("demo_job.json", "w"))
           EOF
-          /usr/bin/time -v python worker.py demo clone 2>&1 | grep -E "^\[|demo lista|aviso|Elapsed|Maximum resident|Error"
+          /usr/bin/time -v python worker.py demo clone 2>&1 | grep -E "^\[|demo lista|aviso|imágenes IA|escena [0-9]+:|Elapsed|Maximum resident|Error"
           cp "$STUDIO_WORKDIR/video.mp4" "$RUNNER_TEMP/demo-clone.mp4"
 
       - uses: actions/upload-artifact@v4

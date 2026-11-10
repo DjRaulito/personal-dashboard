@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import random
 import subprocess
 from pathlib import Path
@@ -41,33 +42,27 @@ def concat_audio(parts: list[Path], out: Path) -> None:
     run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", str(listing), "-c", "copy", str(out)])
 
 
-def clip_segment(src: Path, out: Path, width: int, height: int, seconds: float, zoom_in: bool) -> None:
-    """Recorta el clip al formato (rellena la pantalla), lo repite si es corto y añade un zoom suave."""
+def clip_segment(
+    src: Path, out: Path, width: int, height: int, seconds: float, zoom_in: bool, still: bool = False, punch: bool = False
+) -> None:
+    """Recorta el clip (o la imagen) al formato, lo repite si es corto, le da un zoom lento, un golpe
+    de zoom al entrar si toca y un etalonaje suave con viñeta."""
     frames = max(int(seconds * FPS), 1)
-    # z va de 1 a 1,08 (o al revés) a lo largo del segmento; se escala por fotograma y se recorta al centro
-    z = f"(1+0.08*n/{frames})" if zoom_in else f"(1.08-0.08*n/{frames})"
+    # z va de 1 a 1,10 (o al revés) a lo largo del segmento; las imágenes fijas se mueven más
+    amount = 0.16 if still else 0.08
+    z = f"(1+{amount}*n/{frames})" if zoom_in else f"({1 + amount}-{amount}*n/{frames})"
+    if punch:  # entra un 12 % más cerca y se asienta en 8 fotogramas
+        z = f"({z}+0.12*max(0,1-n/8))"
     vf = (
         f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},fps={FPS},"
         f"scale=w='trunc({width}*{z}/2)*2':h='trunc({height}*{z}/2)*2':eval=frame,"
-        f"crop={width}:{height},setsar=1,format=yuv420p"
+        f"crop={width}:{height},eq=contrast=1.06:saturation=1.12,vignette=PI/5,setsar=1,format=yuv420p"
     )
+    source = ["-loop", "1", "-framerate", str(FPS), "-i", str(src)] if still else ["-stream_loop", "-1", "-i", str(src)]
     run(
         [
-            "ffmpeg", "-y", "-v", "error", "-stream_loop", "-1", "-i", str(src), "-t", f"{seconds:.3f}",
+            "ffmpeg", "-y", "-v", "error", *source, "-t", f"{seconds:.3f}",
             "-vf", vf, "-an", "-r", str(FPS), "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", str(out),
-        ]
-    )
-
-
-def fallback_segment(out: Path, width: int, height: int, seconds: float, seed: int) -> None:
-    """Fondo en degradado lento cuando no hay clip (sin clave de Pexels o descarga fallida)."""
-    rnd = random.Random(seed)
-    c0, c1 = rnd.sample(FALLBACK_COLORS, 2)
-    run(
-        [
-            "ffmpeg", "-y", "-v", "error", "-f", "lavfi",
-            "-i", f"gradients=s={width}x{height}:c0={c0}:c1={c1}:speed=0.008:r={FPS}:d={seconds:.3f}",
-            "-vf", "format=yuv420p,setsar=1", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", str(out),
         ]
     )
 
@@ -78,20 +73,124 @@ def concat_video(parts: list[Path], out: Path) -> None:
     run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", str(listing), "-c", "copy", str(out)])
 
 
-def final_mix(video: Path, narration: Path, subtitles: Path, fonts: Path, out: Path, long_form: bool) -> None:
-    """Vídeo + voz + subtítulos. Bitrate acotado para que los archivos no se disparen."""
+def final_mix(
+    video: Path,
+    narration: Path,
+    subtitles: Path,
+    fonts: Path,
+    out: Path,
+    long_form: bool,
+    overlay=None,
+    music: Path | None = None,
+    sfx: Path | None = None,
+    bar_color: str = "0xF6BE48",
+) -> None:
+    """Vídeo + capa de gráficos (por tubería) + barra de progreso + subtítulos; voz con la música
+    agachada por debajo y los efectos. Bitrate acotado para que los archivos no se disparen."""
+    import threading
+
+    import fx
+
+    width, height = probe_size(video)
+    total = duration(narration)
+    frames = int(math.ceil(total * FPS)) + 2
     maxrate = "4M" if long_form else "6M"
-    run(
-        [
-            "ffmpeg", "-y", "-v", "error", "-i", str(video), "-i", str(narration),
-            "-vf", f"ass={subtitles}:fontsdir={fonts}",
-            "-map", "0:v", "-map", "1:a",
-            "-c:v", "libx264", "-preset", "medium", "-crf", "21", "-maxrate", maxrate, "-bufsize", "8M",
-            "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
-            "-shortest", "-movflags", "+faststart", str(out),
-        ]
-    )
+    bar_h = max(6, height // (180 if long_form else 160))
+
+    inputs = ["-i", str(video)]
+    graph = []
+    v = "[0:v]"
+    if overlay is not None:
+        inputs += ["-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{width}x{height}", "-r", str(FPS), "-i", "-"]
+        graph.append(f"{v}[1:v]overlay=format=auto:eof_action=pass[ov]")
+        v = "[ov]"
+    graph.append(f"color=c={bar_color}@0.9:s={width}x{bar_h}:r={FPS}[bar]")
+    graph.append(f"{v}[bar]overlay=x='-W+W*t/{total:.3f}':y=H-h:eval=frame:shortest=1[pb]")
+    graph.append(f"[pb]ass={subtitles}:fontsdir={fonts}[v]")
+
+    audio_index = 2 if overlay is not None else 1
+    inputs += ["-i", str(narration)]
+    voice = f"[{audio_index}:a]"
+    mix = []
+    if music is not None:
+        inputs += ["-i", str(music)]
+        graph.append(f"{voice}asplit=2[vo][sc]")
+        graph.append(f"[{audio_index + 1}:a]volume=0.32[mu]")
+        graph.append("[mu][sc]sidechaincompress=threshold=0.02:ratio=9:attack=15:release=350[duck]")
+        mix += ["[vo]", "[duck]"]
+    else:
+        mix.append(voice)
+    if sfx is not None:
+        inputs += ["-i", str(sfx)]
+        graph.append(f"[{audio_index + (2 if music is not None else 1)}:a]volume=0.55[fx]")
+        mix.append("[fx]")
+    if len(mix) > 1:
+        graph.append(f"{''.join(mix)}amix=inputs={len(mix)}:normalize=0:duration=first[am]")
+    else:
+        graph.append(f"{mix[0]}anull[am]")
+    graph.append("[am]loudnorm=I=-14:TP=-1.5:LRA=11[a]")
+
+    args = [
+        "ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex", ";".join(graph),
+        "-map", "[v]", "-map", "[a]", "-t", f"{total:.3f}",
+        "-c:v", "libx264", "-preset", "medium", "-crf", "21", "-maxrate", maxrate, "-bufsize", "8M",
+        "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-ar", "44100",
+        "-movflags", "+faststart", str(out),
+    ]
+    if overlay is None:
+        run(args)
+        return
+    proc = subprocess.Popen(args, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+    errors: list[bytes] = []
+    reader = threading.Thread(target=lambda: errors.append(proc.stderr.read()), daemon=True)
+    reader.start()
+    try:
+        fx.overlay_writer(overlay, proc.stdin, frames)
+    except BrokenPipeError:
+        pass
+    code = proc.wait()
+    reader.join(timeout=5)
+    if code != 0:
+        raise RuntimeError(f"ffmpeg falló: {(errors[0] if errors else b'').decode(errors='ignore')[-600:]}")
 
 
-def thumbnail(video: Path, out: Path) -> None:
-    run(["ffmpeg", "-y", "-v", "error", "-ss", "1", "-i", str(video), "-frames:v", "1", "-q:v", "3", str(out)])
+def probe_size(path: Path) -> tuple[int, int]:
+    out = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "json", str(path)],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    stream = json.loads(out)["streams"][0]
+    return int(stream["width"]), int(stream["height"])
+
+
+def thumbnail(video: Path, out: Path, title: str = "", fonts: Path | None = None, accent=(246, 190, 72)) -> None:
+    """Miniatura: un fotograma limpio (sin rótulos ni subtítulos) con el gancho en grande encima."""
+    frame = out.with_suffix(".frame.jpg")
+    run(["ffmpeg", "-y", "-v", "error", "-ss", "1", "-i", str(video), "-frames:v", "1", "-q:v", "2", str(frame)])
+    if not title or fonts is None:
+        frame.replace(out)
+        return
+    try:
+        from PIL import Image, ImageEnhance
+
+        import fx
+
+        img = Image.open(frame).convert("RGB")
+        img = ImageEnhance.Brightness(img).enhance(0.7).convert("RGBA")
+        font = fonts / "Anton-Regular.ttf"
+        if not font.exists():
+            font = fonts / "Montserrat.ttf"
+        vertical = img.height > img.width
+        sprite = fx.callout_sprite(
+            title.upper(), font, int(img.height * (0.075 if vertical else 0.12)), int(img.width * 0.88),
+            accent + (255,), (17, 17, 20, 255),
+        )
+        sprite = sprite.rotate(-3, resample=Image.BICUBIC, expand=True)
+        img.alpha_composite(sprite, ((img.width - sprite.width) // 2, (img.height - sprite.height) // 2))
+        img.convert("RGB").save(out, quality=90)
+        frame.unlink(missing_ok=True)
+    except Exception as e:
+        print(f"aviso: miniatura sencilla ({type(e).__name__})")
+        frame.replace(out)
