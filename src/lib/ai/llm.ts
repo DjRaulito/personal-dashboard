@@ -85,6 +85,18 @@ async function geminiRequest(body: Record<string, unknown>): Promise<GeminiConte
       if (res.ok) resolvedModel = alt;
     }
   }
+  // 503 (saturado) y 429 (límite): suelen ser momentáneos; reintenta con espera corta
+  for (const wait of [1200, 2500]) {
+    if (res.status !== 503 && res.status !== 429) break;
+    await new Promise((r) => setTimeout(r, wait));
+    res = await postGemini(resolvedModel ?? GEMINI_MODEL, body);
+  }
+  // Sigue saturado: prueba con la versión lite, que suele tener hueco
+  if (res.status === 503 || res.status === 429) {
+    const lite = `${resolvedModel ?? GEMINI_MODEL}-lite`;
+    const resLite = await postGemini(lite, body);
+    if (resLite.ok) res = resLite;
+  }
   if (!res.ok) throw new Error(`Gemini ${res.status}`);
   const data = (await res.json()) as { candidates?: { content?: GeminiContent }[] };
   const content = data.candidates?.[0]?.content;
