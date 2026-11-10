@@ -34,8 +34,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 150
     env:
-      STUDIO_WORKDIR: ${{ runner.temp }}/studio
-      STUDIO_FONTS: ${{ runner.temp }}/fonts
       SUPABASE_URL: ${{ inputs.supabase_url }}
       SUPABASE_PUBLISHABLE_KEY: ${{ inputs.supabase_key }}
       STUDIO_WORKER_TOKEN: ${{ secrets.STUDIO_WORKER_TOKEN }}
@@ -43,6 +41,11 @@ jobs:
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
     steps:
       - uses: actions/checkout@v4
+
+      - name: Carpetas de trabajo
+        run: |
+          echo "STUDIO_WORKDIR=$RUNNER_TEMP/studio" >> "$GITHUB_ENV"
+          echo "STUDIO_FONTS=$RUNNER_TEMP/fonts" >> "$GITHUB_ENV"
 
       - name: Reclamar el trabajo
         id: claim
