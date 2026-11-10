@@ -423,6 +423,102 @@ export type Database = {
         };
         Relationships: [];
       };
+      brain_links: {
+        Row: {
+          a: string;
+          b: string;
+          created_at: string;
+          user_id: string;
+        };
+        Insert: {
+          a: string;
+          b: string;
+          created_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          a?: string;
+          b?: string;
+          created_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "brain_links_a_fkey";
+            columns: ["a"];
+            isOneToOne: false;
+            referencedRelation: "brain_memories";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "brain_links_b_fkey";
+            columns: ["b"];
+            isOneToOne: false;
+            referencedRelation: "brain_memories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      brain_memories: {
+        Row: {
+          content: string;
+          created_at: string;
+          id: string;
+          source: string;
+          tags: string[];
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          content: string;
+          created_at?: string;
+          id?: string;
+          source?: string;
+          tags?: string[];
+          title: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          content?: string;
+          created_at?: string;
+          id?: string;
+          source?: string;
+          tags?: string[];
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      brain_tokens: {
+        Row: {
+          created_at: string;
+          id: string;
+          label: string;
+          last_used_at: string | null;
+          token_hash: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          label?: string;
+          last_used_at?: string | null;
+          token_hash: string;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          label?: string;
+          last_used_at?: string | null;
+          token_hash?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       budgets: {
         Row: {
           amount_cents: number;
@@ -1415,6 +1511,10 @@ export type Database = {
           account_id: string;
           balance_cents: number;
         }[];
+      };
+      brain_call: {
+        Args: { p_action: string; p_args?: Json; p_token: string };
+        Returns: Json;
       };
       category_spending: {
         Args: { p_from: string; p_to: string };

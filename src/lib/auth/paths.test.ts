@@ -6,6 +6,9 @@ describe("rutas públicas", () => {
     expect(isPublicPath("/login")).toBe(true);
     expect(isPublicPath("/auth/callback")).toBe(true);
     expect(isPublicPath("/manifest.webmanifest")).toBe(true);
+    expect(isPublicPath("/api/brain/mcp")).toBe(true);
+    expect(isPublicPath("/api/brain/mcpx")).toBe(false);
+    expect(isPublicPath("/ia/cerebro")).toBe(false);
     expect(isPublicPath("/")).toBe(false);
     expect(isPublicPath("/loginx")).toBe(false);
     expect(isPublicPath("/authors")).toBe(false);

@@ -6,6 +6,7 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 
 - **Fase:** 7 — Agentes
 - **Última tarea hecha:** centro de agentes (`/ia/agentes`): fichas, tareas a varios agentes a la vez, tablero en directo, motores Gemini y Claude Code, aprobaciones
+- **Cerebro (12 nov 2026):** hecho, ver «Cerebro» al final. Falta crear un token en `/ia/cerebro` y conectar la primera IA.
 - **Siguiente tarea:** lanzar 3 tareas a la vez para cerrar la verificación de la fase 7 (los agentes de Gemini ya funcionan en producción, 10 nov 2026); configurar Claude Code (pasos manuales de la fase 7); decidir si se monta el «cerebro» MCP en el dashboard (propuesta en la fase 7); después fase 8 (Contenido)
 
 ## Fase 0 — Cimientos
@@ -162,3 +163,12 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
 ## Notas de operación
 
 - Gemini (10 nov 2026): `gemini-2.5-flash` ya no está disponible para cuentas nuevas (404). Modelo por defecto: `gemini-3.8-flash` (variable `GEMINI_MODEL` para cambiarlo). Cada vuelta tarda ~45 s, así que las páginas de agentes tienen `maxDuration = 300`. Si un modelo da 404/503/429 o no responde en 40 s, `llm.ts` prueba hasta 3 modelos Flash que liste Google.
+
+## Cerebro (memoria para otras IAs)
+
+- [x] Migración `brain` (aplicada): `brain_memories`, `brain_links`, `brain_tokens` con RLS, y la función `brain_call` (SECURITY DEFINER) que comprueba el hash del token y es el único acceso sin sesión. `brain_keep_tags` y `brain_realtime` también aplicadas.
+- [x] Endpoint MCP `POST /api/brain/mcp` (JSON-RPC sin estado, Bearer token): remember, search, list, get, link, forget, forget_all. Ruta pública en `paths.ts`; sin claves nuevas en Vercel.
+- [x] Pantalla `/ia/cerebro`: red de recuerdos (nodos arrastrables, conexiones directas y por etiquetas, búsqueda), detalle, editar, conectar, olvidar, borrar todo, tokens (se ven una vez) y cómo conectar. Se actualiza en directo.
+- [x] Tests: red, colocación, servidor MCP, formulario y tokens (237 en total).
+- Tipos de `database.types.ts` ampliados a mano con las tres tablas y `brain_call` (regenerar con el MCP de Supabase cuando convenga).
+- [ ] Verificación: crear un token, conectar Claude Code (`claude mcp add --transport http cerebro <url> --header "Authorization: Bearer <token>"`), guardar un recuerdo desde la IA y verlo aparecer en la red.
