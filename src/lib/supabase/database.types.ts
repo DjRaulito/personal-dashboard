@@ -1,4 +1,3 @@
-// Generado desde el esquema de Supabase (generate_typescript_types). No editar a mano.
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
@@ -588,6 +587,155 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      content_metrics: {
+        Row: {
+          comments: number;
+          created_at: string;
+          followers_gained: number;
+          id: string;
+          likes: number;
+          piece_id: string;
+          platform: string;
+          recorded_on: string;
+          saves: number;
+          shares: number;
+          user_id: string;
+          views: number;
+        };
+        Insert: {
+          comments?: number;
+          created_at?: string;
+          followers_gained?: number;
+          id?: string;
+          likes?: number;
+          piece_id: string;
+          platform: string;
+          recorded_on?: string;
+          saves?: number;
+          shares?: number;
+          user_id?: string;
+          views?: number;
+        };
+        Update: {
+          comments?: number;
+          created_at?: string;
+          followers_gained?: number;
+          id?: string;
+          likes?: number;
+          piece_id?: string;
+          platform?: string;
+          recorded_on?: string;
+          saves?: number;
+          shares?: number;
+          user_id?: string;
+          views?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "content_metrics_piece_id_fkey";
+            columns: ["piece_id"];
+            isOneToOne: false;
+            referencedRelation: "content_pieces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      content_piece_transactions: {
+        Row: {
+          created_at: string;
+          piece_id: string;
+          transaction_id: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          piece_id: string;
+          transaction_id: string;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          piece_id?: string;
+          transaction_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "content_piece_transactions_piece_id_fkey";
+            columns: ["piece_id"];
+            isOneToOne: false;
+            referencedRelation: "content_pieces";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "content_piece_transactions_transaction_id_fkey";
+            columns: ["transaction_id"];
+            isOneToOne: false;
+            referencedRelation: "transactions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      content_pieces: {
+        Row: {
+          calendar_event_id: string | null;
+          created_at: string;
+          format: string;
+          id: string;
+          links: string[];
+          notes: string | null;
+          platforms: string[];
+          position: number;
+          priority: number;
+          publish_at: string | null;
+          published_url: string | null;
+          script: string | null;
+          status: string;
+          tags: string[];
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          calendar_event_id?: string | null;
+          created_at?: string;
+          format?: string;
+          id?: string;
+          links?: string[];
+          notes?: string | null;
+          platforms?: string[];
+          position?: number;
+          priority?: number;
+          publish_at?: string | null;
+          published_url?: string | null;
+          script?: string | null;
+          status?: string;
+          tags?: string[];
+          title: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          calendar_event_id?: string | null;
+          created_at?: string;
+          format?: string;
+          id?: string;
+          links?: string[];
+          notes?: string | null;
+          platforms?: string[];
+          position?: number;
+          priority?: number;
+          publish_at?: string | null;
+          published_url?: string | null;
+          script?: string | null;
+          status?: string;
+          tags?: string[];
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
       };
       fx_rates: {
         Row: {
@@ -1440,6 +1588,45 @@ export type Database = {
           },
         ];
       };
+      studio_settings: {
+        Row: {
+          ai_voice: string;
+          autopilot: boolean;
+          autopilot_days: number[];
+          autopilot_format: string;
+          autopilot_last_on: string | null;
+          autopilot_voice: string;
+          updated_at: string;
+          user_id: string;
+          voice_sample_path: string | null;
+          worker_token_hash: string | null;
+        };
+        Insert: {
+          ai_voice?: string;
+          autopilot?: boolean;
+          autopilot_days?: number[];
+          autopilot_format?: string;
+          autopilot_last_on?: string | null;
+          autopilot_voice?: string;
+          updated_at?: string;
+          user_id?: string;
+          voice_sample_path?: string | null;
+          worker_token_hash?: string | null;
+        };
+        Update: {
+          ai_voice?: string;
+          autopilot?: boolean;
+          autopilot_days?: number[];
+          autopilot_format?: string;
+          autopilot_last_on?: string | null;
+          autopilot_voice?: string;
+          updated_at?: string;
+          user_id?: string;
+          voice_sample_path?: string | null;
+          worker_token_hash?: string | null;
+        };
+        Relationships: [];
+      };
       transactions: {
         Row: {
           account_id: string;
@@ -1500,6 +1687,98 @@ export type Database = {
           },
         ];
       };
+      video_jobs: {
+        Row: {
+          assets: Json | null;
+          auto: boolean;
+          created_at: string;
+          drive_file_id: string | null;
+          drive_thumb_id: string | null;
+          duration_s: number | null;
+          error: string | null;
+          finished_at: string | null;
+          format: string;
+          id: string;
+          piece_id: string | null;
+          progress: number;
+          queued_at: string | null;
+          script: Json | null;
+          stage: string | null;
+          started_at: string | null;
+          status: string;
+          target_seconds: number;
+          topic: string;
+          updated_at: string;
+          user_id: string;
+          voice: string;
+          voice_mode: string;
+          workflow_run_id: number | null;
+          workflow_url: string | null;
+        };
+        Insert: {
+          assets?: Json | null;
+          auto?: boolean;
+          created_at?: string;
+          drive_file_id?: string | null;
+          drive_thumb_id?: string | null;
+          duration_s?: number | null;
+          error?: string | null;
+          finished_at?: string | null;
+          format?: string;
+          id?: string;
+          piece_id?: string | null;
+          progress?: number;
+          queued_at?: string | null;
+          script?: Json | null;
+          stage?: string | null;
+          started_at?: string | null;
+          status?: string;
+          target_seconds?: number;
+          topic: string;
+          updated_at?: string;
+          user_id?: string;
+          voice?: string;
+          voice_mode?: string;
+          workflow_run_id?: number | null;
+          workflow_url?: string | null;
+        };
+        Update: {
+          assets?: Json | null;
+          auto?: boolean;
+          created_at?: string;
+          drive_file_id?: string | null;
+          drive_thumb_id?: string | null;
+          duration_s?: number | null;
+          error?: string | null;
+          finished_at?: string | null;
+          format?: string;
+          id?: string;
+          piece_id?: string | null;
+          progress?: number;
+          queued_at?: string | null;
+          script?: Json | null;
+          stage?: string | null;
+          started_at?: string | null;
+          status?: string;
+          target_seconds?: number;
+          topic?: string;
+          updated_at?: string;
+          user_id?: string;
+          voice?: string;
+          voice_mode?: string;
+          workflow_run_id?: number | null;
+          workflow_url?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "video_jobs_piece_id_fkey";
+            columns: ["piece_id"];
+            isOneToOne: false;
+            referencedRelation: "content_pieces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -1537,6 +1816,15 @@ export type Database = {
           month: string;
           net_worth_cents: number;
         }[];
+      };
+      studio_worker: {
+        Args: {
+          p_action: string;
+          p_args?: Json;
+          p_job: string;
+          p_token: string;
+        };
+        Returns: Json;
       };
     };
     Enums: {

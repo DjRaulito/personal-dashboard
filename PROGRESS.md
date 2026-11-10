@@ -4,10 +4,10 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 
 ## Estado actual
 
-- **Fase:** 7 — Agentes
+- **Fase:** 8 — Contenido
 - **Última tarea hecha:** centro de agentes (`/ia/agentes`): fichas, tareas a varios agentes a la vez, tablero en directo, motores Gemini y Claude Code, aprobaciones
 - **Cerebro (12 nov 2026):** hecho, ver «Cerebro» al final. Falta crear un token en `/ia/cerebro` y conectar la primera IA.
-- **Siguiente tarea:** lanzar 3 tareas a la vez para cerrar la verificación de la fase 7 (los agentes de Gemini ya funcionan en producción, 10 nov 2026); configurar Claude Code (pasos manuales de la fase 7); decidir si se monta el «cerebro» MCP en el dashboard (propuesta en la fase 7); después fase 8 (Contenido)
+- **Siguiente tarea:** VoiceStudio (segunda parte de la fase 8): vídeos de principio a fin sin intervención. Pendientes sueltos: verificación de la fase 7 (3 tareas a la vez) y del cerebro.
 
 ## Fase 0 — Cimientos
 
@@ -147,6 +147,24 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
   - Hermes Agent (Nous Research, MIT) corre en Linux ARM64 con 1-2 GB de RAM si el modelo es externo (Gemini por endpoint compatible con OpenAI, OpenRouter gratis…). Su memoria es suya (MEMORY.md ~2.200 caracteres, USER.md, historial en SQLite) y `hermes mcp-serve` expone mensajería, no memoria (petición abierta en el repo). No sirve tal cual como memoria compartida para otras IAs.
   - Oracle Always Free: Ampere A1 recortado a 2 OCPU y 12 GB (desde el 18 ago 2026); pide tarjeta, a veces no hay capacidad y reclama instancias ociosas (<20 % de CPU, red y memoria en el percentil 95 durante 7 días). Google Cloud e2-micro: 1 GB, solo regiones de EE. UU., gratis para siempre. AWS: solo 12 meses (descartado).
   - Propuesta: el «cerebro» como servidor MCP remoto dentro de este dashboard (tabla en Supabase con RLS + endpoint MCP en Vercel con token; herramientas recordar / buscar / olvidar / olvidar todo; pantalla para ver y borrar al momento). Coste 0 €, sin VPS. Hermes en Oracle queda como extra opcional: agente 24/7 por Telegram que usa ese mismo cerebro como cliente MCP
+
+## Fase 8 — Contenido (+ VoiceStudio, pedido el 10 nov 2026)
+
+- [x] Migraciones `content` (content_pieces, content_metrics, content_piece_transactions) y `studio` (studio_settings, video_jobs, `studio_worker`, bucket privado `studio`) con RLS (aplicadas)
+- [x] Banco de ideas (`/contenido/ideas`) con formato, prioridad, etiquetas y plataformas
+- [x] Tablero kanban (`/contenido`): Idea → Guion → Grabación → Edición → Programado → Publicado, arrastrar y soltar y botones ← → (móvil y teclado)
+- [x] Ficha de pieza: guion (con botón «Escribir con IA»), notas, enlaces, fecha y enlace de publicación
+- [x] Calendario editorial (`/contenido/calendario`) y envío de la fecha a Google Calendar (crea, mueve y borra el evento)
+- [x] Métricas manuales por plataforma (última foto acumulada) e ingresos de Finanzas enlazados a cada pieza (`/contenido/metricas`)
+- [ ] VoiceStudio: idea → guion (Gemini) → voz IA o voz clonada → clips de stock (Pexels) → subtítulos → montaje (GitHub Actions) → vídeo en Google Drive → aprobación. Shorts 9:16 y vídeos largos 16:9. Piloto automático desde el banco de ideas
+- [ ] Verificación: creas una idea y la llevas hasta «Publicado» con su fecha en el calendario
+- [ ] Verificación VoiceStudio: un vídeo generado de principio a fin sin tocar nada
+
+### Pasos manuales pendientes para Contenido (los hace Raúl)
+
+1. Google Cloud (proyecto del login) → **APIs y servicios → Biblioteca**: activar **Google Drive API** (Calendar ya está).
+2. **Pantalla de consentimiento → Acceso a datos**: añadir los permisos `calendar.events` y `drive.file`.
+3. En el dashboard: cerrar sesión y volver a entrar con Google, y aceptar los permisos nuevos (escribir en el calendario y guardar los vídeos en tu Drive; la app solo ve los archivos que crea ella).
 
 ## Decisiones
 

@@ -2,8 +2,17 @@ import { z } from "zod";
 import { APP_TIMEZONE, dayKey, zonedMidnight } from "@/lib/datetime";
 import type { DateRange } from "@/lib/calendar/range";
 
-/** Permisos que pedimos a Google al iniciar sesión. */
-export const GOOGLE_SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"] as const;
+/**
+ * Permisos que pedimos a Google al iniciar sesión: leer y crear eventos (calendario editorial) y
+ * archivos de Drive creados por la app (vídeos del VoiceStudio; no ve el resto de tu Drive).
+ */
+export const GOOGLE_SCOPES = [
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/drive.file",
+] as const;
+
+export const CALENDAR_WRITE_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+export const DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 
 export interface CalendarEvent {
   id: string;
@@ -126,4 +135,47 @@ export async function fetchEvents(accessToken: string, range: DateRange): Promis
     throw new GoogleAuthError(`Sin permiso para el calendario (${res.status})`);
   if (!res.ok) throw new Error(`Error de Google Calendar (${res.status})`);
   return normalizeEvents(await res.json());
+}
+
+export interface CalendarEventInput {
+  title: string;
+  description: string;
+  start: Date;
+  /** Duración en minutos */
+  minutes: number;
+}
+
+/** Crea o actualiza un evento en el calendario principal. Devuelve su id. */
+export async function upsertCalendarEvent(
+  accessToken: string,
+  eventId: string | null,
+  input: CalendarEventInput,
+): Promise<string> {
+  const body = JSON.stringify({
+    summary: input.title,
+    description: input.description,
+    start: { dateTime: input.start.toISOString(), timeZone: APP_TIMEZONE },
+    end: { dateTime: new Date(input.start.getTime() + input.minutes * 60_000).toISOString(), timeZone: APP_TIMEZONE },
+  });
+  const base = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
+  const headers = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
+  let res = eventId
+    ? await fetch(`${base}/${encodeURIComponent(eventId)}`, { method: "PUT", headers, body, cache: "no-store" })
+    : null;
+  // Si el evento se borró en Google, se crea otro
+  if (!res || res.status === 404 || res.status === 410) {
+    res = await fetch(base, { method: "POST", headers, body, cache: "no-store" });
+  }
+  if (res.status === 401 || res.status === 403)
+    throw new GoogleAuthError(`Sin permiso para escribir en el calendario (${res.status})`);
+  if (!res.ok) throw new Error(`Error de Google Calendar (${res.status})`);
+  return z.object({ id: z.string() }).parse(await res.json()).id;
+}
+
+export async function deleteCalendarEvent(accessToken: string, eventId: string): Promise<void> {
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`,
+    { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" },
+  );
+  if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`Error de Google Calendar (${res.status})`);
 }
