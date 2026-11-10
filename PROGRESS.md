@@ -6,7 +6,7 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 
 - **Fase:** 7 — Agentes
 - **Última tarea hecha:** centro de agentes (`/ia/agentes`): fichas, tareas a varios agentes a la vez, tablero en directo, motores Gemini y Claude Code, aprobaciones
-- **Siguiente tarea:** Raúl crea los agentes de partida y lanza 3 tareas a la vez; configurar Claude Code (pasos manuales de la fase 7); decidir si se monta el «cerebro» MCP en el dashboard (propuesta en la fase 7); después fase 8 (Contenido)
+- **Siguiente tarea:** lanzar 3 tareas a la vez para cerrar la verificación de la fase 7 (los agentes de Gemini ya funcionan en producción, 10 nov 2026); configurar Claude Code (pasos manuales de la fase 7); decidir si se monta el «cerebro» MCP en el dashboard (propuesta en la fase 7); después fase 8 (Contenido)
 
 ## Fase 0 — Cimientos
 
@@ -158,3 +158,7 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
 - Extractos bancarios: carpeta "Extractos" de Google Drive (PDF).
 - Cuenta con acceso (lista blanca): rmolina2003.rm@gmail.com. La lista vive en `private.allowed_emails` (no expuesta por la API); un trigger sobre `auth.users` rechaza cualquier otro email.
 - Calendario: se lee el calendario principal directamente de Google (sin tablas). El refresh token de Google se guarda cifrado por la app; la BD nunca ve el valor en claro.
+
+## Notas de operación
+
+- Gemini (10 nov 2026): `gemini-2.5-flash` ya no está disponible para cuentas nuevas (404). Modelo por defecto: `gemini-3.8-flash` (variable `GEMINI_MODEL` para cambiarlo). Cada vuelta tarda ~45 s, así que las páginas de agentes tienen `maxDuration = 300`. Si un modelo da 404/503/429 o no responde en 40 s, `llm.ts` prueba hasta 3 modelos Flash que liste Google.
