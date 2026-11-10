@@ -6,7 +6,7 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 
 - **Fase:** 7 — Agentes
 - **Última tarea hecha:** centro de agentes (`/ia/agentes`): fichas, tareas a varios agentes a la vez, tablero en directo, motores Gemini y Claude Code, aprobaciones
-- **Siguiente tarea:** Raúl crea los agentes de partida y lanza 3 tareas a la vez; configurar Claude Code (pasos manuales de la fase 7); investigar el VPS gratuito para el agente «cerebro»; después fase 8 (Contenido)
+- **Siguiente tarea:** Raúl crea los agentes de partida y lanza 3 tareas a la vez; configurar Claude Code (pasos manuales de la fase 7); decidir si se monta el «cerebro» MCP en el dashboard (propuesta en la fase 7); después fase 8 (Contenido)
 
 ## Fase 0 — Cimientos
 
@@ -142,7 +142,10 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
 
 ### Ideas apuntadas
 
-- [ ] Investigar un VPS gratuito para un agente «cerebro» siempre encendido (idea del 10 nov 2026): Oracle Cloud Always Free (VM Ampere A1 ARM) como primera opción; comparar alternativas gratuitas (Google Cloud e2-micro, etc.). Montar un agente tipo Hermes (Nous Research) como memoria central: guarda el contexto y permite borrarlo o recuperarlo al momento desde el resto de IAs (vía MCP o API). Revisar límites, coste 0 € real y seguridad antes de montarlo
+- [x] Investigar un VPS gratuito para un agente «cerebro» (hecho el 10 nov 2026). Conclusiones:
+  - Hermes Agent (Nous Research, MIT) corre en Linux ARM64 con 1-2 GB de RAM si el modelo es externo (Gemini por endpoint compatible con OpenAI, OpenRouter gratis…). Su memoria es suya (MEMORY.md ~2.200 caracteres, USER.md, historial en SQLite) y `hermes mcp-serve` expone mensajería, no memoria (petición abierta en el repo). No sirve tal cual como memoria compartida para otras IAs.
+  - Oracle Always Free: Ampere A1 recortado a 2 OCPU y 12 GB (desde el 18 ago 2026); pide tarjeta, a veces no hay capacidad y reclama instancias ociosas (<20 % de CPU, red y memoria en el percentil 95 durante 7 días). Google Cloud e2-micro: 1 GB, solo regiones de EE. UU., gratis para siempre. AWS: solo 12 meses (descartado).
+  - Propuesta: el «cerebro» como servidor MCP remoto dentro de este dashboard (tabla en Supabase con RLS + endpoint MCP en Vercel con token; herramientas recordar / buscar / olvidar / olvidar todo; pantalla para ver y borrar al momento). Coste 0 €, sin VPS. Hermes en Oracle queda como extra opcional: agente 24/7 por Telegram que usa ese mismo cerebro como cliente MCP
 
 ## Decisiones
 
