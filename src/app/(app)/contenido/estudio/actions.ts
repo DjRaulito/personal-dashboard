@@ -12,14 +12,7 @@ import { fieldErrors, type FormState } from "@/lib/finance/schemas";
 import { GoogleAuthError, DRIVE_FILE_SCOPE } from "@/lib/google/calendar";
 import { deleteDriveFile } from "@/lib/google/drive";
 import { getGoogleAccess } from "@/lib/google/server";
-import {
-  cleanEmoji,
-  composeSchema,
-  scriptToText,
-  settingsSchema,
-  type VideoFormat,
-  type VideoScript,
-} from "@/lib/studio/catalog";
+import { composeSchema, scriptToText, settingsSchema, type VideoFormat, type VideoScript } from "@/lib/studio/catalog";
 import { cancelStudioRun, setRepoSecret, studioGithubConfigured } from "@/lib/studio/github";
 import { queueRender, runJob, sessionStore } from "@/lib/studio/pipeline";
 
@@ -128,7 +121,6 @@ export async function saveScript(_: FormState, formData: FormData): Promise<Form
         String(formData.get(`emphasis-${i}`) ?? scene.emphasis ?? "")
           .trim()
           .slice(0, 32) || undefined,
-      emoji: cleanEmoji(formData.get(`emoji-${i}`) ?? scene.emoji),
     }))
     .filter((scene) => scene.text.length > 1);
   if (scenes.length < 2) return { ok: false, message: "Deja al menos dos escenas con texto." };

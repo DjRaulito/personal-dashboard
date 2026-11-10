@@ -18,17 +18,43 @@ interface Candidate {
   height: number;
 }
 
-/** El archivo más ligero que aún cubra la pantalla (≥ 1080 en el lado corto si existe). */
-export function pickBest<T extends Candidate>(files: T[]): T | null {
+const OUTPUT: Record<VideoFormat, { width: number; height: number }> = {
+  short: { width: 1080, height: 1920 },
+  long: { width: 1920, height: 1080 },
+};
+
+/** Cuánto hay que ampliar un archivo para cubrir la pantalla del formato (1 = justo; >1 se ve blando). */
+export function upscale(c: Candidate, format: VideoFormat): number {
+  const out = OUTPUT[format];
+  return Math.max(out.width / c.width, out.height / c.height);
+}
+
+/** Por encima de esto (p. ej. un clip horizontal 1080p recortado a vertical) se ve borroso: mejor otro plano. */
+export const MAX_UPSCALE = 1.4;
+
+/** El archivo más ligero que cubra la pantalla del formato sin ampliar; si ninguno llega, el más nítido. */
+export function pickBest<T extends Candidate>(files: T[], format: VideoFormat): T | null {
   const ok = files.filter((f) => f.url && f.width > 0 && f.height > 0);
   if (!ok.length) return null;
-  const short = (f: T) => Math.min(f.width, f.height);
-  const big = ok.filter((f) => short(f) >= 1080).sort((a, b) => short(a) - short(b));
-  return big[0] ?? [...ok].sort((a, b) => short(b) - short(a))[0];
+  const pixels = (f: T) => f.width * f.height;
+  const sharp = ok.filter((f) => upscale(f, format) <= 1.02).sort((a, b) => pixels(a) - pixels(b));
+  return sharp[0] ?? [...ok].sort((a, b) => upscale(a, format) - upscale(b, format))[0];
 }
 
 /** Vertical para shorts, horizontal para vídeos largos. */
 const fits = (c: Candidate, format: VideoFormat) => (format === "short" ? c.height > c.width : c.width >= c.height);
+
+/** Las búsquedas alternativas que escribe la IA («man lifting barbell | gym workout | gym»). */
+export function queryAlternatives(query: string): string[] {
+  return [
+    ...new Set(
+      query
+        .split("|")
+        .map((q) => q.trim())
+        .filter((q) => q.length >= 2),
+    ),
+  ].slice(0, 4);
+}
 
 // ---------------------------------------------------------------------------
 // Pixabay
@@ -43,16 +69,16 @@ const pixabayHit = z.object({
 });
 export type PixabayHit = z.infer<typeof pixabayHit>;
 
-export function pixabayClip(hit: PixabayHit): Clip | null {
+export function pixabayClip(hit: PixabayHit, format: VideoFormat): Clip | null {
   const files = Object.values(hit.videos)
     .filter((f): f is NonNullable<typeof f> => Boolean(f?.url))
     .map((f) => ({ url: f.url!, width: f.width ?? 0, height: f.height ?? 0 }));
-  const file = pickBest(files);
+  const file = pickBest(files, format);
   if (!file) return null;
   return { ...file, duration: hit.duration, page: hit.pageURL, source: "Pixabay" };
 }
 
-async function searchPixabay(query: string): Promise<(Clip & { id: string })[]> {
+async function searchPixabay(query: string, format: VideoFormat): Promise<(Clip & { id: string })[]> {
   const key = process.env.PIXABAY_API_KEY;
   if (!key) return [];
   const params = new URLSearchParams({
@@ -60,7 +86,7 @@ async function searchPixabay(query: string): Promise<(Clip & { id: string })[]> 
     q: query.slice(0, 100),
     video_type: "film",
     safesearch: "true",
-    per_page: "20",
+    per_page: "30",
   });
   const res = await fetch(`https://pixabay.com/api/videos/?${params}`, {
     signal: AbortSignal.timeout(15000),
@@ -70,7 +96,7 @@ async function searchPixabay(query: string): Promise<(Clip & { id: string })[]> 
   const data = z.object({ hits: z.array(z.unknown()).default([]) }).parse(await res.json());
   return data.hits.flatMap((raw) => {
     const hit = pixabayHit.safeParse(raw);
-    const clip = hit.success ? pixabayClip(hit.data) : null;
+    const clip = hit.success ? pixabayClip(hit.data, format) : null;
     return clip ? [{ ...clip, id: `pixabay:${hit.data!.id}` }] : [];
   });
 }
@@ -94,11 +120,11 @@ const pexelsVideo = z.object({
 });
 export type PexelsVideo = z.infer<typeof pexelsVideo>;
 
-export function pexelsClip(video: PexelsVideo): Clip | null {
+export function pexelsClip(video: PexelsVideo, format: VideoFormat): Clip | null {
   const files = video.video_files
     .filter((f) => (f.file_type ?? "video/mp4") === "video/mp4")
     .map((f) => ({ url: f.link, width: f.width ?? 0, height: f.height ?? 0 }));
-  const file = pickBest(files);
+  const file = pickBest(files, format);
   if (!file) return null;
   return { ...file, duration: video.duration, page: video.url, source: "Pexels" };
 }
@@ -110,7 +136,7 @@ async function searchPexels(query: string, format: VideoFormat): Promise<(Clip &
     query,
     orientation: format === "short" ? "portrait" : "landscape",
     per_page: "12",
-    size: "medium",
+    size: "large",
   });
   const res = await fetch(`https://api.pexels.com/videos/search?${params}`, {
     headers: { Authorization: key },
@@ -121,7 +147,7 @@ async function searchPexels(query: string, format: VideoFormat): Promise<(Clip &
   const data = z.object({ videos: z.array(z.unknown()).default([]) }).parse(await res.json());
   return data.videos.flatMap((raw) => {
     const video = pexelsVideo.safeParse(raw);
-    const clip = video.success ? pexelsClip(video.data) : null;
+    const clip = video.success ? pexelsClip(video.data, format) : null;
     return clip ? [{ ...clip, id: `pexels:${video.data!.id}` }] : [];
   });
 }
@@ -129,8 +155,9 @@ async function searchPexels(query: string, format: VideoFormat): Promise<(Clip &
 // ---------------------------------------------------------------------------
 
 /**
- * Busca clips para una escena en las fuentes con clave. Devuelve hasta `count`, sin repetir los ya
- * usados y con los de la orientación del vídeo primero (los otros se recortan en el montaje).
+ * Busca clips para una escena: prueba las búsquedas alternativas (de la más concreta a la más
+ * general) en las fuentes con clave hasta reunir `count`. Solo acepta clips nítidos para el formato
+ * (si no hay, la escena usa una imagen IA), sin repetir y con los de la orientación del vídeo primero.
  */
 export async function searchClips(
   query: string,
@@ -138,24 +165,25 @@ export async function searchClips(
   count: number,
   used: Set<string>,
 ): Promise<Clip[]> {
-  const found: (Clip & { id: string })[] = [];
-  for (const search of [searchPixabay, searchPexels]) {
-    try {
-      found.push(...(await search(query, format)));
-    } catch {
-      // una fuente caída no impide usar la otra
-    }
-    if (found.filter((c) => fits(c, format) && !used.has(c.id)).length >= count) break;
-  }
-  const ranked = found
-    .filter((c) => c.duration >= 3 && !used.has(c.id))
-    .sort((a, b) => Number(fits(b, format)) - Number(fits(a, format)));
   const clips: Clip[] = [];
-  for (const { id, ...clip } of ranked) {
-    if (used.has(id)) continue;
-    used.add(id);
-    clips.push(clip);
-    if (clips.length === count) break;
+  for (const alternative of queryAlternatives(query)) {
+    for (const search of [searchPixabay, searchPexels]) {
+      let found: (Clip & { id: string })[] = [];
+      try {
+        found = await search(alternative, format);
+      } catch {
+        // una fuente caída no impide usar la otra
+      }
+      const ranked = found
+        .filter((c) => c.duration >= 3 && !used.has(c.id) && upscale(c, format) <= MAX_UPSCALE)
+        .sort((a, b) => Number(fits(b, format)) - Number(fits(a, format)));
+      for (const { id, ...clip } of ranked) {
+        if (clips.length === count) break;
+        used.add(id);
+        clips.push(clip);
+      }
+      if (clips.length === count) return clips;
+    }
   }
   return clips;
 }

@@ -58,7 +58,7 @@ jobs:
       - name: Programas del sistema
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg espeak-ng libcairo2 > /dev/null
+          sudo apt-get install -y -qq ffmpeg espeak-ng > /dev/null
           mkdir -p "$STUDIO_FONTS"
           curl -sSfL -o "$STUDIO_FONTS/Montserrat.ttf" \
             "https://github.com/google/fonts/raw/main/ofl/montserrat/Montserrat%5Bwght%5D.ttf"
@@ -68,7 +68,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/.cache/huggingface
-          key: studio-models-${{ steps.claim.outputs.voice_mode || 'demo' }}-v1
+          key: studio-models-${{ steps.claim.outputs.voice_mode || 'demo' }}-v2
 
       - name: Dependencias de Python
         run: |

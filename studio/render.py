@@ -48,21 +48,26 @@ def clip_segment(
     """Recorta el clip (o la imagen) al formato, lo repite si es corto, le da un zoom lento, un golpe
     de zoom al entrar si toca y un etalonaje suave con viñeta."""
     frames = max(int(seconds * FPS), 1)
-    # z va de 1 a 1,10 (o al revés) a lo largo del segmento; las imágenes fijas se mueven más
-    amount = 0.16 if still else 0.08
+    # Zoom lento y sutil (más en imágenes fijas); el golpe de entrada es apenas un 4 %
+    amount = 0.08 if still else 0.05
     z = f"(1+{amount}*n/{frames})" if zoom_in else f"({1 + amount}-{amount}*n/{frames})"
-    if punch:  # entra un 12 % más cerca y se asienta en 8 fotogramas
-        z = f"({z}+0.12*max(0,1-n/8))"
+    zmax = 1 + amount
+    if punch:  # entra un 4 % más cerca y se asienta en 10 fotogramas
+        z = f"({z}+0.04*max(0,1-n/10))"
+        zmax += 0.04
+    # Se escala una sola vez con lanczos al tamaño del zoom máximo y luego cada fotograma se REDUCE
+    # (nunca se vuelve a ampliar): así el zoom no ablanda la imagen
+    big_w, big_h = int(width * zmax / 2 + 1) * 2, int(height * zmax / 2 + 1) * 2
     vf = (
-        f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},fps={FPS},"
-        f"scale=w='trunc({width}*{z}/2)*2':h='trunc({height}*{z}/2)*2':eval=frame,"
-        f"crop={width}:{height},eq=contrast=1.06:saturation=1.12,vignette=PI/5,setsar=1,format=yuv420p"
+        f"scale={big_w}:{big_h}:force_original_aspect_ratio=increase:flags=lanczos,crop={big_w}:{big_h},fps={FPS},"
+        f"scale=w='trunc({width}*{z}/2)*2':h='trunc({height}*{z}/2)*2':eval=frame:flags=bicubic,"
+        f"crop={width}:{height},eq=contrast=1.05:saturation=1.04,vignette=PI/6,unsharp=5:5:0.4,setsar=1,format=yuv420p"
     )
     source = ["-loop", "1", "-framerate", str(FPS), "-i", str(src)] if still else ["-stream_loop", "-1", "-i", str(src)]
     run(
         [
             "ffmpeg", "-y", "-v", "error", *source, "-t", f"{seconds:.3f}",
-            "-vf", vf, "-an", "-r", str(FPS), "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", str(out),
+            "-vf", vf, "-an", "-r", str(FPS), "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", str(out),
         ]
     )
 
@@ -94,8 +99,8 @@ def final_mix(
     width, height = probe_size(video)
     total = duration(narration)
     frames = int(math.ceil(total * FPS)) + 2
-    maxrate = "4M" if long_form else "6M"
-    bar_h = max(6, height // (180 if long_form else 160))
+    maxrate = "10M" if long_form else "12M"
+    bar_h = max(4, height // 360)
 
     inputs = ["-i", str(video)]
     graph = []
@@ -104,7 +109,7 @@ def final_mix(
         inputs += ["-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{width}x{height}", "-r", str(FPS), "-i", "-"]
         graph.append(f"{v}[1:v]overlay=format=auto:eof_action=pass[ov]")
         v = "[ov]"
-    graph.append(f"color=c={bar_color}@0.9:s={width}x{bar_h}:r={FPS}[bar]")
+    graph.append(f"color=c={bar_color}@0.8:s={width}x{bar_h}:r={FPS}[bar]")
     graph.append(f"{v}[bar]overlay=x='-W+W*t/{total:.3f}':y=H-h:eval=frame:shortest=1[pb]")
     graph.append(f"[pb]ass={subtitles}:fontsdir={fonts}[v]")
 
@@ -122,7 +127,7 @@ def final_mix(
         mix.append(voice)
     if sfx is not None:
         inputs += ["-i", str(sfx)]
-        graph.append(f"[{audio_index + (2 if music is not None else 1)}:a]volume=0.55[fx]")
+        graph.append(f"[{audio_index + (2 if music is not None else 1)}:a]volume=0.3[fx]")
         mix.append("[fx]")
     if len(mix) > 1:
         graph.append(f"{''.join(mix)}amix=inputs={len(mix)}:normalize=0:duration=first[am]")
@@ -133,7 +138,7 @@ def final_mix(
     args = [
         "ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex", ";".join(graph),
         "-map", "[v]", "-map", "[a]", "-t", f"{total:.3f}",
-        "-c:v", "libx264", "-preset", "medium", "-crf", "21", "-maxrate", maxrate, "-bufsize", "8M",
+        "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-maxrate", maxrate, "-bufsize", "20M",
         "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-ar", "44100",
         "-movflags", "+faststart", str(out),
     ]
@@ -178,16 +183,14 @@ def thumbnail(video: Path, out: Path, title: str = "", fonts: Path | None = None
         import fx
 
         img = Image.open(frame).convert("RGB")
-        img = ImageEnhance.Brightness(img).enhance(0.7).convert("RGBA")
-        font = fonts / "Anton-Regular.ttf"
+        img = ImageEnhance.Brightness(img).enhance(0.75).convert("RGBA")
+        font = fonts / "Montserrat.ttf"
         if not font.exists():
-            font = fonts / "Montserrat.ttf"
+            font = fonts / "Anton-Regular.ttf"
         vertical = img.height > img.width
         sprite = fx.callout_sprite(
-            title.upper(), font, int(img.height * (0.075 if vertical else 0.12)), int(img.width * 0.88),
-            accent + (255,), (17, 17, 20, 255),
+            title.upper(), font, int(img.height * (0.06 if vertical else 0.1)), int(img.width * 0.86), accent
         )
-        sprite = sprite.rotate(-3, resample=Image.BICUBIC, expand=True)
         img.alpha_composite(sprite, ((img.width - sprite.width) // 2, (img.height - sprite.height) // 2))
         img.convert("RGB").save(out, quality=90)
         frame.unlink(missing_ok=True)

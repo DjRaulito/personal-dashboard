@@ -1,12 +1,10 @@
-"""Efectos del VoiceStudio: fondos animados generados, rótulos con emojis que saltan, destellos en
-los cortes, barra de progreso, música generada y efectos de sonido. Todo se crea aquí (sin
-licencias de terceros salvo los emojis de Twemoji, CC-BY 4.0)."""
+"""Efectos del VoiceStudio: fondos animados generados, titulares limpios (estilo editorial),
+música generada y efectos de sonido. Todo se crea aquí, sin licencias de terceros."""
 
 from __future__ import annotations
 
 import math
 import subprocess
-import urllib.request
 import wave
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -148,74 +146,34 @@ def procedural_background(out: Path, width: int, height: int, seconds: float, se
 
 
 # ---------------------------------------------------------------------------
-# Emojis (Twemoji, CC-BY 4.0)
-# ---------------------------------------------------------------------------
-
-TWEMOJI = "https://raw.githubusercontent.com/jdecked/twemoji/v15.1.0/assets"
-
-
-def emoji_code(emoji: str) -> str:
-    points = [f"{ord(c):x}" for c in emoji.strip()]
-    if "200d" not in points:
-        points = [p for p in points if p != "fe0f"]
-    return "-".join(points)
-
-
-def emoji_image(emoji: str, size: int, cache: Path) -> Image.Image | None:
-    """Emoji en PNG a `size` px. SVG con cairosvg si está; si no, el PNG de 72 px ampliado."""
-    if not emoji or not emoji.strip():
-        return None
-    code = emoji_code(emoji)
-    cache.mkdir(parents=True, exist_ok=True)
-    png = cache / f"{code}-{size}.png"
-    if png.exists():
-        return Image.open(png).convert("RGBA")
-    try:
-        import cairosvg
-
-        svg = cache / f"{code}.svg"
-        if not svg.exists():
-            _fetch(f"{TWEMOJI}/svg/{code}.svg", svg)
-        cairosvg.svg2png(url=str(svg), write_to=str(png), output_width=size, output_height=size)
-        return Image.open(png).convert("RGBA")
-    except Exception:
-        pass
-    try:
-        small = cache / f"{code}-72.png"
-        if not small.exists():
-            _fetch(f"{TWEMOJI}/72x72/{code}.png", small)
-        img = Image.open(small).convert("RGBA").resize((size, size), Image.LANCZOS)
-        img.save(png)
-        return img
-    except Exception:
-        return None
-
-
-def _fetch(url: str, out: Path) -> None:
-    req = urllib.request.Request(url, headers={"User-Agent": "personal-dashboard-studio"})
-    with urllib.request.urlopen(req, timeout=20) as res:
-        out.write_bytes(res.read())
-
-
-# ---------------------------------------------------------------------------
 # Rótulos
 # ---------------------------------------------------------------------------
 
 
+def load_font(path: Path, size: int, weight: str = "ExtraBold") -> ImageFont.FreeTypeFont:
+    """Fuente a `size` px; si es variable (Montserrat), con el grosor pedido."""
+    font = ImageFont.truetype(str(path), size)
+    try:
+        font.set_variation_by_name(weight)
+    except Exception:
+        pass  # fuente estática o sin ese grosor
+    return font
+
+
 def fit_font(path: Path, text: str, size: int, max_width: int) -> ImageFont.FreeTypeFont:
     while size > 24:
-        font = ImageFont.truetype(str(path), size)
+        font = load_font(path, size)
         if font.getbbox(text)[2] <= max_width:
             return font
         size = int(size * 0.92)
-    return ImageFont.truetype(str(path), size)
+    return load_font(path, size)
 
 
 def wrap_lines(text: str, font_path: Path, size: int, max_width: int, max_lines: int = 3) -> tuple[list[str], ImageFont.FreeTypeFont]:
     """Parte el texto en líneas que quepan; si no cabe en `max_lines`, reduce la letra."""
     words = text.split()
     while True:
-        font = ImageFont.truetype(str(font_path), size)
+        font = load_font(font_path, size)
         lines: list[str] = []
         current = ""
         for w in words:
@@ -233,38 +191,49 @@ def wrap_lines(text: str, font_path: Path, size: int, max_width: int, max_lines:
         size = int(size * 0.9)
 
 
-def callout_sprite(text: str, font_path: Path, size: int, max_width: int, fill, ink, outline: bool = False) -> Image.Image:
-    """Pastilla redondeada con sombra y texto grande (estilo rótulo de redes)."""
-    lines, font = wrap_lines(text, font_path, size, max_width - size)
+def callout_sprite(text: str, font_path: Path, size: int, max_width: int, accent, align: str = "center") -> Image.Image:
+    """Titular editorial: texto blanco grueso con una barra fina de color encima, sombra suave y un
+    halo oscuro difuso detrás para que se lea sobre cualquier plano."""
+    lines, font = wrap_lines(text, font_path, size, max_width)
     ascent, descent = font.getmetrics()
-    line_h = int((ascent + descent) * 0.98)
+    line_h = int((ascent + descent) * 1.02)
     widths = [font.getbbox(l)[2] for l in lines]
-    pad_x, pad_y = int(font.size * 0.45), int(font.size * 0.22)
-    box_w = max(widths) + 2 * pad_x
-    box_h = line_h * len(lines) + 2 * pad_y
-    shadow = int(font.size * 0.18)
-    margin = shadow * 3
-    img = Image.new("RGBA", (box_w + 2 * margin, box_h + 2 * margin), (0, 0, 0, 0))
+    text_w = max(widths)
+    bar_h = max(4, int(font.size * 0.075))
+    bar_w = max(int(font.size * 1.6), 40)
+    gap = int(font.size * 0.32)
+    block_w, block_h = text_w, bar_h + gap + line_h * len(lines)
+    margin = int(font.size * 1.6)  # sitio para que el halo se difumine sin cortarse
+    img = Image.new("RGBA", (block_w + 2 * margin, block_h + 2 * margin), (0, 0, 0, 0))
 
-    shade = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    ImageDraw.Draw(shade).rounded_rectangle(
-        (margin, margin + shadow, margin + box_w, margin + box_h + shadow), radius=int(font.size * 0.3), fill=(0, 0, 0, 150)
+    # Halo oscuro muy difuso
+    halo = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    ImageDraw.Draw(halo).rounded_rectangle(
+        (margin - font.size * 0.5, margin - font.size * 0.3, img.width - margin + font.size * 0.5, img.height - margin + font.size * 0.3),
+        radius=int(font.size * 0.5),
+        fill=(0, 0, 0, 110),
     )
-    img = Image.alpha_composite(img, shade.filter(ImageFilter.GaussianBlur(shadow)))
-    draw = ImageDraw.Draw(img)
-    if fill is not None:
-        draw.rounded_rectangle((margin, margin, margin + box_w, margin + box_h), radius=int(font.size * 0.3), fill=fill)
-    y = margin + pad_y
+    img = Image.alpha_composite(img, halo.filter(ImageFilter.GaussianBlur(int(font.size * 0.4))))
+
+    def x_for(w: int) -> int:
+        return margin + (0 if align == "left" else (block_w - w) // 2)
+
+    # Sombra del texto
+    shadow = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    sd = ImageDraw.Draw(shadow)
+    off = max(2, int(font.size * 0.04))
+    y = margin + bar_h + gap
     for line, w in zip(lines, widths):
-        x = margin + (box_w - w) // 2
-        draw.text(
-            (x, y - int(font.size * 0.02)),
-            line,
-            font=font,
-            fill=ink,
-            stroke_width=max(2, font.size // 14) if outline else 0,
-            stroke_fill=(0, 0, 0, 255),
-        )
+        sd.text((x_for(w) + off, y + off), line, font=font, fill=(0, 0, 0, 170))
+        y += line_h
+    img = Image.alpha_composite(img, shadow.filter(ImageFilter.GaussianBlur(max(2, int(font.size * 0.06)))))
+
+    draw = ImageDraw.Draw(img)
+    bx = x_for(bar_w)
+    draw.rounded_rectangle((bx, margin, bx + bar_w, margin + bar_h), radius=bar_h // 2, fill=tuple(accent[:3]) + (255,))
+    y = margin + bar_h + gap
+    for line, w in zip(lines, widths):
+        draw.text((x_for(w), y), line, font=font, fill=(248, 246, 242, 255))
         y += line_h
     return img
 
@@ -281,9 +250,7 @@ class Sprite:
     end: float
     cx: float  # centro, en píxeles
     cy: float
-    tilt: float = 0.0
-    wobble: float = 0.0  # grados de balanceo mientras está en pantalla
-    pop: float = 0.35  # duración de la entrada
+    pop: float = 0.5  # duración de la entrada (fundido + subida)
 
 
 @dataclass
@@ -292,81 +259,54 @@ class OverlayPlan:
     height: int
     total: float
     sprites: list[Sprite] = field(default_factory=list)
-    flashes: list[float] = field(default_factory=list)  # instantes de corte de escena
 
 
 def plan_overlay(scenes: list[dict], starts: list[float], durations: list[float], width: int, height: int,
-                 total: float, pal: Palette, fonts: Path, emoji_cache: Path, hook: str | None) -> OverlayPlan:
-    """Decide qué rótulo y emoji sale en cada escena y cuándo."""
+                 total: float, pal: Palette, fonts: Path, hook: str | None) -> OverlayPlan:
+    """Decide qué titular sale en cada escena, dónde y cuándo."""
     vertical = height > width
     plan = OverlayPlan(width, height, total)
-    anton = fonts / "Anton-Regular.ttf"
-    if not anton.exists():
-        anton = fonts / "Montserrat.ttf"
-    cx = width / 2
-    cy = height * (0.30 if vertical else 0.28)
-    max_w = int(width * (0.86 if vertical else 0.62))
-    big = int(height * (0.062 if vertical else 0.105))
-    emoji_size = int(min(width, height) * (0.26 if vertical else 0.2))
+    font = fonts / "Montserrat.ttf"
+    if not font.exists():
+        font = fonts / "Anton-Regular.ttf"
+    max_w = int(width * (0.84 if vertical else 0.56))
+    size = int(height * (0.046 if vertical else 0.072))
 
     for i, (scene, start, seconds) in enumerate(zip(scenes, starts, durations)):
-        if i > 0:
-            plan.flashes.append(start)
         text = (hook if i == 0 and hook else scene.get("emphasis") or "").strip()
-        emoji = (scene.get("emoji") or "").strip()
+        if not text:
+            continue
         accent = pal.accents[i % len(pal.accents)]
-        appear = start + (0.05 if i == 0 else 0.18)
-        hold = seconds - 0.35 if i == 0 else min(seconds - 0.3, 2.6)
-        end = appear + max(hold, 0.8)
-        tilt = (-3.0 if i % 2 == 0 else 2.5) if vertical else (-2.0 if i % 2 == 0 else 1.5)
-        sprite_w = sprite_h = 0
-        if text:
-            img = callout_sprite(text.upper(), anton, big if i else int(big * 1.1), max_w, accent + (255,), pal.ink + (255,))
-            plan.sprites.append(Sprite(img, appear, end, cx, cy, tilt=tilt))
-            sprite_w, sprite_h = img.size
-        if emoji:
-            img = emoji_image(emoji, emoji_size, emoji_cache)
-            if img is not None:
-                if not text:
-                    ex, ey = cx, cy
-                elif vertical:  # encima del rótulo
-                    ex, ey = cx, cy - sprite_h / 2 - emoji_size * 0.3
-                else:  # a la derecha del rótulo, sin salirse de la pantalla
-                    ex = min(cx + sprite_w / 2 + emoji_size * 0.2, width - emoji_size * 0.65)
-                    ey = cy - sprite_h * 0.25
-                plan.sprites.append(Sprite(img, appear + (0.12 if text else 0), end, ex, ey, tilt=-tilt * 2, wobble=7.0, pop=0.45))
+        appear = start + (0.1 if i == 0 else 0.25)
+        hold = seconds - 0.4 if i == 0 else min(seconds - 0.4, 2.8)
+        end = appear + max(hold, 1.0)
+        if vertical:
+            img = callout_sprite(text.upper(), font, int(size * (1.25 if i == 0 else 1)), max_w, accent)
+            cx, cy = width / 2, height * (0.40 if i == 0 else 0.22)
+        else:  # titular a la izquierda, en el tercio superior
+            img = callout_sprite(text.upper(), font, int(size * (1.2 if i == 0 else 1)), max_w, accent, align="left")
+            cx, cy = width * 0.06 + img.width / 2, height * (0.36 if i == 0 else 0.24)
+        plan.sprites.append(Sprite(img, appear, end, cx, cy))
     return plan
 
 
 def render_overlay_frame(plan: OverlayPlan, t: float) -> bytes | None:
     """Fotograma RGBA de la capa de gráficos en el instante t, o None si está vacía."""
     active = [s for s in plan.sprites if s.start <= t < s.end]
-    flash = next((t - c for c in plan.flashes if 0 <= t - c < 0.14), None)
-    if not active and flash is None:
+    if not active:
         return None
     canvas = Image.new("RGBA", (plan.width, plan.height), (0, 0, 0, 0))
-    if flash is not None:
-        alpha = int(110 * (1 - flash / 0.14))
-        canvas.paste((255, 255, 255, alpha), (0, 0, plan.width, plan.height))
+    rise = plan.height * 0.025
     for s in active:
-        p_in = (t - s.start) / s.pop
-        p_out = (s.end - t) / 0.22
-        scale = 0.25 + 0.75 * ease_out_back(p_in) if p_in < 1 else 1.0
-        alpha = clamp(p_in * 3) * clamp(p_out)
-        if p_out < 1:
-            scale *= 0.85 + 0.15 * p_out
-        angle = s.tilt + (s.wobble * math.sin((t - s.start) * 5.2) if s.wobble else 0.0)
-        if p_in < 1:
-            angle += (1 - ease_out_cubic(p_in)) * (-12 if s.tilt < 0 else 12)
-        w = max(int(s.image.width * scale), 2)
-        h = max(int(s.image.height * scale), 2)
-        img = s.image.resize((w, h), Image.BILINEAR)
-        if abs(angle) > 0.2:
-            img = img.rotate(angle, resample=Image.BILINEAR, expand=True)
+        p_in = ease_out_cubic(clamp((t - s.start) / s.pop))
+        p_out = clamp((s.end - t) / 0.3)
+        alpha = p_in * p_out
+        img = s.image
         if alpha < 0.999:
-            a = img.getchannel("A").point(lambda v, k=alpha: int(v * k))
-            img.putalpha(a)
-        canvas.alpha_composite(img, (int(s.cx - img.width / 2), int(s.cy - img.height / 2)))
+            img = img.copy()
+            img.putalpha(img.getchannel("A").point(lambda v, k=alpha: int(v * k)))
+        y = s.cy + (1 - p_in) * rise
+        canvas.alpha_composite(img, (int(s.cx - img.width / 2), int(y - img.height / 2)))
     return canvas.tobytes()
 
 
