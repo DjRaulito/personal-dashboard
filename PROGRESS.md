@@ -147,6 +147,7 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
   - Hermes Agent (Nous Research, MIT) corre en Linux ARM64 con 1-2 GB de RAM si el modelo es externo (Gemini por endpoint compatible con OpenAI, OpenRouter gratis…). Su memoria es suya (MEMORY.md ~2.200 caracteres, USER.md, historial en SQLite) y `hermes mcp-serve` expone mensajería, no memoria (petición abierta en el repo). No sirve tal cual como memoria compartida para otras IAs.
   - Oracle Always Free: Ampere A1 recortado a 2 OCPU y 12 GB (desde el 18 ago 2026); pide tarjeta, a veces no hay capacidad y reclama instancias ociosas (<20 % de CPU, red y memoria en el percentil 95 durante 7 días). Google Cloud e2-micro: 1 GB, solo regiones de EE. UU., gratis para siempre. AWS: solo 12 meses (descartado).
   - Propuesta: el «cerebro» como servidor MCP remoto dentro de este dashboard (tabla en Supabase con RLS + endpoint MCP en Vercel con token; herramientas recordar / buscar / olvidar / olvidar todo; pantalla para ver y borrar al momento). Coste 0 €, sin VPS. Hermes en Oracle queda como extra opcional: agente 24/7 por Telegram que usa ese mismo cerebro como cliente MCP
+- [ ] **Cuando la app esté acabada (pedido el 10 nov 2026):** en Ajustes, que cada usuario pueda añadir sus propias claves y tokens (Gemini, Groq, Mistral, OpenRouter, Cerebras, Pixabay, Pexels, Pollinations, GitHub, Google…), para que personas externas usen las suyas sin gastar las de Raúl. Idea: tabla `user_api_keys` con `user_id` + RLS, valores cifrados con `TOKEN_ENCRYPTION_KEY` (nunca se devuelven al navegador, solo «configurada» y los últimos 4 caracteres), botón «Probar» por clave, y la app usa primero la clave del usuario y, si no tiene, ninguna (las de Vercel quedan solo para Raúl). El worker del estudio recibiría las claves del usuario por la RPC, no por secretos del repo.
 
 ## Fase 8 — Contenido (+ VoiceStudio, pedido el 10 nov 2026)
 
@@ -171,7 +172,7 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
 2. **Pantalla de consentimiento → Acceso a datos**: añadir los permisos `calendar.events` y `drive.file`.
 3. En el dashboard: cerrar sesión y volver a entrar con Google, y aceptar los permisos nuevos (escribir en el calendario y guardar los vídeos en tu Drive; la app solo ve los archivos que crea ella).
 4. VoiceStudio: el token `GITHUB_AGENT_TOKEN` (paso 2 de los agentes de Claude Code) con un permiso más: **Secrets** de lectura y escritura. Después, en Ajustes del estudio, «Crear la clave» (se guarda sola en GitHub).
-5. Opcional: cuenta gratuita en pexels.com/api y `PEXELS_API_KEY` en Vercel (sin ella, los vídeos usan fondos lisos).
+5. ~~Clips de stock e imágenes IA~~: hecho, `PIXABAY_API_KEY` en Vercel y `POLLINATIONS_API_KEY` en GitHub Secrets (Pexels ya no da claves nuevas).
 6. Ojo: GitHub desactiva los workflows programados de repos públicos tras 60 días sin actividad; si el piloto deja de funcionar, reactívalo en la pestaña Actions.
 
 ## Decisiones
