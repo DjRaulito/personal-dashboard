@@ -12,7 +12,7 @@ import { getRun } from "@/lib/agents/server";
 import { APP_LOCALE, APP_TIMEZONE } from "@/lib/datetime";
 
 export const metadata: Metadata = { title: "Ejecución" };
-export const maxDuration = 60;
+export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 const time = (iso: string) =>

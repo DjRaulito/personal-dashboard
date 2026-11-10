@@ -11,8 +11,8 @@ import { aiConfigured } from "@/lib/ai/llm";
 import { createStarterAgents } from "./actions";
 
 export const metadata: Metadata = { title: "Agentes" };
-// Los agentes de Gemini trabajan después de responder (after): margen hasta el límite de Vercel
-export const maxDuration = 60;
+// Los agentes de Gemini trabajan después de responder (after): margen hasta el límite de Vercel (300 s en Hobby)
+export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 export default async function AgentsPage() {

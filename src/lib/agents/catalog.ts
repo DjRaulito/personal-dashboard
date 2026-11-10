@@ -4,7 +4,7 @@ import { z } from "zod";
 
 export const MAX_CONCURRENT_RUNS = 3;
 /** Una ejecución de Gemini que lleva más de esto «trabajando» se cortó (límite de Vercel). */
-export const GEMINI_STALE_MS = 3 * 60 * 1000;
+export const GEMINI_STALE_MS = 6 * 60 * 1000;
 /** Margen para un workflow de Claude Code en GitHub Actions. */
 export const CLAUDE_STALE_MS = 75 * 60 * 1000;
 

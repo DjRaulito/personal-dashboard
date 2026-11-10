@@ -68,7 +68,7 @@ async function listGeminiModels(): Promise<string[]> {
     .map((m) => m.name);
 }
 
-const GEMINI_ATTEMPT_MS = 20000;
+const GEMINI_ATTEMPT_MS = 40000;
 
 /** Una llamada a un modelo; devuelve null si no responde a tiempo o se corta la conexión. */
 async function postGemini(model: string, body: Record<string, unknown>): Promise<Response | null> {
