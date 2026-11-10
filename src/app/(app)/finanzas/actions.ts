@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { imageSchema } from "@/lib/ai/image";
+import { askJson } from "@/lib/ai/llm";
+import { runAi, type AiResult } from "@/lib/ai/result";
+import { dayKey } from "@/lib/datetime";
+import { categoryOptions, type Category } from "@/lib/finance/categories";
 import { importHashes } from "@/lib/finance/import-hash";
+import { receiptPrompt, receiptSchema, receiptToForm, SYSTEM_RECEIPT, type ReceiptFill } from "@/lib/finance/receipt";
 import { categorize, compileRules, type Rule } from "@/lib/finance/rules";
 import {
   accountFormSchema,
@@ -95,6 +101,28 @@ export async function saveTransaction(_: FormState, formData: FormData): Promise
   if (error) return { ok: false, message: "No se pudo guardar el movimiento." };
   refresh();
   return { ok: true, message: id ? "Movimiento actualizado." : "Movimiento añadido." };
+}
+
+/** Lee la foto de un ticket y devuelve los campos para rellenar el formulario (no guarda nada). */
+export async function scanReceipt(image: unknown): Promise<AiResult<ReceiptFill>> {
+  const { supabase } = await session();
+  const img = imageSchema.safeParse(image);
+  if (!img.success) return { ok: false, message: "La foto no es válida o es demasiado grande." };
+  const { data } = await supabase.from("categories").select("id, name, kind, parent_id");
+  const expense = categoryOptions((data ?? []) as Category[]).find((g) => g.kind === "expense")?.options ?? [];
+  const today = dayKey(new Date());
+  return runAi(async () => {
+    const receipt = await askJson(
+      receiptSchema,
+      SYSTEM_RECEIPT,
+      receiptPrompt(
+        expense.map((c) => c.label),
+        today,
+      ),
+      img.data,
+    );
+    return receiptToForm(receipt, expense, today);
+  });
 }
 
 export async function deleteTransactions(ids: string[]) {

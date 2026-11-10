@@ -30,6 +30,22 @@ export function cheatPrompt(description: string): string {
   ].join("\n");
 }
 
+export const cheatPhotoSchema = cheatEstimateSchema.extend({
+  description: z.string().max(300).optional().default(""),
+});
+export type CheatPhotoEstimate = z.infer<typeof cheatPhotoSchema>;
+
+export function cheatPhotoPrompt(hint: string): string {
+  return [
+    "Mira la foto del plato y estima las calorías y macros totales de lo que se ve.",
+    "Calcula el tamaño de las raciones por el plato, los cubiertos y el envase. Si hay varias personas, cuenta solo una ración.",
+    hint ? `Detalles que da el usuario: """${hint.slice(0, 500)}"""` : "",
+    'Devuelve: {"description": "qué comida es, en pocas palabras", "kcal": número, "protein_g": número, "carbs_g": número, "fat_g": número, "notes": "qué has supuesto, en una frase"}',
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 // ---------------------------------------------------------------------------
 // Macros de un alimento nuevo
 // ---------------------------------------------------------------------------

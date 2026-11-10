@@ -5,8 +5,11 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { AiUnavailableError, askJson } from "@/lib/ai/llm";
 import { fieldErrors, type FormState } from "@/lib/finance/schemas";
+import { imageSchema } from "@/lib/ai/image";
 import {
   cheatEstimateSchema,
+  cheatPhotoPrompt,
+  cheatPhotoSchema,
   cheatPrompt,
   foodEstimateSchema,
   foodPrompt,
@@ -15,6 +18,7 @@ import {
   resolveProposals,
   SYSTEM_NUTRITION,
   type CheatEstimate,
+  type CheatPhotoEstimate,
   type FoodEstimate,
   type ResolvedProposal,
 } from "@/lib/nutrition/ai";
@@ -414,6 +418,15 @@ export async function estimateCheat(description: string): Promise<AiResult<Cheat
   const clean = z.string().trim().min(3).max(1000).safeParse(description);
   if (!clean.success) return { ok: false, message: "Describe primero lo que comiste." };
   return runAi(() => askJson(cheatEstimateSchema, SYSTEM_NUTRITION, cheatPrompt(clean.data)));
+}
+
+/** Kcal y macros a partir de una foto del plato (y lo que se haya escrito como pista). */
+export async function estimateCheatPhoto(image: unknown, hint: string): Promise<AiResult<CheatPhotoEstimate>> {
+  await session();
+  const img = imageSchema.safeParse(image);
+  if (!img.success) return { ok: false, message: "La foto no es válida o es demasiado grande." };
+  const text = z.string().max(1000).catch("").parse(hint).trim();
+  return runAi(() => askJson(cheatPhotoSchema, SYSTEM_NUTRITION, cheatPhotoPrompt(text), img.data));
 }
 
 // ---------------------------------------------------------------------------
