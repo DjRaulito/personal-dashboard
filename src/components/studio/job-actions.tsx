@@ -94,6 +94,10 @@ export function ScriptEditor({ jobId, script }: { jobId: string; script: VideoSc
         <span className="text-muted">Título</span>
         <input name="title" defaultValue={script.title} maxLength={120} className={inputClass} />
       </label>
+      <label className="flex flex-col gap-1.5 text-sm">
+        <span className="text-muted">Gancho (rótulo gigante del primer segundo)</span>
+        <input name="hook" defaultValue={script.hook ?? ""} maxLength={48} className={inputClass} />
+      </label>
       <ol className="flex flex-col gap-3">
         {script.scenes.map((scene, i) => (
           <li key={i} className="flex flex-col gap-1.5 text-sm">
@@ -101,7 +105,7 @@ export function ScriptEditor({ jobId, script }: { jobId: string; script: VideoSc
               <span>Escena {i + 1}</span>
               <span className="truncate text-xs">
                 Plano: {scene.query}
-                {scene.clips.length === 0 && " · fondo liso"}
+                {scene.clips.length === 0 && " · imagen IA"}
               </span>
             </label>
             <textarea
@@ -113,6 +117,24 @@ export function ScriptEditor({ jobId, script }: { jobId: string; script: VideoSc
               maxLength={1200}
               className={clsx(inputClass, "resize-y leading-relaxed")}
             />
+            <div className="flex gap-2">
+              <input
+                name={`emphasis-${i}`}
+                defaultValue={scene.emphasis ?? ""}
+                maxLength={32}
+                placeholder="Rótulo en pantalla (opcional)"
+                aria-label={`Rótulo de la escena ${i + 1}`}
+                className={clsx(inputClass, "min-w-0 flex-1")}
+              />
+              <input
+                name={`emoji-${i}`}
+                defaultValue={scene.emoji ?? ""}
+                maxLength={16}
+                placeholder="😀"
+                aria-label={`Emoji de la escena ${i + 1}`}
+                className={clsx(inputClass, "w-16 text-center")}
+              />
+            </div>
           </li>
         ))}
       </ol>

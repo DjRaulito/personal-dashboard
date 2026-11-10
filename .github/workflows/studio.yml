@@ -57,10 +57,12 @@ jobs:
       - name: Programas del sistema
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg espeak-ng > /dev/null
+          sudo apt-get install -y -qq ffmpeg espeak-ng libcairo2 > /dev/null
           mkdir -p "$STUDIO_FONTS"
           curl -sSfL -o "$STUDIO_FONTS/Montserrat.ttf" \
             "https://github.com/google/fonts/raw/main/ofl/montserrat/Montserrat%5Bwght%5D.ttf"
+          curl -sSfL -o "$STUDIO_FONTS/Anton-Regular.ttf" \
+            "https://github.com/google/fonts/raw/main/ofl/anton/Anton-Regular.ttf"
 
       - uses: actions/cache@v4
         with:
@@ -74,9 +76,9 @@ jobs:
             pip install -q -r studio/requirements-clone.txt --extra-index-url https://download.pytorch.org/whl/cpu
           fi
 
-      - name: Pruebas de los subtítulos
+      - name: Pruebas de los subtítulos y los efectos
         working-directory: studio
-        run: python -m unittest test_captions
+        run: python -m unittest test_captions test_fx
 
       - name: Montaje
         if: ${{ inputs.job_id != 'demo' }}

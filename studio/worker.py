@@ -15,15 +15,20 @@ import os
 import sys
 import time
 import traceback
+import urllib.parse
 import urllib.request
+import zlib
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import captions
+import fx
 import render
 
 WORK = Path(os.environ.get("STUDIO_WORKDIR", "/tmp/studio"))
 FONTS = Path(os.environ.get("STUDIO_FONTS", WORK / "fonts"))
 SCENE_GAP = 0.25  # respiro entre escenas (s)
+IMAGE_API = os.environ.get("STUDIO_IMAGE_API", "https://image.pollinations.ai/prompt")
 
 
 # ---------------------------------------------------------------------------
@@ -131,43 +136,113 @@ def produce(job: dict, progress: Progress) -> tuple[Path, Path, float]:
 
     # 2. Subtítulos sincronizados
     progress(52, "Sincronizando subtítulos")
-    words: list[captions.Word] = []
-    offset = 0.0
     heard = transcribe(narration)
     script_words = [w for scene in scenes for w in captions.tokenize(scene["text"])]
     words = captions.align(script_words, heard, total)
+    seed = zlib.crc32(job["script"].get("title", "").encode())
+    pal = fx.palette_for(seed)
     subtitles = WORK / "subs.ass"
-    subtitles.write_text(captions.build_ass(words, width, height, vertical), encoding="utf-8")
+    subtitles.write_text(
+        captions.build_ass(words, width, height, vertical, accent=fx.bgr_hex(pal.accents[0])), encoding="utf-8"
+    )
+    starts = [sum(durations[:i]) for i in range(len(durations))]
 
-    # 3. Clips de stock por escena
+    # 3. Imágenes generadas por IA para las escenas sin clip de stock
+    images = generate_images(scenes, width, height, seed, progress)
+
+    # 4. Planos por escena: clip de stock → imagen IA animada → fondo animado generado
     segments: list[Path] = []
     for i, (scene, seconds) in enumerate(zip(scenes, durations)):
-        progress(58 + int(25 * i / len(scenes)), f"Montando escena {i + 1} de {len(scenes)}")
+        progress(64 + int(18 * i / len(scenes)), f"Montando escena {i + 1} de {len(scenes)}")
         clips = scene.get("clips") or []
         pieces = max(1, min(len(clips), int(seconds // 2.5) or 1))
         part = seconds / pieces
         for k in range(pieces):
             out = WORK / f"seg_{i}_{k}.mp4"
+            punch = k == 0 and i > 0
             try:
-                if not clips:
-                    raise RuntimeError("sin clip")
-                src = download(clips[k]["url"], WORK / f"clip_{i}_{k}.mp4")
-                render.clip_segment(src, out, width, height, part, zoom_in=(i + k) % 2 == 0)
+                if clips:
+                    src = download(clips[k]["url"], WORK / f"clip_{i}_{k}.mp4")
+                    render.clip_segment(src, out, width, height, part, zoom_in=(i + k) % 2 == 0, punch=punch)
+                elif images.get(i):
+                    render.clip_segment(images[i], out, width, height, part, zoom_in=i % 2 == 0, still=True, punch=punch)
+                else:
+                    raise RuntimeError("sin plano")
             except Exception as e:
-                print(f"escena {i + 1}: fondo de respaldo ({type(e).__name__})")
-                render.fallback_segment(out, width, height, part, seed=i * 7 + k)
+                if clips or images.get(i):
+                    print(f"escena {i + 1}: fondo animado ({type(e).__name__})")
+                fx.procedural_background(out, width, height, part, seed=seed + i * 7 + k, pal=pal)
             segments.append(out)
-        offset += seconds
     visuals = WORK / "visuals.mp4"
     render.concat_video(segments, visuals)
 
-    # 4. Mezcla final
-    progress(86, "Renderizando el vídeo final")
+    # 5. Rótulos, emojis, música y efectos
+    progress(84, "Animando rótulos y música")
+    plan = fx.plan_overlay(
+        scenes, starts, durations, width, height, total, pal, FONTS, WORK / "emoji", job["script"].get("hook")
+    )
+    music = sfx = None
+    try:
+        music = WORK / "music.wav"
+        fx.write_wav(fx.music(total, job["script"].get("mood") or "energetic", seed), music)
+        sfx = WORK / "sfx.wav"
+        fx.write_wav(fx.sfx_track(total, starts[1:], [s.start for s in plan.sprites if s.pop < 0.4], seed), sfx)
+    except Exception as e:
+        print(f"aviso: sin música ({type(e).__name__})")
+        music = sfx = None
+
+    # 6. Mezcla final
+    progress(88, "Renderizando el vídeo final")
     final = WORK / "video.mp4"
-    render.final_mix(visuals, narration, subtitles, FONTS, final, long_form=not vertical)
+    accent = pal.accents[0]
+    render.final_mix(
+        visuals, narration, subtitles, FONTS, final, long_form=not vertical,
+        overlay=plan, music=music, sfx=sfx, bar_color="0x%02X%02X%02X" % accent,
+    )
     thumb = WORK / "thumb.jpg"
-    render.thumbnail(final, thumb)
+    title = job["script"].get("hook") or job["script"].get("title", "")
+    render.thumbnail(visuals, thumb, title, FONTS, accent)
     return final, thumb, render.duration(final)
+
+
+def generate_images(scenes: list[dict], width: int, height: int, seed: int, progress: Progress) -> dict[int, Path]:
+    """Imágenes IA gratuitas (Pollinations) para las escenas sin clip. Si el servicio no responde,
+    esas escenas usan el fondo animado. Se desactiva con STUDIO_AI_IMAGES=0."""
+    missing = [i for i, s in enumerate(scenes) if not s.get("clips")]
+    if not missing or os.environ.get("STUDIO_AI_IMAGES", "1") == "0":
+        return {}
+    progress(58, f"Generando {len(missing)} imágenes con IA")
+    w, h = (768, 1344) if height > width else (1344, 768)
+    style = "cinematic photo, dramatic lighting, rich colors, shallow depth of field, no text, no watermark"
+
+    def one(i: int) -> tuple[int, Path | None]:
+        prompt = f"{scenes[i].get('query', '').strip()}, {style}"
+        url = (
+            f"{IMAGE_API}/{urllib.parse.quote(prompt)}?width={w}&height={h}&seed={seed + i}&nologo=true&model=flux"
+        )
+        out = WORK / f"img_{i}.jpg"
+        for attempt in range(2):
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "personal-dashboard-studio"})
+                with urllib.request.urlopen(req, timeout=90) as res:
+                    out.write_bytes(res.read())
+                from PIL import Image
+
+                with Image.open(out) as img:
+                    if min(img.size) < 256:
+                        raise ValueError("imagen pequeña")
+                return i, out
+            except Exception:
+                time.sleep(3 * (attempt + 1))
+        return i, None
+
+    found: dict[int, Path] = {}
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        for i, path in pool.map(one, missing):
+            if path:
+                found[i] = path
+    print(f"imágenes IA: {len(found)} de {len(missing)}")
+    return found
 
 
 def transcribe(audio: Path) -> list[captions.Word]:

@@ -96,9 +96,12 @@ def escape(text: str) -> str:
     return text.replace("\\", "\\\\").replace("{", "(").replace("}", ")")
 
 
-def build_ass(words: list[Word], width: int, height: int, vertical: bool, font: str = "Montserrat") -> str:
-    """ASS con una línea por frase y la palabra actual en el color del módulo (azul grisáceo)."""
-    size = round(height * (0.052 if vertical else 0.06))
+def build_ass(
+    words: list[Word], width: int, height: int, vertical: bool, font: str = "Montserrat", accent: str = "&HD4A393&"
+) -> str:
+    """ASS con una línea por frase; la palabra que suena sale en el color de acento y da un pequeño
+    salto (escala 100 → 118 → 108 %). `accent` va en formato ASS (&HBBGGRR&)."""
+    size = round(height * (0.056 if vertical else 0.06))
     margin_v = round(height * (0.24 if vertical else 0.08))
     max_words, max_chars = (3, 22) if vertical else (6, 42)
     header = f"""[Script Info]
@@ -110,14 +113,14 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Main,{font},{size},&H00F5F2F2,&H00F5F2F2,&H000E0B0B,&H64000000,-1,0,0,0,100,100,0,0,1,{max(2, size // 12)},{max(1, size // 30)},2,{width // 12},{width // 12},{margin_v},1
+Style: Main,{font},{size},&H00F5F2F2,&H00F5F2F2,&H000E0B0B,&H64000000,-1,0,0,0,100,100,0,0,1,{max(3, size // 9)},{max(2, size // 22)},2,{width // 12},{width // 12},{margin_v},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     lines = []
-    highlight = "{\\c&HD4A393&}"  # #93A3D4 en BGR
-    normal = "{\\c&HF5F2F2&}"
+    highlight = f"{{\\c{accent}\\fscx100\\fscy100\\t(0,90,\\fscx118\\fscy118)\\t(90,180,\\fscx108\\fscy108)}}"
+    normal = "{\\c&HF5F2F2&\\fscx100\\fscy100}"
     for group in chunk(words, max_words, max_chars):
         for idx, current in enumerate(group):
             start = current.start

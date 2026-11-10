@@ -120,11 +120,16 @@ export async function writeVideoScript(topic: string, format: VideoFormat, secon
     aiScriptSchema,
     [
       "Eres guionista de vídeos para redes sociales en español de España: tono cercano, directo y sin relleno.",
-      'Devuelve JSON {"title", "description", "hashtags": [], "scenes": [{"text", "query"}]}.',
+      'Devuelve JSON {"title", "hook", "mood", "description", "hashtags": [], "scenes": [{"text", "query", "emphasis", "emoji"}]}.',
+      "El vídeo tiene que ser viral: engancha en el primer segundo, ritmo alto, curiosidad y una promesa clara.",
       "«text» es exactamente lo que dirá la voz en off: frases cortas, naturales al oído, sin emojis, sin",
       "indicaciones de plano, sin listas con viñetas y con los números escritos como se leen.",
       "«query» describe en INGLÉS, con 2-4 palabras concretas, un plano de vídeo de stock que acompañe esa",
       "escena (objetos, lugares, acciones; nunca nombres propios ni texto en pantalla).",
+      "«hook» es el rótulo gigante del primer segundo: 2-6 palabras que provoquen (pregunta, cifra o reto).",
+      "«emphasis» es el rótulo animado de cada escena: 1-4 palabras o una cifra con la idea clave (p. ej. «+40 % de fuerza», «Error 2: no apuntar»); déjalo vacío en escenas de transición, no lo repitas.",
+      "«emoji» es UN emoji que refuerce la escena (o vacío).",
+      "«mood» es la música de fondo: energetic, chill o epic.",
       format === "short"
         ? "Formato vertical corto: la primera escena es un gancho que se entiende en 2 segundos y la última invita a seguir la cuenta."
         : "Formato largo horizontal: introducción que promete el valor del vídeo, desarrollo por partes y cierre con resumen y llamada a suscribirse.",
