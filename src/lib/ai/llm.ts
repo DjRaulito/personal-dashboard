@@ -167,6 +167,13 @@ export interface ChatResult {
   toolsUsed: string[];
 }
 
+export interface ChatOptions {
+  /** Vueltas máximas de herramientas antes de obligar a responder. */
+  maxRounds?: number;
+  /** Aviso cada vez que el modelo usa una herramienta (para el registro de los agentes). */
+  onTool?: (name: string, args: Record<string, unknown>) => void | Promise<void>;
+}
+
 const MAX_TOOL_ROUNDS = 6;
 const MAX_TOOL_CHARS = 24000;
 
@@ -184,20 +191,25 @@ async function runTool(tools: AiTool[], name: string, args: Record<string, unkno
   }
 }
 
-async function geminiChat(system: string, turns: ChatTurn[], tools: AiTool[]): Promise<ChatResult> {
+async function geminiChat(
+  system: string,
+  turns: ChatTurn[],
+  tools: AiTool[],
+  { maxRounds = MAX_TOOL_ROUNDS, onTool }: ChatOptions = {},
+): Promise<ChatResult> {
   const contents: GeminiContent[] = turns.map((t) => ({
     role: t.role === "user" ? "user" : "model",
     parts: [{ text: t.text }],
   }));
   const declarations = tools.map(({ name, description, parameters }) => ({ name, description, parameters }));
   const used: string[] = [];
-  for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+  for (let round = 0; round <= maxRounds; round++) {
     const content = await geminiRequest({
       systemInstruction: { parts: [{ text: system }] },
       contents,
       tools: [{ functionDeclarations: declarations }],
       // En la última vuelta ya no se permiten herramientas: toca responder
-      toolConfig: { functionCallingConfig: { mode: round === MAX_TOOL_ROUNDS ? "NONE" : "AUTO" } },
+      toolConfig: { functionCallingConfig: { mode: round === maxRounds ? "NONE" : "AUTO" } },
       generationConfig: { temperature: 0.3 },
     });
     const calls = content.parts.filter((p) => p.functionCall).map((p) => p.functionCall!);
@@ -207,6 +219,7 @@ async function geminiChat(system: string, turns: ChatTurn[], tools: AiTool[]): P
     const responses = await Promise.all(
       calls.map(async (c) => {
         used.push(c.name);
+        await onTool?.(c.name, c.args ?? {});
         const result = await runTool(tools, c.name, c.args ?? {});
         return { functionResponse: { name: c.name, response: { result } } };
       }),
@@ -216,7 +229,12 @@ async function geminiChat(system: string, turns: ChatTurn[], tools: AiTool[]): P
   throw new Error("Gemini no terminó de responder");
 }
 
-async function groqChat(system: string, turns: ChatTurn[], tools: AiTool[]): Promise<ChatResult> {
+async function groqChat(
+  system: string,
+  turns: ChatTurn[],
+  tools: AiTool[],
+  { maxRounds = MAX_TOOL_ROUNDS, onTool }: ChatOptions = {},
+): Promise<ChatResult> {
   const messages: OpenAiMessage[] = [
     { role: "system", content: system },
     ...turns.map((t) => ({ role: t.role, content: t.text }) as OpenAiMessage),
@@ -226,13 +244,13 @@ async function groqChat(system: string, turns: ChatTurn[], tools: AiTool[]): Pro
     function: { name, description, parameters },
   }));
   const used: string[] = [];
-  for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+  for (let round = 0; round <= maxRounds; round++) {
     const message = await groqRequest({
       model: GROQ_MODEL,
       temperature: 0.3,
       messages,
       tools: declarations,
-      tool_choice: round === MAX_TOOL_ROUNDS ? "none" : "auto",
+      tool_choice: round === maxRounds ? "none" : "auto",
     });
     const calls = message.tool_calls ?? [];
     if (calls.length === 0) return { text: String(message.content ?? "").trim(), toolsUsed: used };
@@ -245,6 +263,7 @@ async function groqChat(system: string, turns: ChatTurn[], tools: AiTool[]): Pro
       } catch {
         // argumentos mal formados: la herramienta usará sus valores por defecto
       }
+      await onTool?.(c.function.name, args);
       messages.push({ role: "tool", tool_call_id: c.id, content: await runTool(tools, c.function.name, args) });
     }
   }
@@ -252,7 +271,12 @@ async function groqChat(system: string, turns: ChatTurn[], tools: AiTool[]): Pro
 }
 
 /** Conversación con herramientas: Gemini y, si falla, Groq. */
-export async function chatWithTools(system: string, turns: ChatTurn[], tools: AiTool[]): Promise<ChatResult> {
+export async function chatWithTools(
+  system: string,
+  turns: ChatTurn[],
+  tools: AiTool[],
+  options?: ChatOptions,
+): Promise<ChatResult> {
   const providers = [process.env.GEMINI_API_KEY ? geminiChat : null, process.env.GROQ_API_KEY ? groqChat : null].filter(
     (p): p is typeof geminiChat => p !== null,
   );
@@ -260,7 +284,7 @@ export async function chatWithTools(system: string, turns: ChatTurn[], tools: Ai
   let lastError: unknown;
   for (const provider of providers) {
     try {
-      const result = await provider(system, turns, tools);
+      const result = await provider(system, turns, tools, options);
       if (result.text) return result;
       lastError = new Error("respuesta vacía");
     } catch (e) {

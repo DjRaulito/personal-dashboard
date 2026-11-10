@@ -4,9 +4,9 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 
 ## Estado actual
 
-- **Fase:** 6 — IA, cruces y extras
-- **Última tarea hecha:** registro rápido de comidas; antes, fase 6: asistente IA con herramientas, fotos (ticket → movimiento, plato → kcal), resumen semanal en portada y cruces
-- **Siguiente tarea:** Raúl prueba el registro rápido de comidas y el asistente; después fase 7 (agentes, incluida la idea del VPS gratuito con un agente «cerebro»)
+- **Fase:** 7 — Agentes
+- **Última tarea hecha:** centro de agentes (`/ia/agentes`): fichas, tareas a varios agentes a la vez, tablero en directo, motores Gemini y Claude Code, aprobaciones
+- **Siguiente tarea:** Raúl crea los agentes de partida y lanza 3 tareas a la vez; configurar Claude Code (pasos manuales de la fase 7); investigar el VPS gratuito para el agente «cerebro»; después fase 8 (Contenido)
 
 ## Fase 0 — Cimientos
 
@@ -123,7 +123,24 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
 - [ ] Verificación: Raúl usa el asistente y las fotos con datos reales
 - [x] Registro de comidas rápido (pedido el 10 nov 2026): chips de un toque por grupo con las opciones del plan (apunta lo que falta; la comida se marca hecha sola al completarse), «Igual que ayer» por comida, «Copiar ayer» y «Las que faltan, según el plan» para el día, «Describir o foto» (la IA lo pasa a alimentos y gramos y se confirma con un toque); la calculadora de gramos queda plegada en «Ajustar gramos»
 
-## Fase 7 — Agentes (ideas apuntadas)
+## Fase 7 — Agentes
+
+- [x] Migración `agents`: agents, agent_tasks, agent_runs, agent_logs y agent_actions con RLS y Realtime (aplicada)
+- [x] Pantalla de agentes (`/ia/agentes`): crear y editar (nombre, rol, instrucciones, motor, herramientas permitidas, pasos máximos, activo) y cinco agentes de partida (analista financiero, coach de gym y nutrición, guionista, desarrollador, investigador)
+- [x] Motor Gemini: corre en la app (después de responder, con `after`) con las herramientas de solo lectura del asistente y dos herramientas de propuesta (presupuesto y aportación a hucha)
+- [x] Motor Claude Code: la app lanza el workflow `agent.yml` (GitHub Actions) con la suscripción de Raúl, consulta su estado y descarga el resultado; si cambia código, deja una rama y propone abrir el PR
+- [x] Una tarea a varios agentes a la vez, cola con límite de 3 en marcha, tablero en directo (Supabase Realtime) con registro y resultado de cada agente; cancelar ejecuciones
+- [x] Aprobación humana: las acciones con efecto (presupuesto, hucha, abrir PR) esperan a que Raúl las apruebe
+- [ ] Verificación: lanzas 3 tareas a 3 agentes a la vez y las tres terminan con su resultado visible
+
+### Pasos manuales pendientes para Claude Code (los hace Raúl)
+
+1. En tu ordenador: `claude setup-token` y guardar el token como secreto `CLAUDE_CODE_OAUTH_TOKEN` en GitHub (Settings → Secrets and variables → Actions).
+2. GitHub → Settings → Developer settings → token fine-grained solo para este repo con permisos **Actions**, **Contents** y **Pull requests** en lectura y escritura.
+3. Vercel: variable `GITHUB_AGENT_TOKEN` con ese token (y `GITHUB_AGENT_REPO=DjRaulito/personal-dashboard` si no se detecta solo). Redesplegar.
+4. Ojo: el repo es público, así que las tareas de Claude Code y sus registros se ven en GitHub. Nada de datos personales en ellas.
+
+### Ideas apuntadas
 
 - [ ] Investigar un VPS gratuito para un agente «cerebro» siempre encendido (idea del 10 nov 2026): Oracle Cloud Always Free (VM Ampere A1 ARM) como primera opción; comparar alternativas gratuitas (Google Cloud e2-micro, etc.). Montar un agente tipo Hermes (Nous Research) como memoria central: guarda el contexto y permite borrarlo o recuperarlo al momento desde el resto de IAs (vía MCP o API). Revisar límites, coste 0 € real y seguridad antes de montarlo
 
