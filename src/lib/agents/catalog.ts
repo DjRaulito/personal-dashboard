@@ -9,7 +9,7 @@ export const GEMINI_STALE_MS = 6 * 60 * 1000;
 export const CLAUDE_STALE_MS = 75 * 60 * 1000;
 
 export const ENGINES = {
-  gemini: { label: "Gemini", hint: "Rápido, corre en la app y usa tus datos" },
+  gemini: { label: "IA gratuita", hint: "Gemini, Groq, Mistral… Rápido, corre en la app y usa tus datos" },
   claude: { label: "Claude Code", hint: "Tareas largas en GitHub Actions sobre el repo" },
 } as const;
 export type Engine = keyof typeof ENGINES;

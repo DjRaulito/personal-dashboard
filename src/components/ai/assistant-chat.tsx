@@ -71,7 +71,8 @@ export function AssistantChat({ configured }: { configured: boolean }) {
     <div className="flex flex-col gap-4">
       {!configured && (
         <p role="alert" className="bg-surface-2 rounded-inner text-attention px-3.5 py-2.5 text-sm">
-          Falta configurar la IA: añade GEMINI_API_KEY (gratis en Google AI Studio) en Vercel.
+          Falta configurar la IA: añade en Vercel una clave gratuita (GEMINI_API_KEY, GROQ_API_KEY, MISTRAL_API_KEY u
+          OPENROUTER_API_KEY).
         </p>
       )}
 

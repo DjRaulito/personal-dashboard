@@ -14,9 +14,9 @@ import {
   type VideoScript,
 } from "./catalog";
 import { dispatchStudio } from "./github";
-import { searchClips } from "./pexels";
+import { searchClips } from "./stock";
 
-// Cadena del VoiceStudio en la app: guion (Gemini) → clips (Pexels) → sesiones de subida a Drive →
+// Cadena del VoiceStudio en la app: guion (IA) → clips (Pixabay/Pexels) → sesiones de subida a Drive →
 // cola → GitHub Actions. Se usa con la sesión del usuario (pantalla) o con la clave del estudio
 // (piloto automático, sin sesión); el «almacén» abstrae esa diferencia.
 
@@ -139,7 +139,7 @@ export async function writeVideoScript(topic: string, format: VideoFormat, secon
   );
 
   // Clips de stock: 1 por escena corta, hasta 3 en escenas largas. Búsquedas de 6 en 6.
-  const used = new Set<number>();
+  const used = new Set<string>();
   const withClips: VideoScript["scenes"] = [];
   for (let i = 0; i < ai.scenes.length; i += 6) {
     const batch = ai.scenes.slice(i, i + 6);

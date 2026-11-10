@@ -8,7 +8,7 @@ import { aiConfigured } from "@/lib/ai/llm";
 import { contentSession } from "@/lib/content/server";
 import { AI_VOICES, type AiVoice } from "@/lib/studio/catalog";
 import { studioGithubConfigured } from "@/lib/studio/github";
-import { pexelsConfigured } from "@/lib/studio/pexels";
+import { stockConfigured } from "@/lib/studio/stock";
 import { getJobs, getStudioSettings, syncActiveJobs } from "@/lib/studio/server";
 
 export const metadata: Metadata = { title: "VoiceStudio · Contenido" };
@@ -35,7 +35,7 @@ export default async function StudioPage({ searchParams }: { searchParams: Promi
   const active = jobs.some((j) => ["scripting", "queued", "rendering"].includes(j.status));
 
   const missing = [
-    !aiConfigured() && "GEMINI_API_KEY (guiones)",
+    !aiConfigured() && "una clave de IA (guiones)",
     !studioGithubConfigured() && "GITHUB_AGENT_TOKEN (montaje en GitHub Actions)",
     !settings?.worker_token_hash && "la clave del estudio",
   ].filter(Boolean);
@@ -57,8 +57,8 @@ export default async function StudioPage({ searchParams }: { searchParams: Promi
           <TileTitle dot="bg-content">Nuevo vídeo</TileTitle>
           <p className="text-muted mt-1 text-sm">
             Guion con IA, voz, clips de stock
-            {pexelsConfigured() ? "" : " (falta PEXELS_API_KEY: de momento, fondos lisos)"}, subtítulos y montaje. Queda
-            en tu Google Drive para que lo apruebes.
+            {stockConfigured() ? "" : " (falta PIXABAY_API_KEY: de momento, fondos animados)"}, subtítulos y montaje.
+            Queda en tu Google Drive para que lo apruebes.
           </p>
           <div className="mt-5">
             <StudioComposer

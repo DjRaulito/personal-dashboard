@@ -105,7 +105,7 @@ export function cleanEmoji(value: unknown): string | undefined {
 }
 
 /**
- * Lo que devuelve la IA. `query` va en inglés: Pexels (y el generador de imágenes) busca mejor así.
+ * Lo que devuelve la IA. `query` va en inglés: los bancos de vídeo (y el generador de imágenes) buscan mejor así.
  * `hook`, `emphasis` y `emoji` son los rótulos animados que salen en pantalla.
  */
 export const aiScriptSchema = z.object({
@@ -133,8 +133,10 @@ export interface Clip {
   width: number;
   height: number;
   duration: number;
-  /** Página de Pexels (atribución) */
+  /** Página del clip (atribución) */
   page?: string;
+  /** Pixabay o Pexels */
+  source?: string;
 }
 
 export interface VideoScript extends AiScript {
