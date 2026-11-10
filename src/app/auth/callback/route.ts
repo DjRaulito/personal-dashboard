@@ -25,12 +25,13 @@ export async function GET(request: NextRequest) {
   const refreshToken = data.session.provider_refresh_token;
   const config = getGoogleConfig();
   if (refreshToken && config) {
+    const scopes = await grantedScopes(data.session.provider_token);
     const { error: saveError } = await supabase.from("integrations").upsert(
       {
         user_id: data.user.id,
         provider: "google",
         encrypted_token: encryptToken(refreshToken, config.encryptionKey),
-        scopes: [...GOOGLE_SCOPES],
+        scopes,
         account_email: data.user.email ?? null,
       },
       { onConflict: "user_id,provider" },
@@ -39,4 +40,22 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.redirect(`${origin}/`);
+}
+
+/** Permisos que el usuario concedió de verdad (Google deja desmarcar algunos al dar el consentimiento). */
+async function grantedScopes(accessToken: string | null | undefined): Promise<string[]> {
+  if (!accessToken) return [...GOOGLE_SCOPES];
+  try {
+    const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return [...GOOGLE_SCOPES];
+    const { scope } = (await res.json()) as { scope?: string };
+    return scope
+      ? scope.split(" ").filter((s) => s.startsWith("https://www.googleapis.com/auth/"))
+      : [...GOOGLE_SCOPES];
+  } catch {
+    return [...GOOGLE_SCOPES];
+  }
 }

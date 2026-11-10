@@ -18,7 +18,8 @@ export function githubRepo(): string | null {
 
 export const claudeConfigured = () => Boolean(process.env.GITHUB_AGENT_TOKEN && githubRepo());
 
-async function gh(path: string, init: RequestInit = {}): Promise<Response> {
+/** Llamada a la API de GitHub sobre el repo del dashboard (la usan también el VoiceStudio). */
+export async function gh(path: string, init: RequestInit = {}): Promise<Response> {
   const repo = githubRepo();
   if (!process.env.GITHUB_AGENT_TOKEN || !repo) {
     throw new Error("Falta configurar GITHUB_AGENT_TOKEN en Vercel para los agentes de Claude Code.");

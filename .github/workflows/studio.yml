@@ -1,0 +1,114 @@
+name: VoiceStudio
+
+# Lo lanza la app (VoiceStudio) con la API de GitHub. Genera el vídeo (voz, clips, subtítulos,
+# montaje) y lo sube al Google Drive del usuario con la sesión de subida que creó la app.
+# El repo es público: solo recibe el id del trabajo; el guion y los enlaces los pide a la base de
+# datos con la clave STUDIO_WORKER_TOKEN y no se imprimen en el registro.
+run-name: studio-${{ inputs.job_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: Id del trabajo de vídeo («demo» para un vídeo de prueba sin la app)
+        required: true
+      supabase_url:
+        description: URL pública de Supabase
+        required: false
+      supabase_key:
+        description: Clave publicable de Supabase (es pública)
+        required: false
+
+concurrency:
+  group: studio-${{ inputs.job_id == 'demo' && github.run_id || inputs.job_id }}
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      SUPABASE_URL: ${{ inputs.supabase_url }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ inputs.supabase_key }}
+      STUDIO_WORKER_TOKEN: ${{ secrets.STUDIO_WORKER_TOKEN }}
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Carpetas de trabajo
+        run: |
+          echo "STUDIO_WORKDIR=$RUNNER_TEMP/studio" >> "$GITHUB_ENV"
+          echo "STUDIO_FONTS=$RUNNER_TEMP/fonts" >> "$GITHUB_ENV"
+
+      - name: Reclamar el trabajo
+        id: claim
+        if: ${{ inputs.job_id != 'demo' }}
+        run: python3 studio/worker.py claim "${{ inputs.job_id }}"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: studio/requirements*.txt
+
+      - name: Programas del sistema
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg espeak-ng > /dev/null
+          mkdir -p "$STUDIO_FONTS"
+          curl -sSfL -o "$STUDIO_FONTS/Montserrat.ttf" \
+            "https://github.com/google/fonts/raw/main/ofl/montserrat/Montserrat%5Bwght%5D.ttf"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: studio-models-${{ steps.claim.outputs.voice_mode || 'demo' }}-v1
+
+      - name: Dependencias de Python
+        run: |
+          pip install -q -r studio/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+          if [ "${{ steps.claim.outputs.voice_mode || 'demo' }}" != "ai" ]; then
+            pip install -q -r studio/requirements-clone.txt --extra-index-url https://download.pytorch.org/whl/cpu
+          fi
+
+      - name: Pruebas de los subtítulos
+        working-directory: studio
+        run: python -m unittest test_captions
+
+      - name: Montaje
+        if: ${{ inputs.job_id != 'demo' }}
+        working-directory: studio
+        run: python worker.py render "${{ inputs.job_id }}"
+
+      - name: Demo (voz IA y voz clonada)
+        if: ${{ inputs.job_id == 'demo' }}
+        working-directory: studio
+        run: |
+          /usr/bin/time -v python worker.py demo ai 2>&1 | grep -E "^\[|demo lista|aviso|Elapsed|Maximum resident"
+          cp "$STUDIO_WORKDIR/video.mp4" "$RUNNER_TEMP/demo-ai.mp4"
+          cp "$STUDIO_WORKDIR/narration.wav" "$RUNNER_TEMP/sample.wav"
+          python - <<'EOF'
+          import json, os
+          job = json.load(open("demo_job.json"))
+          job["voice_mode"] = "clone"
+          job["assets"] = {"voice_sample_url": "file://" + os.environ["RUNNER_TEMP"] + "/sample.wav"}
+          job["script"]["scenes"] = job["script"]["scenes"][:2]
+          json.dump(job, open("demo_job.json", "w"))
+          EOF
+          /usr/bin/time -v python worker.py demo clone 2>&1 | grep -E "^\[|demo lista|aviso|Elapsed|Maximum resident|Error"
+          cp "$STUDIO_WORKDIR/video.mp4" "$RUNNER_TEMP/demo-clone.mp4"
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ inputs.job_id == 'demo' && always() }}
+        with:
+          name: studio-demo
+          path: ${{ runner.temp }}/demo-*.mp4
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Avisar del fallo a la app
+        if: ${{ failure() && inputs.job_id != 'demo' }}
+        run: python3 studio/worker.py fail "${{ inputs.job_id }}" "El montaje se cortó antes de terminar (revisa el registro de GitHub Actions)."

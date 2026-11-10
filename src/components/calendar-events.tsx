@@ -5,7 +5,7 @@ import { groupByDay } from "@/lib/google/calendar";
 
 const STATUS_MESSAGES = {
   not_configured: "La conexión con Google aún no está configurada en el servidor.",
-  not_connected: "Falta permiso para leer tu calendario. Cierra sesión y vuelve a entrar con Google.",
+  not_connected: "Falta permiso para tu calendario. Cierra sesión y vuelve a entrar con Google.",
   error: "No se pudo cargar tu agenda. Prueba de nuevo en unos minutos.",
 } as const;
 

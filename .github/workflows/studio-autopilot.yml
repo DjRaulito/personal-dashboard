@@ -1,0 +1,31 @@
+name: VoiceStudio · piloto automático
+
+# Cada mañana avisa a la app para que, si toca ese día, convierta la siguiente idea del banco en un
+# vídeo. La app decide (días, formato y voz se eligen en Ajustes del VoiceStudio). Los secretos
+# STUDIO_WORKER_TOKEN y STUDIO_APP_URL los guarda la propia app al crear la clave del estudio.
+on:
+  schedule:
+    - cron: "41 6 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Avisar a la app
+        env:
+          TOKEN: ${{ secrets.STUDIO_WORKER_TOKEN }}
+          APP_URL: ${{ secrets.STUDIO_APP_URL }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$APP_URL" ]; then
+            echo "El VoiceStudio aún no tiene clave: nada que hacer."
+            exit 0
+          fi
+          status=$(curl -s -o "$RUNNER_TEMP/out.json" -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $TOKEN" "$APP_URL/api/studio/autopilot")
+          echo "Respuesta: $status"
+          jq -r '.skipped // .started // .error // empty' "$RUNNER_TEMP/out.json" | sed 's/^/  /'
+          [ "$status" -lt 400 ]
