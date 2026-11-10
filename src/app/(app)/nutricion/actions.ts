@@ -164,17 +164,15 @@ export async function copyFromDay(fromKey: string, toKey: string, mealId?: strin
   const checks = meals.filter((m) => source.checks.has(m.id));
   if (logs.length === 0 && checks.length === 0) return 0;
   if (logs.length) {
-    const { error } = await supabase
-      .from("nutrition_logs")
-      .insert(
-        logs.map((l) => ({
-          eaten_on: to,
-          meal_id: l.meal_id,
-          group_id: l.group_id,
-          food_id: l.food_id,
-          grams: l.grams,
-        })),
-      );
+    const { error } = await supabase.from("nutrition_logs").insert(
+      logs.map((l) => ({
+        eaten_on: to,
+        meal_id: l.meal_id,
+        group_id: l.group_id,
+        food_id: l.food_id,
+        grams: l.grams,
+      })),
+    );
     if (error) throw new Error("No se pudo copiar.");
   }
   if (checks.length) {

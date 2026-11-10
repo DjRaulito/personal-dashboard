@@ -2,7 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Apple, CalendarDays, Clapperboard, Dumbbell, House, Settings, Sparkles, Wallet, type LucideIcon } from "lucide-react";
+import {
+  Apple,
+  CalendarDays,
+  Clapperboard,
+  Dumbbell,
+  House,
+  Settings,
+  Sparkles,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 import { clsx } from "clsx";
 import { isActive, NAV_ITEMS, type NavIcon } from "@/lib/navigation";
 import { LinkPending } from "./link-pending";
