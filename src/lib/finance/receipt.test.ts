@@ -13,7 +13,12 @@ describe("ticket", () => {
   });
 
   it("rellena el formulario y busca la categoría por nombre", () => {
-    const r = receiptSchema.parse({ merchant: "Mercadona", date: "2026-11-08", total: "23.4", category: "supermercado" });
+    const r = receiptSchema.parse({
+      merchant: "Mercadona",
+      date: "2026-11-08",
+      total: "23.4",
+      category: "supermercado",
+    });
     expect(receiptToForm(r, cats, "2026-11-10")).toEqual({
       description: "Mercadona",
       booked_on: "2026-11-08",

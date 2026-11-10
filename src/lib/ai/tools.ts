@@ -5,7 +5,14 @@ import { getPlanning } from "@/lib/finance/planning-server";
 import { getAccounts, getCategories } from "@/lib/finance/server";
 import { likePattern } from "@/lib/finance/filters";
 import { MUSCLE_LABELS } from "@/lib/gym/muscles";
-import { getAllSets, getExercises, getMeasurements, getSetsForWorkouts, getWorkouts, workoutDates } from "@/lib/gym/server";
+import {
+  getAllSets,
+  getExercises,
+  getMeasurements,
+  getSetsForWorkouts,
+  getWorkouts,
+  workoutDates,
+} from "@/lib/gym/server";
 import { exerciseHistory, exerciseRecords, isWorkingSet, summarizeWorkout } from "@/lib/gym/stats";
 import { getPortfolio } from "@/lib/investments/server";
 import { totalsOf } from "@/lib/nutrition/portions";
@@ -101,7 +108,10 @@ export function assistantTools(today: string): AiTool[] {
         if (typeof args.categoria === "string" && args.categoria.trim()) {
           const needle = args.categoria.trim().toLowerCase();
           const matched = categories.filter((c) => c.name.toLowerCase().includes(needle)).map((c) => c.id);
-          const ids = new Set([...matched, ...categories.filter((c) => matched.includes(c.parent_id ?? "")).map((c) => c.id)]);
+          const ids = new Set([
+            ...matched,
+            ...categories.filter((c) => matched.includes(c.parent_id ?? "")).map((c) => c.id),
+          ]);
           if (ids.size === 0) return { error: `No hay ninguna categoría que se llame "${args.categoria}"` };
           q = q.in("category_id", [...ids]);
         }
@@ -170,7 +180,8 @@ export function assistantTools(today: string): AiTool[] {
     },
     {
       name: "presupuestos_y_pagos",
-      description: "Presupuestos mensuales por categoría, huchas de ahorro y pagos recurrentes con su próximo vencimiento.",
+      description:
+        "Presupuestos mensuales por categoría, huchas de ahorro y pagos recurrentes con su próximo vencimiento.",
       parameters: { type: "object", properties: {} },
       run: async () => {
         const [planning, categories] = await Promise.all([getPlanning(today), getCategories()]);
@@ -352,7 +363,8 @@ export function assistantTools(today: string): AiTool[] {
           desde: from,
           hasta: to,
           plan: plan ? { nombre: plan.name, comidas: plan.meals.map((m) => m.name) } : null,
-          estados: "done = según el plan, less = comió menos, more = comió más, skipped = saltada, cheat = comida libre",
+          estados:
+            "done = según el plan, less = comió menos, more = comió más, skipped = saltada, cheat = comida libre",
           resumen: {
             comidas_marcadas: checks.length,
             segun_plan: count("done"),

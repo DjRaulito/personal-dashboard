@@ -7,6 +7,30 @@ export type Database = {
   };
   public: {
     Tables: {
+      ai_weekly_summaries: {
+        Row: {
+          comment: string;
+          created_at: string;
+          id: string;
+          user_id: string;
+          week_start: string;
+        };
+        Insert: {
+          comment: string;
+          created_at?: string;
+          id?: string;
+          user_id?: string;
+          week_start: string;
+        };
+        Update: {
+          comment?: string;
+          created_at?: string;
+          id?: string;
+          user_id?: string;
+          week_start?: string;
+        };
+        Relationships: [];
+      };
       assets: {
         Row: {
           broker: string;

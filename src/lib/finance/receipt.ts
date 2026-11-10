@@ -35,11 +35,7 @@ export interface ReceiptFill {
 }
 
 /** Valida lo que ha leído la IA y lo convierte en valores para el formulario de movimiento. */
-export function receiptToForm(
-  r: Receipt,
-  categories: { id: string; label: string }[],
-  today: string,
-): ReceiptFill {
+export function receiptToForm(r: Receipt, categories: { id: string; label: string }[], today: string): ReceiptFill {
   const date = r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && r.date <= today ? r.date : null;
   const norm = (s: string) => s.trim().toLowerCase();
   const wanted = r.category ? norm(r.category) : null;

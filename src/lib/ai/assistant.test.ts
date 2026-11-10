@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDaysIso, dateRange, parseInline, parseMarkdown } from "./assistant";
+import { lastWeek } from "./weekly";
 
 describe("dateRange", () => {
   it("usa los días por defecto hasta hoy", () => {
@@ -39,5 +40,13 @@ describe("mini-markdown", () => {
       },
       { kind: "p", lines: [[{ bold: false, text: "Fin" }]] },
     ]);
+  });
+});
+
+describe("lastWeek", () => {
+  it("devuelve la última semana completa de lunes a domingo", () => {
+    expect(lastWeek("2026-11-10")).toEqual({ start: "2026-11-02", end: "2026-11-08" }); // martes
+    expect(lastWeek("2026-11-09")).toEqual({ start: "2026-11-02", end: "2026-11-08" }); // lunes
+    expect(lastWeek("2026-11-08")).toEqual({ start: "2026-10-26", end: "2026-11-01" }); // domingo
   });
 });

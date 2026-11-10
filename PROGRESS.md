@@ -4,9 +4,9 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 
 ## Estado actual
 
-- **Fase:** 5 — Nutrición
-- **Última tarea hecha:** pantalla Plan de Nutrición simplificada (lectura limpia + modo edición). Antes: módulo de Nutrición: plan por intercambios con calculadora en directo (pesos en crudo, cocidos con factor), checklist de comidas, IA (Gemini/Groq) para generar comidas y estimar cheat meals y alimentos, revisiones con la hoja de control importada
-- **Siguiente tarea:** Raúl crea una clave gratuita de Gemini (aistudio.google.com/apikey) y la añade en Vercel como `GEMINI_API_KEY`; prueba Nutrición → Hoy unos días. Después: fase 6 (IA, cruces y extras)
+- **Fase:** 6 — IA, cruces y extras
+- **Última tarea hecha:** fase 6: asistente IA con herramientas, fotos (ticket → movimiento, plato → kcal), resumen semanal en portada y cruces
+- **Siguiente tarea:** registro de comidas más rápido en Nutrición → Hoy (pedido el 10 nov 2026)
 
 ## Fase 0 — Cimientos
 
@@ -110,8 +110,17 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
 - [x] Pantalla Plan simplificada: se lee como el documento de la nutricionista (opciones en chips, totales del día) y la edición va aparte en «Editar plan»; los grupos se crean por tipo, sin nombres ni tipos que editar
 - [x] Carga inicial (solo en la BD, no en el repo): plan de sept. 2026 de la nutricionista y hoja de control desde dic. 2024 (42 revisiones)
 - [x] Portada: widget "Nutrición de hoy"
-- [ ] Configurar `GEMINI_API_KEY` en Vercel (lo hace Raúl)
+- [x] Configurar `GEMINI_API_KEY` en Vercel (lo hace Raúl)
 - [ ] Verificación: unos días usando Hoy con el plan real
+
+## Fase 6 — IA, cruces y extras
+
+- [x] Asistente (`/ia`): chat con Gemini (respaldo Groq) que consulta tus datos con herramientas de solo lectura (finanzas, patrimonio, presupuestos, gimnasio, ejercicios, nutrición, cuerpo y revisiones, agenda); historial solo en la pestaña
+- [x] Navegación: «IA» en el menú; Contenido se oculta en móvil hasta la fase 8
+- [x] Fotos: leer un ticket rellena un movimiento nuevo (comercio, fecha, total, categoría); foto del plato estima kcal y macros del cheat meal. La foto se reduce en el navegador
+- [x] Portada: «Tu semana» (gasto, entrenos y series, % dieta, peso) con comentario de la IA guardado en `ai_weekly_summaries` (migración aplicada, con RLS)
+- [x] Cruces (`/ia/cruces`): peso frente a series semanales, días de entreno frente a descanso (dieta y kcal) y gasto en comida frente a la dieta
+- [ ] Verificación: Raúl usa el asistente y las fotos con datos reales
 
 ## Decisiones
 
