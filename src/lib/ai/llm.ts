@@ -44,13 +44,15 @@ const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
 // Modelo que funciona de verdad: Google retira modelos y devuelve 404; entonces buscamos otro vigente.
 let resolvedModel: string | null = null;
 
-/** Elige un modelo Flash estable de los que Google ofrece ahora (sin lite, preview ni exp). */
-export function pickGeminiModel(names: string[]): string | null {
+/** Modelos Flash de texto que ofrece Google, de más nuevo a más viejo; los estables antes que los preview. */
+export function geminiCandidates(names: string[]): string[] {
   const ids = names.map((n) => n.replace(/^models\//, ""));
-  const flash = ids.filter((id) => /^gemini-[\d.]+-flash$/.test(id));
+  const ok = ids.filter(
+    (id) => /^gemini-[\d.]+-flash/.test(id) && !/lite|image|tts|live|audio|thinking|exp|latest/.test(id),
+  );
   const version = (id: string) => parseFloat(id.split("-")[1]);
-  flash.sort((a, b) => version(b) - version(a));
-  return flash[0] ?? null;
+  const preview = (id: string) => (id.includes("preview") ? 1 : 0);
+  return ok.sort((x, y) => preview(x) - preview(y) || version(y) - version(x));
 }
 
 async function listGeminiModels(): Promise<string[]> {
@@ -79,10 +81,17 @@ function postGemini(model: string, body: Record<string, unknown>): Promise<Respo
 async function geminiRequest(body: Record<string, unknown>): Promise<GeminiContent> {
   let res = await postGemini(resolvedModel ?? GEMINI_MODEL, body);
   if (res.status === 404) {
-    const alt = pickGeminiModel(await listGeminiModels());
-    if (alt && alt !== (resolvedModel ?? GEMINI_MODEL)) {
-      res = await postGemini(alt, body);
-      if (res.ok) resolvedModel = alt;
+    // Modelo retirado: prueba los que Google ofrece ahora (máx. 3) y recuerda el que funcione
+    const current = resolvedModel ?? GEMINI_MODEL;
+    for (const alt of geminiCandidates(await listGeminiModels())
+      .filter((m) => m !== current)
+      .slice(0, 3)) {
+      const r = await postGemini(alt, body);
+      if (r.ok || r.status !== 404) {
+        res = r;
+        if (r.ok) resolvedModel = alt;
+        break;
+      }
     }
   }
   // 503 (saturado) y 429 (límite): suelen ser momentáneos; reintenta con espera corta
@@ -97,7 +106,14 @@ async function geminiRequest(body: Record<string, unknown>): Promise<GeminiConte
     const resLite = await postGemini(lite, body);
     if (resLite.ok) res = resLite;
   }
-  if (!res.ok) throw new Error(`Gemini ${res.status}`);
+  if (!res.ok) {
+    // El mensaje de Google dice la causa real (modelo, clave, cuota…)
+    const detail = await res
+      .json()
+      .then((d: { error?: { message?: string } }) => d.error?.message?.slice(0, 160))
+      .catch(() => undefined);
+    throw new Error(`Gemini ${res.status}${detail ? `: ${detail}` : ""}`);
+  }
   const data = (await res.json()) as { candidates?: { content?: GeminiContent }[] };
   const content = data.candidates?.[0]?.content;
   if (!content?.parts?.length) throw new Error("Gemini sin respuesta");
