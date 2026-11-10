@@ -275,7 +275,7 @@ async function geminiChat(
       tools: [{ functionDeclarations: declarations }],
       // En la última vuelta ya no se permiten herramientas: toca responder
       toolConfig: { functionCallingConfig: { mode: round === maxRounds ? "NONE" : "AUTO" } },
-      generationConfig: { temperature: 0.3 },
+      generationConfig: { temperature: 0.3, thinkingConfig: { thinkingLevel: "low" } },
     });
     const calls = content.parts.filter((p) => p.functionCall).map((p) => p.functionCall!);
     if (calls.length === 0) return { text: geminiText(content).trim(), toolsUsed: used };
