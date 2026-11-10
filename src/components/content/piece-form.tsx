@@ -121,7 +121,7 @@ export function PieceForm({ piece, aiReady }: { piece: PieceFormValues; aiReady:
             <button
               type="button"
               disabled={!aiReady || writing}
-              title={aiReady ? undefined : "Falta configurar GEMINI_API_KEY"}
+              title={aiReady ? undefined : "Falta configurar una clave de IA"}
               onClick={() => {
                 if (piece.script && !confirm("¿Reescribir el guion con IA? Se sustituye el actual.")) return;
                 setAiMessage(null);

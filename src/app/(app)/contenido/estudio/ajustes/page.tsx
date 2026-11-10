@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { StudioSettingsForm, VoiceSample, WorkerKey } from "@/components/studio/settings";
 import { BackLink, Tile, TileTitle } from "@/components/ui";
-import { aiConfigured } from "@/lib/ai/llm";
+import { aiConfigured, aiProviderNames } from "@/lib/ai/llm";
 import { DRIVE_FILE_SCOPE } from "@/lib/google/calendar";
 import { hasGoogleScope } from "@/lib/google/server";
 import { AI_VOICES, type AiVoice } from "@/lib/studio/catalog";
 import { studioGithubConfigured } from "@/lib/studio/github";
-import { pexelsConfigured } from "@/lib/studio/pexels";
+import { stockConfigured, stockSources } from "@/lib/studio/stock";
 import { getStudioSettings } from "@/lib/studio/server";
 
 export const metadata: Metadata = { title: "Ajustes · VoiceStudio" };
@@ -40,14 +40,22 @@ export default async function StudioSettingsPage() {
           <Tile>
             <TileTitle dot="bg-content">Puesta a punto</TileTitle>
             <ul className="mt-3">
-              <Check ok={aiConfigured()}>Gemini para escribir los guiones (GEMINI_API_KEY)</Check>
+              <Check ok={aiConfigured()}>
+                IA para los guiones
+                {aiConfigured()
+                  ? `: ${aiProviderNames().join(" → ")}`
+                  : " (GEMINI_API_KEY, GROQ_API_KEY, MISTRAL_API_KEY u OPENROUTER_API_KEY)"}
+              </Check>
               <Check ok={drive}>Permiso de Google Drive (cierra sesión y vuelve a entrar con Google si falta)</Check>
               <Check ok={studioGithubConfigured()}>
                 GitHub para el montaje (GITHUB_AGENT_TOKEN en Vercel, con Actions y Secrets)
               </Check>
               <Check ok={Boolean(settings?.worker_token_hash)}>Clave del estudio (abajo)</Check>
-              <Check ok={pexelsConfigured()}>
-                Clips de stock: PEXELS_API_KEY en Vercel (gratis en pexels.com/api). Opcional: sin ella, fondos lisos
+              <Check ok={stockConfigured()}>
+                Clips de stock
+                {stockConfigured()
+                  ? `: ${stockSources().join(" y ")}`
+                  : ": PIXABAY_API_KEY en Vercel (gratis en pixabay.com/api/docs). Opcional: sin ella, fondos animados"}
               </Check>
             </ul>
           </Tile>

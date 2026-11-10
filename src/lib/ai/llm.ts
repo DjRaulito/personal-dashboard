@@ -1,15 +1,14 @@
 import "server-only";
 import { z } from "zod";
 
-// IA gratuita para estimaciones, fotos y el asistente. Gemini (Google AI Studio, free tier) como
-// principal y Groq (free tier, compatible con OpenAI) como respaldo. Sin claves, las funciones de
-// IA devuelven un aviso y el resto de la app funciona igual.
+// IA gratuita para estimaciones, fotos, guiones, agentes y el asistente. Cadena de proveedores con
+// capa gratuita: Gemini (Google AI Studio) y varios compatibles con OpenAI (Groq, Mistral, OpenRouter,
+// Cerebras). Se usan los que tengan clave, en orden; si uno falla (cuota, saturado, caído) se pasa al
+// siguiente y se le deja descansar un rato. Sin claves, las funciones de IA devuelven un aviso.
 
 export class AiUnavailableError extends Error {}
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
-const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
-const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
 const TIMEOUT_MS = 45000;
 
 /** Imagen en base64 (sin el prefijo data:). */
@@ -19,11 +18,18 @@ export interface AiImage {
 }
 
 export function aiConfigured(): boolean {
-  return Boolean(process.env.GEMINI_API_KEY || process.env.GROQ_API_KEY);
+  return Boolean(process.env.GEMINI_API_KEY) || COMPAT.some((p) => process.env[p.keyEnv]);
+}
+
+/** Nombres de los proveedores con clave, en el orden en que se prueban. */
+export function aiProviderNames(): string[] {
+  return providerOrder().map((id) => PROVIDER_LABELS[id]);
 }
 
 function noProviders(): never {
-  throw new AiUnavailableError("Falta configurar la IA: añade GEMINI_API_KEY (gratis en Google AI Studio).");
+  throw new AiUnavailableError(
+    "Falta configurar la IA: añade GEMINI_API_KEY, GROQ_API_KEY, MISTRAL_API_KEY u OPENROUTER_API_KEY (todas gratis).",
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -68,7 +74,8 @@ async function listGeminiModels(): Promise<string[]> {
     .map((m) => m.name);
 }
 
-const GEMINI_ATTEMPT_MS = 40000;
+// Con otros proveedores detrás, no merece la pena esperar mucho a Gemini
+const GEMINI_ATTEMPT_MS = 30000;
 
 /** Una llamada a un modelo; devuelve null si no responde a tiempo o se corta la conexión. */
 async function postGemini(model: string, body: Record<string, unknown>): Promise<Response | null> {
@@ -142,19 +149,199 @@ interface OpenAiMessage {
   tool_call_id?: string;
 }
 
-async function groqRequest(body: Record<string, unknown>) {
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`Groq ${res.status}`);
-  const data = (await res.json()) as { choices?: { message?: OpenAiMessage }[] };
-  const message = data.choices?.[0]?.message;
-  if (!message) throw new Error("Groq sin respuesta");
-  return message;
+// ---------------------------------------------------------------------------
+// Proveedores compatibles con OpenAI (capa gratuita)
+// ---------------------------------------------------------------------------
+
+type ProviderId = "gemini" | "groq" | "mistral" | "openrouter" | "cerebras";
+
+const PROVIDER_LABELS: Record<ProviderId, string> = {
+  gemini: "Gemini",
+  groq: "Groq",
+  mistral: "Mistral",
+  openrouter: "OpenRouter",
+  cerebras: "Cerebras",
+};
+
+interface CompatProvider {
+  id: Exclude<ProviderId, "gemini">;
+  base: string;
+  keyEnv: string;
+  /** Modelos de texto (con herramientas) a probar, el primero el preferido. */
+  textModels: () => Promise<string[]>;
+  /** Modelos que ven fotos; vacío si el proveedor no tiene. */
+  visionModels: () => Promise<string[]>;
+  /** Admite response_format json_object. */
+  jsonMode: boolean;
+  headers?: Record<string, string>;
+}
+
+const envList = (name: string, fallback: string[]) =>
+  process.env[name]
+    ? process.env[name]!.split(",")
+        .map((m) => m.trim())
+        .filter(Boolean)
+    : fallback;
+
+interface OpenRouterModel {
+  id: string;
+  pricing?: { prompt?: string; completion?: string };
+  supported_parameters?: string[];
+  architecture?: { input_modalities?: string[] };
+  context_length?: number;
+}
+
+let openRouterFree: { at: number; models: OpenRouterModel[] } | null = null;
+
+/** Modelos gratis (:free) de OpenRouter que admiten herramientas; la lista cambia a menudo, se pide en vivo. */
+export function openRouterCandidates(models: OpenRouterModel[], vision: boolean): string[] {
+  return models
+    .filter(
+      (m) =>
+        m.id.endsWith(":free") &&
+        Number(m.pricing?.prompt ?? 1) === 0 &&
+        Number(m.pricing?.completion ?? 1) === 0 &&
+        (vision ? m.architecture?.input_modalities?.includes("image") : m.supported_parameters?.includes("tools")),
+    )
+    .sort((a, b) => (b.context_length ?? 0) - (a.context_length ?? 0))
+    .map((m) => m.id)
+    .slice(0, 3);
+}
+
+async function openRouterModels(vision: boolean): Promise<string[]> {
+  const fixed = process.env[vision ? "OPENROUTER_VISION_MODEL" : "OPENROUTER_MODEL"];
+  if (fixed) return envList(vision ? "OPENROUTER_VISION_MODEL" : "OPENROUTER_MODEL", []);
+  if (!openRouterFree || Date.now() - openRouterFree.at > 6 * 3600_000) {
+    const res = await fetch("https://openrouter.ai/api/v1/models", {
+      signal: AbortSignal.timeout(8000),
+      cache: "no-store",
+    }).catch(() => null);
+    const data = res?.ok ? ((await res.json()) as { data?: OpenRouterModel[] }) : null;
+    if (!data?.data?.length) return [];
+    openRouterFree = { at: Date.now(), models: data.data };
+  }
+  return openRouterCandidates(openRouterFree.models, vision);
+}
+
+// Modelos por defecto (se pueden cambiar con variables de entorno, separados por comas)
+const COMPAT: CompatProvider[] = [
+  {
+    id: "groq",
+    base: "https://api.groq.com/openai/v1",
+    keyEnv: "GROQ_API_KEY",
+    textModels: async () => envList("GROQ_MODEL", ["openai/gpt-oss-120b", "qwen/qwen3-32b", "llama-3.3-70b-versatile"]),
+    visionModels: async () => envList("GROQ_VISION_MODEL", ["meta-llama/llama-4-scout-17b-16e-instruct"]),
+    jsonMode: true,
+  },
+  {
+    id: "mistral",
+    base: "https://api.mistral.ai/v1",
+    keyEnv: "MISTRAL_API_KEY",
+    textModels: async () => envList("MISTRAL_MODEL", ["mistral-medium-latest", "mistral-small-latest"]),
+    visionModels: async () => envList("MISTRAL_VISION_MODEL", ["mistral-small-latest"]),
+    jsonMode: true,
+  },
+  {
+    id: "openrouter",
+    base: "https://openrouter.ai/api/v1",
+    keyEnv: "OPENROUTER_API_KEY",
+    textModels: () => openRouterModels(false),
+    visionModels: () => openRouterModels(true),
+    jsonMode: false,
+    headers: { "X-Title": "Personal Dashboard" },
+  },
+  {
+    id: "cerebras",
+    base: "https://api.cerebras.ai/v1",
+    keyEnv: "CEREBRAS_API_KEY",
+    textModels: async () => envList("CEREBRAS_MODEL", ["gpt-oss-120b", "qwen-3-235b-a22b-instruct-2507"]),
+    visionModels: async () => [],
+    jsonMode: true,
+  },
+];
+
+const DEFAULT_ORDER: ProviderId[] = ["gemini", "groq", "mistral", "openrouter", "cerebras"];
+
+/** Proveedores con clave, en orden (AI_PROVIDERS="groq,gemini,…" cambia el orden). */
+function providerOrder(): ProviderId[] {
+  const custom = (process.env.AI_PROVIDERS ?? "")
+    .split(",")
+    .map((p) => p.trim().toLowerCase())
+    .filter((p): p is ProviderId => p in PROVIDER_LABELS);
+  const order = [...new Set([...custom, ...DEFAULT_ORDER])];
+  return order.filter((id) =>
+    id === "gemini"
+      ? Boolean(process.env.GEMINI_API_KEY)
+      : Boolean(process.env[COMPAT.find((p) => p.id === id)!.keyEnv]),
+  );
+}
+
+// Descanso tras un fallo de cuota o caída: no se vuelve a probar ese proveedor durante un rato
+// (vive mientras la función de Vercel siga caliente; basta para no esperar timeouts seguidos).
+const resting = new Map<string, number>();
+const REST_MS = 90_000;
+
+export class ProviderError extends Error {
+  constructor(
+    message: string,
+    /** Cuota, saturación, caída o timeout: merece la pena probar otro modelo o proveedor. */
+    readonly transient: boolean,
+  ) {
+    super(message);
+  }
+}
+
+function isResting(key: string) {
+  const until = resting.get(key);
+  return until !== undefined && until > Date.now();
+}
+
+/** Una llamada a chat/completions; prueba los modelos del proveedor en orden si el anterior falla. */
+async function compatRequest(
+  provider: CompatProvider,
+  body: Record<string, unknown>,
+  vision: boolean,
+): Promise<OpenAiMessage> {
+  const models = (await (vision ? provider.visionModels() : provider.textModels())).filter(
+    (m) => !isResting(`${provider.id}:${m}`),
+  );
+  if (!models.length) throw new ProviderError(`${PROVIDER_LABELS[provider.id]} sin modelos disponibles`, true);
+  let last: ProviderError | null = null;
+  for (const model of models) {
+    let res: Response | null = null;
+    try {
+      res = await fetch(`${provider.base}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env[provider.keyEnv]}`,
+          ...provider.headers,
+        },
+        body: JSON.stringify({ ...body, model }),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+        cache: "no-store",
+      });
+    } catch {
+      res = null;
+    }
+    const label = `${PROVIDER_LABELS[provider.id]} (${model})`;
+    if (!res || res.status === 429 || res.status >= 500 || res.status === 404 || res.status === 400) {
+      // 400/404 suelen ser «modelo retirado» o «no admite esto»: se prueba el siguiente modelo
+      const status = res ? res.status : "sin respuesta";
+      if (!res || res.status === 429 || res.status >= 500) resting.set(`${provider.id}:${model}`, Date.now() + REST_MS);
+      last = new ProviderError(`${label} ${status}`, true);
+      continue;
+    }
+    if (!res.ok) throw new ProviderError(`${label} ${res.status}`, res.status === 402);
+    const data = (await res.json().catch(() => null)) as { choices?: { message?: OpenAiMessage }[] } | null;
+    const message = data?.choices?.[0]?.message;
+    if (!message) {
+      last = new ProviderError(`${label} sin respuesta`, true);
+      continue;
+    }
+    return message;
+  }
+  throw last ?? new ProviderError(`${PROVIDER_LABELS[provider.id]} sin respuesta`, true);
 }
 
 // ---------------------------------------------------------------------------
@@ -180,43 +367,82 @@ async function geminiJson(system: string, prompt: string, image?: AiImage): Prom
   return geminiText(content);
 }
 
-async function groqJson(system: string, prompt: string, image?: AiImage): Promise<string> {
-  const message = await groqRequest({
-    model: image ? GROQ_VISION_MODEL : GROQ_MODEL,
-    temperature: image ? 0.2 : 0.7,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: system },
+function compatJson(provider: CompatProvider) {
+  return async (system: string, prompt: string, image?: AiImage): Promise<string> => {
+    const message = await compatRequest(
+      provider,
       {
-        role: "user",
-        content: image
-          ? [
-              { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: `data:${image.mime};base64,${image.data}` } },
-            ]
-          : prompt,
+        temperature: image ? 0.2 : 0.7,
+        ...(provider.jsonMode ? { response_format: { type: "json_object" } } : {}),
+        messages: [
+          { role: "system", content: `${system}\nResponde solo con un objeto JSON.` },
+          {
+            role: "user",
+            content: image
+              ? [
+                  { type: "text", text: prompt },
+                  { type: "image_url", image_url: { url: `data:${image.mime};base64,${image.data}` } },
+                ]
+              : prompt,
+          },
+        ],
       },
-    ],
-  });
-  if (typeof message.content !== "string" || !message.content) throw new Error("Groq sin respuesta");
-  return message.content;
+      Boolean(image),
+    );
+    if (typeof message.content !== "string" || !message.content) {
+      throw new ProviderError(`${PROVIDER_LABELS[provider.id]} sin respuesta`, true);
+    }
+    return message.content;
+  };
 }
 
-/** Pide a la IA un JSON que cumpla el esquema; prueba Gemini y, si falla, Groq. */
-export async function askJson<T>(schema: z.ZodType<T>, system: string, prompt: string, image?: AiImage): Promise<T> {
-  const providers = [process.env.GEMINI_API_KEY ? geminiJson : null, process.env.GROQ_API_KEY ? groqJson : null].filter(
-    (p): p is typeof geminiJson => p !== null,
-  );
+type JsonProvider = (system: string, prompt: string, image?: AiImage) => Promise<string>;
+
+function jsonProviders(image: boolean): { id: ProviderId; run: JsonProvider }[] {
+  return providerOrder().flatMap((id): { id: ProviderId; run: JsonProvider }[] => {
+    if (id === "gemini") return [{ id, run: geminiJson }];
+    const provider = COMPAT.find((p) => p.id === id)!;
+    // Cerebras no ve fotos
+    if (image && provider.id === "cerebras") return [];
+    return [{ id, run: compatJson(provider) }];
+  });
+}
+
+/** Ejecuta la cadena de proveedores: el primero que responda bien gana. */
+async function withFallback<T>(
+  providers: { id: ProviderId; run: () => Promise<T> }[],
+  accept: (value: T) => boolean = () => true,
+): Promise<T> {
   if (providers.length === 0) noProviders();
-  let lastError: unknown;
-  for (const provider of providers) {
+  // Los que están descansando van al final (por si son los únicos)
+  const sorted = [...providers].sort((a, b) => Number(isResting(a.id)) - Number(isResting(b.id)));
+  const errors: string[] = [];
+  for (const provider of sorted) {
     try {
-      return schema.parse(extractJson(await provider(system, prompt, image)));
+      const value = await provider.run();
+      if (accept(value)) return value;
+      errors.push(`${PROVIDER_LABELS[provider.id]}: respuesta vacía`);
     } catch (e) {
-      lastError = e;
+      const message = e instanceof Error ? e.message : "error";
+      // Solo descansa si el fallo es de cuota, saturación o caída (no por un JSON mal formado)
+      const transient = e instanceof ProviderError ? e.transient : /\b(429|5\d\d)\b|a tiempo|timeout/i.test(message);
+      if (transient) resting.set(provider.id, Date.now() + REST_MS);
+      errors.push(
+        message.startsWith(PROVIDER_LABELS[provider.id]) ? message : `${PROVIDER_LABELS[provider.id]}: ${message}`,
+      );
     }
   }
-  throw new Error(`La IA no respondió bien (${lastError instanceof Error ? lastError.message : "error"}).`);
+  throw new Error(`La IA no respondió bien (${errors.join(" · ").slice(0, 300)}).`);
+}
+
+/** Pide a la IA un JSON que cumpla el esquema; prueba los proveedores en orden hasta que uno acierte. */
+export async function askJson<T>(schema: z.ZodType<T>, system: string, prompt: string, image?: AiImage): Promise<T> {
+  return withFallback(
+    jsonProviders(Boolean(image)).map(({ id, run }) => ({
+      id,
+      run: async () => schema.parse(extractJson(await run(system, prompt, image))),
+    })),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -303,67 +529,66 @@ async function geminiChat(
   throw new Error("Gemini no terminó de responder");
 }
 
-async function groqChat(
-  system: string,
-  turns: ChatTurn[],
-  tools: AiTool[],
-  { maxRounds = MAX_TOOL_ROUNDS, onTool }: ChatOptions = {},
-): Promise<ChatResult> {
-  const messages: OpenAiMessage[] = [
-    { role: "system", content: system },
-    ...turns.map((t) => ({ role: t.role, content: t.text }) as OpenAiMessage),
-  ];
-  const declarations = tools.map(({ name, description, parameters }) => ({
-    type: "function",
-    function: { name, description, parameters },
-  }));
-  const used: string[] = [];
-  for (let round = 0; round <= maxRounds; round++) {
-    const message = await groqRequest({
-      model: GROQ_MODEL,
-      temperature: 0.3,
-      messages,
-      tools: declarations,
-      tool_choice: round === maxRounds ? "none" : "auto",
-    });
-    const calls = message.tool_calls ?? [];
-    if (calls.length === 0) return { text: String(message.content ?? "").trim(), toolsUsed: used };
-    messages.push({ role: "assistant", content: message.content ?? null, tool_calls: calls });
-    for (const c of calls) {
-      used.push(c.function.name);
-      let args: Record<string, unknown> = {};
-      try {
-        args = JSON.parse(c.function.arguments || "{}");
-      } catch {
-        // argumentos mal formados: la herramienta usará sus valores por defecto
+function compatChat(provider: CompatProvider) {
+  return async (
+    system: string,
+    turns: ChatTurn[],
+    tools: AiTool[],
+    { maxRounds = MAX_TOOL_ROUNDS, onTool }: ChatOptions = {},
+  ): Promise<ChatResult> => {
+    const messages: OpenAiMessage[] = [
+      { role: "system", content: system },
+      ...turns.map((t) => ({ role: t.role, content: t.text }) as OpenAiMessage),
+    ];
+    const declarations = tools.map(({ name, description, parameters }) => ({
+      type: "function",
+      function: { name, description, parameters },
+    }));
+    const used: string[] = [];
+    for (let round = 0; round <= maxRounds; round++) {
+      const message = await compatRequest(
+        provider,
+        {
+          temperature: 0.3,
+          messages,
+          ...(declarations.length ? { tools: declarations, tool_choice: round === maxRounds ? "none" : "auto" } : {}),
+        },
+        false,
+      );
+      const calls = message.tool_calls ?? [];
+      if (calls.length === 0) return { text: String(message.content ?? "").trim(), toolsUsed: used };
+      messages.push({ role: "assistant", content: message.content ?? null, tool_calls: calls });
+      for (const c of calls) {
+        used.push(c.function.name);
+        let args: Record<string, unknown> = {};
+        try {
+          args = JSON.parse(c.function.arguments || "{}");
+        } catch {
+          // argumentos mal formados: la herramienta usará sus valores por defecto
+        }
+        await onTool?.(c.function.name, args);
+        messages.push({ role: "tool", tool_call_id: c.id, content: await runTool(tools, c.function.name, args) });
       }
-      await onTool?.(c.function.name, args);
-      messages.push({ role: "tool", tool_call_id: c.id, content: await runTool(tools, c.function.name, args) });
     }
-  }
-  throw new Error("Groq no terminó de responder");
+    throw new ProviderError(`${PROVIDER_LABELS[provider.id]} no terminó de responder`, false);
+  };
 }
 
-/** Conversación con herramientas: Gemini y, si falla, Groq. */
+/** Conversación con herramientas: prueba los proveedores en orden hasta que uno responda. */
 export async function chatWithTools(
   system: string,
   turns: ChatTurn[],
   tools: AiTool[],
   options?: ChatOptions,
 ): Promise<ChatResult> {
-  const providers = [process.env.GEMINI_API_KEY ? geminiChat : null, process.env.GROQ_API_KEY ? groqChat : null].filter(
-    (p): p is typeof geminiChat => p !== null,
+  return withFallback(
+    providerOrder().map((id) => ({
+      id,
+      run: () =>
+        id === "gemini"
+          ? geminiChat(system, turns, tools, options)
+          : compatChat(COMPAT.find((p) => p.id === id)!)(system, turns, tools, options),
+    })),
+    (result) => Boolean(result.text),
   );
-  if (providers.length === 0) noProviders();
-  let lastError: unknown;
-  for (const provider of providers) {
-    try {
-      const result = await provider(system, turns, tools, options);
-      if (result.text) return result;
-      lastError = new Error("respuesta vacía");
-    } catch (e) {
-      lastError = e;
-    }
-  }
-  throw new Error(`La IA no respondió bien (${lastError instanceof Error ? lastError.message : "error"}).`);
 }

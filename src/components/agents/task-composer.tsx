@@ -99,7 +99,7 @@ export function TaskComposer({
       )}
       {!aiReady && chosen.some((a) => a.engine === "gemini") && (
         <p className="bg-surface-2 rounded-inner text-attention px-3.5 py-2.5 text-sm">
-          Falta configurar la IA: añade GEMINI_API_KEY en Vercel.
+          Falta configurar la IA: añade en Vercel una clave gratuita (GEMINI_API_KEY, GROQ_API_KEY…).
         </p>
       )}
 

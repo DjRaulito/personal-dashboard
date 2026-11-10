@@ -176,9 +176,21 @@ export default async function VideoJobPage({ params }: { params: Promise<{ id: s
             {script?.scenes.some((s) => s.clips.length > 0) && (
               <p className="text-muted mt-4 text-xs">
                 Clips de vídeo de{" "}
-                <a href="https://www.pexels.com" target="_blank" rel="noreferrer" className="underline">
-                  Pexels
-                </a>{" "}
+                {[...new Set(script.scenes.flatMap((s) => s.clips.map((c) => c.source ?? "Pexels")))].map(
+                  (source, i) => (
+                    <span key={source}>
+                      {i > 0 && " y "}
+                      <a
+                        href={source === "Pixabay" ? "https://pixabay.com" : "https://www.pexels.com"}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline"
+                      >
+                        {source}
+                      </a>
+                    </span>
+                  ),
+                )}{" "}
                 (licencia libre).
               </p>
             )}
