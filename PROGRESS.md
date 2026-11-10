@@ -5,8 +5,8 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 ## Estado actual
 
 - **Fase:** 6 — IA, cruces y extras
-- **Última tarea hecha:** fase 6: asistente IA con herramientas, fotos (ticket → movimiento, plato → kcal), resumen semanal en portada y cruces
-- **Siguiente tarea:** registro de comidas más rápido en Nutrición → Hoy (pedido el 10 nov 2026)
+- **Última tarea hecha:** registro rápido de comidas; antes, fase 6: asistente IA con herramientas, fotos (ticket → movimiento, plato → kcal), resumen semanal en portada y cruces
+- **Siguiente tarea:** Raúl prueba el registro rápido de comidas y el asistente; después fase 7 (agentes, incluida la idea del VPS gratuito con un agente «cerebro»)
 
 ## Fase 0 — Cimientos
 
@@ -121,6 +121,11 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
 - [x] Portada: «Tu semana» (gasto, entrenos y series, % dieta, peso) con comentario de la IA guardado en `ai_weekly_summaries` (migración aplicada, con RLS)
 - [x] Cruces (`/ia/cruces`): peso frente a series semanales, días de entreno frente a descanso (dieta y kcal) y gasto en comida frente a la dieta
 - [ ] Verificación: Raúl usa el asistente y las fotos con datos reales
+- [x] Registro de comidas rápido (pedido el 10 nov 2026): chips de un toque por grupo con las opciones del plan (apunta lo que falta; la comida se marca hecha sola al completarse), «Igual que ayer» por comida, «Copiar ayer» y «Las que faltan, según el plan» para el día, «Describir o foto» (la IA lo pasa a alimentos y gramos y se confirma con un toque); la calculadora de gramos queda plegada en «Ajustar gramos»
+
+## Fase 7 — Agentes (ideas apuntadas)
+
+- [ ] Investigar un VPS gratuito para un agente «cerebro» siempre encendido (idea del 10 nov 2026): Oracle Cloud Always Free (VM Ampere A1 ARM) como primera opción; comparar alternativas gratuitas (Google Cloud e2-micro, etc.). Montar un agente tipo Hermes (Nous Research) como memoria central: guarda el contexto y permite borrarlo o recuperarlo al momento desde el resto de IAs (vía MCP o API). Revisar límites, coste 0 € real y seguridad antes de montarlo
 
 ## Decisiones
 
