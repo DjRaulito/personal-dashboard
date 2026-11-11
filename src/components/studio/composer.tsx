@@ -158,22 +158,21 @@ export function StudioComposer({
             />
             <span className="font-medium">Tu voz</span>
             <span className="text-muted text-xs">
-              {hasSample ? "Clonada de tu muestra. Tarda más." : "Graba antes tu muestra en Ajustes."}
+              {hasSample ? "Tu timbre con acento de España. Tarda más." : "Graba antes tu muestra en Ajustes."}
             </span>
           </label>
         </div>
         {state.errors?.voice_mode && <span className="text-attention text-xs">{state.errors.voice_mode}</span>}
       </fieldset>
 
-      <Field label="Voz IA">
-        <select name="voice" defaultValue={defaultVoice} disabled={mode !== "ai"} className={inputClass}>
+      <Field label={mode === "ai" ? "Voz IA" : "Voz base (lee con acento de España y se convierte a tu timbre)"}>
+        <select name="voice" defaultValue={defaultVoice} className={inputClass}>
           {(Object.keys(AI_VOICES) as AiVoice[]).map((v) => (
             <option key={v} value={v}>
               {AI_VOICES[v]}
             </option>
           ))}
         </select>
-        {mode !== "ai" && <input type="hidden" name="voice" value={defaultVoice} />}
       </Field>
 
       <label className="flex items-start gap-2.5 text-sm">
