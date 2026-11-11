@@ -10,7 +10,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path, PureWindowsPath
 from unittest import mock
 
+import captions
 import local
+import motion
 import render
 import tts
 
@@ -35,6 +37,25 @@ class EnvTest(unittest.TestCase):
     def test_describe(self) -> None:
         health = {"version": "0.5.7", "device": "cuda (NVIDIA GeForce RTX 4070 SUPER)"}
         self.assertEqual(local.describe(health), "VoiceStudio 0.5.7 · NVIDIA GeForce RTX 4070 SUPER")
+
+
+class StockTest(unittest.TestCase):
+    def test_tag_score(self) -> None:
+        self.assertEqual(local.tag_score("man lifting barbell", "man, lift, barbells"), 1.0)
+        self.assertEqual(local.tag_score("man sleeping", "woman, bed, sleep"), 0.5)
+        self.assertEqual(local.tag_score("frustrated man gym", "tennis, court"), 0.0)
+
+    def test_rank_hits(self) -> None:
+        def hit(url: str, w: int, h: int, tags: str, **extra) -> dict:
+            return {"duration": 8, "tags": tags, "videos": {"large": {"url": url, "width": w, "height": h}}, **extra}
+
+        hits = [
+            hit("wall", 1080, 1920, "brick, wall"),
+            hit("ai", 1080, 1920, "man, sleeping", isAiGenerated=True),
+            hit("flat", 1920, 1080, "man, sleeping"),
+            hit("match", 1080, 1920, "sleeping, man, bed"),
+        ]
+        self.assertEqual([c["url"] for c in local.rank_hits(hits, "man sleeping", vertical=True)], ["match", "flat", "wall"])
 
 
 class FilterPathTest(unittest.TestCase):
@@ -117,6 +138,29 @@ class VoiceStudioTest(unittest.TestCase):
         body = _FakeVoiceStudio.requests[0].decode()
         self.assertIn("female, young adult, moderate pitch", body)
         self.assertNotIn('name="profile_id"', body)
+
+
+class MotionTest(unittest.TestCase):
+    def test_build_props(self) -> None:
+        script = {
+            "hook": " ¿Sin resultados? ",
+            "scenes": [{"text": "a", "emphasis": ""}, {"text": "b", "emphasis": " Error 1 "}],
+        }
+        pieces = [[{"src": "seg_0_0.mp4", "seconds": 3.4}], [{"src": "seg_1_0.mp4", "seconds": 2.0}]]
+        words = [captions.Word("Hola", 0.1, 0.4)]
+        props = motion.build_props(script, [0.0, 3.0], [3.0, 2.0], pieces, words, 1080, 1920, 5.0, (246, 190, 72))
+        self.assertEqual(props["accent"], "#F6BE48")
+        self.assertEqual(props["hook"], "¿Sin resultados?")
+        self.assertEqual(props["scenes"][1], {"start": 3.0, "seconds": 2.0, "pieces": pieces[1], "headline": "Error 1"})
+        self.assertEqual(props["words"], [{"text": "Hola", "start": 0.1, "end": 0.4}])
+        self.assertEqual(props["transition"], motion.TRANSITION)
+
+    def test_free_port(self) -> None:
+        self.assertGreater(motion.free_port(), 0)
+
+    def test_only_when_asked(self) -> None:
+        with mock.patch.dict("os.environ", {"STUDIO_RENDERER": "ffmpeg"}):
+            self.assertFalse(motion.available())
 
 
 if __name__ == "__main__":

@@ -9,34 +9,34 @@
     "scenes": [
       {
         "text": "¿Llevas meses en el gimnasio sin ver cambios? Puede que cometas uno de estos tres errores.",
-        "query": "frustrated man gym mirror",
+        "query": "frustrated man gym | man gym mirror | gym",
         "emoji": "🤔",
         "clips": []
       },
       {
         "text": "Primero: cambiar de rutina cada semana. El cuerpo necesita repetir para progresar.",
-        "query": "weightlifting barbell squat",
+        "query": "barbell squat | weightlifting | gym workout",
         "emphasis": "Error 1: cambiar de rutina",
         "emoji": "🔁",
         "clips": []
       },
       {
         "text": "Segundo: no apuntar los pesos. Si no lo mides, no sabes si mejoras.",
-        "query": "notebook writing workout log",
+        "query": "writing notebook | notebook | planning",
         "emphasis": "Error 2: no apuntar",
         "emoji": "📝",
         "clips": []
       },
       {
         "text": "Y tercero: dormir poco. El músculo crece cuando descansas, no cuando entrenas.",
-        "query": "man sleeping bed night",
+        "query": "man sleeping | sleeping bed | night bedroom",
         "emphasis": "Error 3: dormir poco",
         "emoji": "😴",
         "clips": []
       },
       {
         "text": "Guárdalo y sígueme para más consejos.",
-        "query": "athlete thumbs up gym",
+        "query": "athlete thumbs up | fitness success | gym",
         "emphasis": "Sígueme",
         "emoji": "💪",
         "clips": []

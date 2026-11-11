@@ -356,38 +356,49 @@ export function extractJson(text: string): unknown {
   return JSON.parse(text.slice(start, end + 1));
 }
 
-async function geminiJson(system: string, prompt: string, image?: AiImage): Promise<string> {
-  const parts: GeminiPart[] = [{ text: prompt }];
-  if (image) parts.unshift({ inline_data: { mime_type: image.mime, data: image.data } });
+/** Una foto, varias (en orden) o ninguna. */
+type AiImages = AiImage | AiImage[] | undefined;
+const imageList = (images: AiImages): AiImage[] => (images ? (Array.isArray(images) ? images : [images]) : []);
+
+async function geminiJson(system: string, prompt: string, images?: AiImages): Promise<string> {
+  const list = imageList(images);
+  const parts: GeminiPart[] = [
+    ...list.map((image) => ({ inline_data: { mime_type: image.mime, data: image.data } })),
+    { text: prompt },
+  ];
   const content = await geminiRequest({
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts }],
-    generationConfig: { responseMimeType: "application/json", temperature: image ? 0.2 : 0.7 },
+    generationConfig: { responseMimeType: "application/json", temperature: list.length ? 0.2 : 0.7 },
   });
   return geminiText(content);
 }
 
 function compatJson(provider: CompatProvider) {
-  return async (system: string, prompt: string, image?: AiImage): Promise<string> => {
+  return async (system: string, prompt: string, images?: AiImages): Promise<string> => {
+    const list = imageList(images);
     const message = await compatRequest(
       provider,
       {
-        temperature: image ? 0.2 : 0.7,
+        temperature: list.length ? 0.2 : 0.7,
         ...(provider.jsonMode ? { response_format: { type: "json_object" } } : {}),
         messages: [
           { role: "system", content: `${system}\nResponde solo con un objeto JSON.` },
           {
             role: "user",
-            content: image
+            content: list.length
               ? [
                   { type: "text", text: prompt },
-                  { type: "image_url", image_url: { url: `data:${image.mime};base64,${image.data}` } },
+                  ...list.map((image) => ({
+                    type: "image_url",
+                    image_url: { url: `data:${image.mime};base64,${image.data}` },
+                  })),
                 ]
               : prompt,
           },
         ],
       },
-      Boolean(image),
+      list.length > 0,
     );
     if (typeof message.content !== "string" || !message.content) {
       throw new ProviderError(`${PROVIDER_LABELS[provider.id]} sin respuesta`, true);
@@ -396,7 +407,7 @@ function compatJson(provider: CompatProvider) {
   };
 }
 
-type JsonProvider = (system: string, prompt: string, image?: AiImage) => Promise<string>;
+type JsonProvider = (system: string, prompt: string, images?: AiImages) => Promise<string>;
 
 function jsonProviders(image: boolean): { id: ProviderId; run: JsonProvider }[] {
   return providerOrder().flatMap((id): { id: ProviderId; run: JsonProvider }[] => {
@@ -435,12 +446,15 @@ async function withFallback<T>(
   throw new Error(`La IA no respondió bien (${errors.join(" · ").slice(0, 300)}).`);
 }
 
-/** Pide a la IA un JSON que cumpla el esquema; prueba los proveedores en orden hasta que uno acierte. */
-export async function askJson<T>(schema: z.ZodType<T>, system: string, prompt: string, image?: AiImage): Promise<T> {
+/**
+ * Pide a la IA un JSON que cumpla el esquema; prueba los proveedores en orden hasta que uno acierte.
+ * Admite una foto o varias (Gemini las recibe antes del texto, en orden).
+ */
+export async function askJson<T>(schema: z.ZodType<T>, system: string, prompt: string, images?: AiImages): Promise<T> {
   return withFallback(
-    jsonProviders(Boolean(image)).map(({ id, run }) => ({
+    jsonProviders(imageList(images).length > 0).map(({ id, run }) => ({
       id,
-      run: async () => schema.parse(extractJson(await run(system, prompt, image))),
+      run: async () => schema.parse(extractJson(await run(system, prompt, images))),
     })),
   );
 }

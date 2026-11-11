@@ -168,35 +168,16 @@ def produce(job: dict, progress: Progress) -> tuple[Path, Path, float]:
     # 3. Imágenes generadas por IA para las escenas sin clip de stock
     images = generate_images(scenes, width, height, seed, progress)
 
-    # 4. Planos por escena: clip de stock → imagen IA animada → fondo animado generado
-    segments: list[Path] = []
-    for i, (scene, seconds) in enumerate(zip(scenes, durations)):
-        progress(64 + int(18 * i / len(scenes)), f"Montando escena {i + 1} de {len(scenes)}")
-        clips = scene.get("clips") or []
-        pieces = max(1, min(len(clips), int(seconds // 2.5) or 1))
-        part = seconds / pieces
-        for k in range(pieces):
-            out = WORK / f"seg_{i}_{k}.mp4"
-            punch = k == 0 and i > 0
-            try:
-                if clips:
-                    src = download(clips[k]["url"], WORK / f"clip_{i}_{k}.mp4")
-                    render.clip_segment(src, out, width, height, part, zoom_in=(i + k) % 2 == 0, punch=punch)
-                elif images.get(i):
-                    render.clip_segment(images[i], out, width, height, part, zoom_in=i % 2 == 0, still=True, punch=punch)
-                else:
-                    raise RuntimeError("sin plano")
-            except Exception as e:
-                if clips or images.get(i):
-                    print(f"escena {i + 1}: fondo animado ({type(e).__name__})")
-                fx.procedural_background(out, width, height, part, seed=seed + i * 7 + k, pal=pal)
-            segments.append(out)
-    visuals = WORK / "visuals.mp4"
-    render.concat_video(segments, visuals)
+    # 4. Planos por escena: clip de stock → imagen IA animada → fondo animado generado. Con Remotion, el
+    # último plano de cada escena dura un poco más para que la siguiente entre por encima con su transición
+    import motion
 
-    # 5. Titulares, música y efectos
-    progress(84, "Animando titulares y música")
-    plan = fx.plan_overlay(scenes, starts, durations, width, height, total, pal, FONTS, job["script"].get("hook"))
+    use_motion = motion.available()
+    shots = dict(scenes=scenes, durations=durations, images=images, width=width, height=height, seed=seed, pal=pal)
+    segments, pieces = build_segments(**shots, progress=progress, pad=motion.TRANSITION if use_motion else 0.0)
+
+    # 5. Música y efectos
+    progress(84, "Componiendo la música")
     music = sfx = None
     try:
         music = WORK / "music.wav"
@@ -207,18 +188,81 @@ def produce(job: dict, progress: Progress) -> tuple[Path, Path, float]:
         print(f"aviso: sin música ({type(e).__name__})")
         music = sfx = None
 
-    # 6. Mezcla final
-    progress(88, "Renderizando el vídeo final")
     final = WORK / "video.mp4"
     accent = pal.accents[0]
+    thumb = WORK / "thumb.jpg"
+    title = job["script"].get("hook") or job["script"].get("title", "")
+
+    # 6a. Remotion: transiciones, gancho, titulares y subtítulos animados
+    if use_motion:
+        try:
+            progress(86, "Animando con Remotion")
+            layer = WORK / "motion.mp4"
+            props = motion.build_props(job["script"], starts, durations, pieces, words, width, height, total, accent)
+            motion.render(props, layer, WORK, progress)
+            progress(93, "Mezclando el audio")
+            render.mux_audio(layer, narration, final, music=music, sfx=sfx)
+            render.thumbnail(segments[0], thumb, title, FONTS, accent)
+            return final, thumb, render.duration(final)
+        except Exception as e:
+            print(f"aviso: {type(e).__name__}: {str(e)[:500]}", flush=True)
+            print("aviso: Remotion no pudo; se monta con el estilo clásico", flush=True)
+            segments, _ = build_segments(**shots, progress=progress, pad=0.0)
+
+    # 6b. Montaje clásico con ffmpeg: titulares por tubería y subtítulos ASS
+    visuals = WORK / "visuals.mp4"
+    render.concat_video(segments, visuals)
+    progress(86, "Animando titulares")
+    plan = fx.plan_overlay(scenes, starts, durations, width, height, total, pal, FONTS, job["script"].get("hook"))
+    progress(88, "Renderizando el vídeo final")
     render.final_mix(
         visuals, narration, subtitles, FONTS, final, long_form=not vertical,
         overlay=plan, music=music, sfx=sfx, bar_color="0x%02X%02X%02X" % accent,
     )
-    thumb = WORK / "thumb.jpg"
-    title = job["script"].get("hook") or job["script"].get("title", "")
     render.thumbnail(visuals, thumb, title, FONTS, accent)
     return final, thumb, render.duration(final)
+
+
+def build_segments(
+    scenes: list[dict], durations: list[float], images: dict[int, Path], width: int, height: int, seed: int, pal,
+    progress: Progress, pad: float,
+) -> tuple[list[Path], list[list[dict]]]:
+    """Recorta un plano por trozo de escena (con Remotion, sin zoom: lo anima Remotion). Devuelve los archivos y, por escena, sus trozos para Remotion.
+    `pad` alarga el último trozo de cada escena (menos la última) para el solape de la transición."""
+    import fx
+
+    segments: list[Path] = []
+    pieces_by_scene: list[list[dict]] = []
+    for i, (scene, seconds) in enumerate(zip(scenes, durations)):
+        progress(64 + int(18 * i / len(scenes)), f"Montando escena {i + 1} de {len(scenes)}")
+        clips = scene.get("clips") or []
+        pieces = max(1, min(len(clips), int(seconds // 2.5) or 1))
+        part = seconds / pieces
+        scene_pieces: list[dict] = []
+        for k in range(pieces):
+            length = part + (pad if k == pieces - 1 and i < len(scenes) - 1 else 0.0)
+            out = WORK / f"seg_{i}_{k}.mp4"
+            punch = k == 0 and i > 0 and pad == 0  # con Remotion la entrada la pone la transición
+            try:
+                if clips:
+                    src = WORK / f"clip_{i}_{k}.mp4"
+                    if not src.exists():
+                        download(clips[k]["url"], src)
+                    render.clip_segment(src, out, width, height, length, zoom_in=(i + k) % 2 == 0, punch=punch, zoom=pad == 0)
+                elif images.get(i):
+                    render.clip_segment(
+                        images[i], out, width, height, length, zoom_in=i % 2 == 0, still=True, punch=punch, zoom=pad == 0
+                    )
+                else:
+                    raise RuntimeError("sin plano")
+            except Exception as e:
+                if clips or images.get(i):
+                    print(f"escena {i + 1}: fondo animado ({type(e).__name__}: {str(e)[-200:]})")
+                fx.procedural_background(out, width, height, length, seed=seed + i * 7 + k, pal=pal)
+            segments.append(out)
+            scene_pieces.append({"src": out.name, "seconds": round(length, 3)})
+        pieces_by_scene.append(scene_pieces)
+    return segments, pieces_by_scene
 
 
 def generate_images(scenes: list[dict], width: int, height: int, seed: int, progress: Progress) -> dict[int, Path]:

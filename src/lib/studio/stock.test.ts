@@ -2,7 +2,75 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { pickBest, pixabayClip, pexelsClip, queryAlternatives, upscale } = await import("./stock");
+const {
+  pickBest,
+  pixabayCandidate,
+  pixabayClip,
+  pexelsClip,
+  queryAlternatives,
+  rankCandidates,
+  tagScore,
+  toClip,
+  upscale,
+} = await import("./stock");
+
+const hit = (extra: Record<string, unknown> = {}) => ({
+  id: 7,
+  pageURL: "https://pixabay.com/videos/id-7/",
+  duration: 10,
+  tags: "man, gym, workout",
+  videos: {
+    large: { url: "l.mp4", width: 3840, height: 2160, thumbnail: "l.jpg" },
+    small: { url: "s.mp4", width: 1280, height: 720, thumbnail: "s.jpg" },
+  },
+  ...extra,
+});
+
+describe("tagScore", () => {
+  it("cuenta las palabras de la búsqueda que están en las etiquetas, por raíz", () => {
+    expect(tagScore("man lifting barbell", "man, lift, barbells, gym")).toBe(1);
+    expect(tagScore("man sleeping", "woman, bed, sleep")).toBe(0.5);
+    expect(tagScore("frustrated man gym", "tennis, court, ball")).toBe(0);
+  });
+});
+
+describe("rankCandidates", () => {
+  const c = (id: string, width: number, height: number, tags: string) =>
+    ({ id, url: id, width, height, duration: 5, tags }) as const;
+
+  it("manda que encajen las etiquetas; a igualdad, la orientación del vídeo", () => {
+    const ranked = rankCandidates(
+      [
+        c("h-match", 1920, 1080, "man sleeping"),
+        c("v-other", 1080, 1920, "wall"),
+        c("v-match", 1080, 1920, "sleeping man bed"),
+      ],
+      "man sleeping",
+      "short",
+    );
+    expect(ranked.map((x) => x.id)).toEqual(["v-match", "h-match", "v-other"]);
+  });
+});
+
+describe("pixabayCandidate", () => {
+  it("lleva id, miniatura y etiquetas; toClip los quita", () => {
+    const candidate = pixabayCandidate(hit(), "long");
+    expect(candidate).toMatchObject({ id: "pixabay:7", thumb: "s.jpg", tags: "man, gym, workout", url: "l.mp4" });
+    expect(toClip(candidate!)).toEqual({
+      url: "l.mp4",
+      width: 3840,
+      height: 2160,
+      duration: 10,
+      page: "https://pixabay.com/videos/id-7/",
+      source: "Pixabay",
+    });
+  });
+
+  it("descarta los vídeos hechos con IA y los de baja calidad", () => {
+    expect(pixabayCandidate(hit({ isAiGenerated: true }), "long")).toBeNull();
+    expect(pixabayCandidate(hit({ isLowQuality: true }), "long")).toBeNull();
+  });
+});
 
 describe("pickBest", () => {
   const files = [
@@ -53,6 +121,7 @@ describe("pixabayClip", () => {
         id: 1,
         pageURL: "https://pixabay.com/videos/id-1/",
         duration: 12,
+        tags: "",
         videos: {
           large: { url: "", width: 0, height: 0 },
           medium: { url: "https://cdn.pixabay.com/m.mp4", width: 1920, height: 1080 },

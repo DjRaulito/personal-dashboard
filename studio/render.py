@@ -54,10 +54,37 @@ def concat_audio(parts: list[Path], out: Path) -> None:
 
 
 def clip_segment(
-    src: Path, out: Path, width: int, height: int, seconds: float, zoom_in: bool, still: bool = False, punch: bool = False
+    src: Path, out: Path, width: int, height: int, seconds: float, zoom_in: bool, still: bool = False,
+    punch: bool = False, zoom: bool = True,
 ) -> None:
     """Recorta el clip (o la imagen) al formato, lo repite si es corto, le da un zoom lento, un golpe
-    de zoom al entrar si toca y un etalonaje suave con viñeta."""
+    de zoom al entrar si toca y un etalonaje suave con viñeta. Con `zoom=False` (Remotion pone el zoom)
+    solo recorta y da color. Si el zoom fotograma a fotograma falla (ffmpeg 9 en Windows se cae con
+    algunos clips), se repite sin zoom antes de rendirse."""
+    source = ["-loop", "1", "-framerate", str(FPS), "-i", str(src)] if still else ["-stream_loop", "-1", "-i", str(src)]
+    grade = "eq=contrast=1.05:saturation=1.04,vignette=PI/6,unsharp=5:5:0.4,setsar=1,format=yuv420p"
+
+    def encode(vf: str) -> None:
+        run(
+            [
+                "ffmpeg", "-y", "-v", "error", *source, "-t", f"{seconds:.3f}",
+                "-vf", vf, "-an", "-r", str(FPS), "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", str(out),
+            ]
+        )
+
+    static = (
+        f"scale={width}:{height}:force_original_aspect_ratio=increase:flags=lanczos,crop={width}:{height},fps={FPS},{grade}"
+    )
+    if not zoom:
+        encode(static)
+        return
+    try:
+        encode(zoom_filter(width, height, seconds, zoom_in, still, punch) + "," + grade)
+    except RuntimeError:
+        encode(static)
+
+
+def zoom_filter(width: int, height: int, seconds: float, zoom_in: bool, still: bool, punch: bool) -> str:
     frames = max(int(seconds * FPS), 1)
     # Zoom lento y sutil (más en imágenes fijas); el golpe de entrada es apenas un 4 %
     amount = 0.08 if still else 0.05
@@ -69,17 +96,10 @@ def clip_segment(
     # Se escala una sola vez con lanczos al tamaño del zoom máximo y luego cada fotograma se REDUCE
     # (nunca se vuelve a ampliar): así el zoom no ablanda la imagen
     big_w, big_h = int(width * zmax / 2 + 1) * 2, int(height * zmax / 2 + 1) * 2
-    vf = (
+    return (
         f"scale={big_w}:{big_h}:force_original_aspect_ratio=increase:flags=lanczos,crop={big_w}:{big_h},fps={FPS},"
         f"scale=w='trunc({width}*{z}/2)*2':h='trunc({height}*{z}/2)*2':eval=frame:flags=bicubic,"
-        f"crop={width}:{height},eq=contrast=1.05:saturation=1.04,vignette=PI/6,unsharp=5:5:0.4,setsar=1,format=yuv420p"
-    )
-    source = ["-loop", "1", "-framerate", str(FPS), "-i", str(src)] if still else ["-stream_loop", "-1", "-i", str(src)]
-    run(
-        [
-            "ffmpeg", "-y", "-v", "error", *source, "-t", f"{seconds:.3f}",
-            "-vf", vf, "-an", "-r", str(FPS), "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", str(out),
-        ]
+        f"crop={width}:{height}"
     )
 
 
@@ -168,6 +188,46 @@ def final_mix(
     reader.join(timeout=5)
     if code != 0:
         raise RuntimeError(f"ffmpeg falló: {(errors[0] if errors else b'').decode(errors='ignore')[-600:]}")
+
+
+def audio_graph(first: int, music: bool, sfx: bool) -> tuple[list[str], str]:
+    """Filtros de audio: voz (entrada `first`), música agachada bajo la voz y efectos, normalizado."""
+    graph: list[str] = []
+    voice = f"[{first}:a]"
+    mix: list[str] = []
+    if music:
+        graph.append(f"{voice}asplit=2[vo][sc]")
+        graph.append(f"[{first + 1}:a]volume=0.32[mu]")
+        graph.append("[mu][sc]sidechaincompress=threshold=0.02:ratio=9:attack=15:release=350[duck]")
+        mix += ["[vo]", "[duck]"]
+    else:
+        mix.append(voice)
+    if sfx:
+        graph.append(f"[{first + (2 if music else 1)}:a]volume=0.3[fx]")
+        mix.append("[fx]")
+    if len(mix) > 1:
+        graph.append(f"{''.join(mix)}amix=inputs={len(mix)}:normalize=0:duration=first[am]")
+    else:
+        graph.append(f"{mix[0]}anull[am]")
+    graph.append("[am]loudnorm=I=-14:TP=-1.5:LRA=11[a]")
+    return graph, "[a]"
+
+
+def mux_audio(video: Path, narration: Path, out: Path, music: Path | None = None, sfx: Path | None = None) -> None:
+    """Pone la voz, la música y los efectos a un vídeo ya terminado (Remotion) sin recomprimir la imagen."""
+    inputs = ["-i", str(video), "-i", str(narration)]
+    if music is not None:
+        inputs += ["-i", str(music)]
+    if sfx is not None:
+        inputs += ["-i", str(sfx)]
+    graph, label = audio_graph(1, music is not None, sfx is not None)
+    run(
+        [
+            "ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex", ";".join(graph),
+            "-map", "0:v", "-map", label, "-t", f"{duration(narration):.3f}",
+            "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-movflags", "+faststart", str(out),
+        ]
+    )
 
 
 def probe_size(path: Path) -> tuple[int, int]:

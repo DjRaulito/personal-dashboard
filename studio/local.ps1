@@ -25,5 +25,13 @@ if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
     winget install --id Gyan.FFmpeg -e --accept-source-agreements --accept-package-agreements
 }
 
+# Capa animada (Remotion): dependencias fijadas en studio\remotion\package-lock.json
+$remotion = Join-Path $here "remotion"
+if (-not (Test-Path (Join-Path $remotion "node_modules\remotion"))) {
+    Write-Host "Instalando Remotion (solo la primera vez)..."
+    Push-Location $remotion
+    try { npm ci --no-audit --no-fund } finally { Pop-Location }
+}
+
 & $python -X utf8 (Join-Path $here "local.py") @args
 exit $LASTEXITCODE

@@ -9,13 +9,13 @@ import {
   cleanHashtags,
   sceneCount,
   WORDS_PER_SECOND,
-  type Clip,
   type VideoFormat,
   type VideoScript,
 } from "./catalog";
 import { dispatchStudio } from "./github";
 import { localWorkerOnline } from "./local";
-import { searchClips } from "./stock";
+import { CANDIDATES_PER_SCENE, chooseClips, type SceneChoice } from "./pick";
+import { searchCandidates } from "./stock";
 
 // Cadena del VoiceStudio en la app: guion (IA) → clips (Pixabay/Pexels) → sesiones de subida a Drive →
 // cola → tu PC (worker local) o GitHub Actions. Se usa con la sesión del usuario (pantalla) o con la clave del estudio
@@ -146,24 +146,25 @@ export async function writeVideoScript(topic: string, format: VideoFormat, secon
     `Tema: ${topic}\nDuración: unos ${seconds} segundos (≈ ${words} palabras en total).\nEscenas: unas ${scenes}.`,
   );
 
-  // Clips de stock: 1 por escena corta, hasta 3 en escenas largas. Búsquedas de 6 en 6.
-  const used = new Set<string>();
-  const withClips: VideoScript["scenes"] = [];
+  // Clips de stock: 1 por escena corta, hasta 3 en escenas largas. Se buscan varios candidatos por
+  // escena (de 6 en 6 escenas) y la IA elige mirando las miniaturas los que encajan con la frase.
+  const choices: SceneChoice[] = [];
   for (let i = 0; i < ai.scenes.length; i += 6) {
     const batch = ai.scenes.slice(i, i + 6);
     const results = await Promise.all(
-      batch.map(async (scene) => {
+      batch.map(async (scene): Promise<SceneChoice> => {
         const sceneSeconds = scene.text.split(/\s+/).length / WORDS_PER_SECOND;
         const count = Math.min(3, Math.max(1, Math.round(sceneSeconds / 4)));
-        try {
-          return await searchClips(scene.query, format, count, used);
-        } catch {
-          return [] as Clip[];
-        }
+        const candidates = await searchCandidates(scene.query, format, Math.max(CANDIDATES_PER_SCENE, count + 2)).catch(
+          () => [],
+        );
+        return { text: scene.text, count, candidates };
       }),
     );
-    batch.forEach((scene, k) => withClips.push({ ...scene, clips: results[k] }));
+    choices.push(...results);
   }
+  const { clips } = await chooseClips(ai.title, choices);
+  const withClips: VideoScript["scenes"] = ai.scenes.map((scene, i) => ({ ...scene, clips: clips[i] ?? [] }));
   return { ...ai, hashtags: cleanHashtags(ai.hashtags), scenes: withClips };
 }
 

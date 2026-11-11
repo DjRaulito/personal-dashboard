@@ -3,7 +3,7 @@
 Uso (lo arranca `studio/local.ps1`):
     python local.py               → se queda esperando trabajos de la app y los monta
     python local.py --once        → monta como mucho un trabajo y sale
-    python local.py demo [ai|clone] → vídeo de prueba (demo_job.json) sin tocar la app
+    python local.py demo [ai|clone] [guion.json] → vídeo de prueba (demo_job.json u otro) sin tocar la app
 
 Lee la configuración de `.env.local` (raíz del proyecto, nunca va al repo):
     STUDIO_LOCAL_TOKEN                     clave del PC (Ajustes del VoiceStudio → «Tu PC»)
@@ -12,6 +12,7 @@ Lee la configuración de `.env.local` (raíz del proyecto, nunca va al repo):
     VOICESTUDIO_URL       opcional, por defecto http://127.0.0.1:3900
     VOICESTUDIO_PROFILE   opcional, id del perfil de tu voz (por defecto, el último que no sea de demo)
     POLLINATIONS_API_KEY  opcional, imágenes IA para escenas sin clip
+    PIXABAY_API_KEY       opcional, clips de stock para la demo (los trabajos de la app ya los traen)
     STUDIO_KEEP_DIR       opcional, carpeta donde dejar una copia de cada vídeo (por defecto Vídeos\\Estudio)
 
 Mientras VoiceStudio esté abierto, avisa a la app cada 20 s («encendido») y reclama el siguiente vídeo
@@ -67,6 +68,7 @@ def setup_env() -> None:
     if os.environ.get("STUDIO_LOCAL_TOKEN"):
         os.environ["STUDIO_WORKER_TOKEN"] = os.environ["STUDIO_LOCAL_TOKEN"]
     os.environ.setdefault("STUDIO_VOICE_ENGINE", "voicestudio")
+    os.environ.setdefault("STUDIO_RENDERER", "remotion")  # capa animada (studio/remotion); si falla, montaje clásico
     os.environ.setdefault("STUDIO_WHISPER_MODEL", "small")  # en el PC sobra máquina para algo mejor que «base»
     base = Path(tempfile.gettempdir())
     os.environ.setdefault("STUDIO_WORKDIR", str(base / "studio-local"))
@@ -219,7 +221,7 @@ def serve(once: bool) -> int:
         beat.stop.set()
 
 
-def demo(mode: str) -> int:
+def demo(mode: str, job_file: Path | None = None) -> int:
     health = voicestudio_health()
     if not health:
         raise SystemExit("VoiceStudio no responde en 127.0.0.1:3900: ábrelo primero.")
@@ -227,8 +229,9 @@ def demo(mode: str) -> int:
     clean_workdir()
     import worker
 
-    job = json.loads((Path(__file__).parent / "demo_job.json").read_text(encoding="utf-8"))
+    job = json.loads((job_file or Path(__file__).parent / "demo_job.json").read_text(encoding="utf-8"))
     job["voice_mode"] = mode
+    add_stock_clips(job)
     started = time.monotonic()
     final, _thumb, secs = worker.produce(job, worker.Progress(None))
     job["id"] = f"demo-{mode}"
@@ -237,12 +240,77 @@ def demo(mode: str) -> int:
     return 0
 
 
+def pixabay_clips(query: str, vertical: bool, key: str, count: int = 3) -> list[dict]:
+    """Clips de Pixabay para una búsqueda (la app hace lo mismo al escribir el guion). Prefiere los de la
+    orientación del vídeo y la versión más grande que no pase de 4K."""
+    import urllib.parse
+
+    url = "https://pixabay.com/api/videos/?" + urllib.parse.urlencode(
+        {"key": key, "q": query, "per_page": 20, "safesearch": "true", "video_type": "film"}
+    )
+    req = urllib.request.Request(url, headers={"User-Agent": "personal-dashboard-studio"})
+    with urllib.request.urlopen(req, timeout=30) as res:
+        hits = json.loads(res.read()).get("hits", [])
+    return rank_hits(hits, query, vertical)[:count]
+
+
+def tag_score(query: str, tags: str) -> float:
+    """Parte de la búsqueda que aparece en las etiquetas (por raíz), como `tagScore` de la app."""
+    import re
+
+    words = lambda text: [w for w in re.split(r"[^a-z0-9]+", text.lower()) if len(w) >= 3]  # noqa: E731
+    wanted, have = words(query), words(tags)
+    if not wanted:
+        return 0.0
+    stem = lambda w: w[: max(4, len(w) - 3)]  # noqa: E731
+    hit = [w for w in wanted if any(t.startswith(stem(w)) or w.startswith(stem(t)) for t in have)]
+    return len(hit) / len(wanted)
+
+
+def rank_hits(hits: list[dict], query: str, vertical: bool) -> list[dict]:
+    """Como la app: fuera los vídeos hechos con IA (suelen ser 3D) y los de baja calidad; primero la
+    que tienen la búsqueda en sus etiquetas y, a igualdad, la orientación del vídeo. La versión más grande ≤ 4K."""
+    found: list[tuple[float, int, dict]] = []
+    for n, hit in enumerate(hits):
+        if hit.get("isAiGenerated") or hit.get("isLowQuality") or (hit.get("duration") or 0) < 3:
+            continue
+        sizes = [v for v in (hit.get("videos") or {}).values() if v and v.get("url") and v.get("width")]
+        sizes = [v for v in sizes if max(v["width"], v["height"]) <= 3840]
+        if not sizes:
+            continue
+        best = max(sizes, key=lambda v: v["width"] * v["height"])
+        fits = (best["height"] > best["width"]) == vertical
+        score = tag_score(query, hit.get("tags") or "") + (0.25 if fits else 0.0)
+        found.append((-score, n, {"url": best["url"], "width": best["width"], "height": best["height"]}))
+    found.sort(key=lambda x: (x[0], x[1]))
+    return [clip for _, _, clip in found]
+
+
+def add_stock_clips(job: dict) -> None:
+    key = os.environ.get("PIXABAY_API_KEY", "").strip()
+    if not key:
+        print("aviso: sin PIXABAY_API_KEY en .env.local, la demo usa imágenes IA o fondos animados", flush=True)
+        return
+    vertical = job["format"] == "short"
+    for scene in job["script"]["scenes"]:
+        if scene.get("clips"):
+            continue
+        for query in (q.strip() for q in (scene.get("query") or "").split("|")):
+            try:
+                scene["clips"] = pixabay_clips(query, vertical, key) if query else []
+            except Exception as e:
+                print(f"aviso: Pixabay no respondió ({type(e).__name__})", flush=True)
+                return
+            if scene["clips"]:
+                break
+
+
 def main() -> int:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     setup_env()
     args = sys.argv[1:]
     if args[:1] == ["demo"]:
-        return demo(args[1] if len(args) > 1 else "clone")
+        return demo(args[1] if len(args) > 1 else "clone", Path(args[2]) if len(args) > 2 else None)
     return serve(once="--once" in args)
 
 
