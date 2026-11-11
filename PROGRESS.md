@@ -7,7 +7,7 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 - **Fase:** 8 — Contenido
 - **Última tarea hecha:** centro de agentes (`/ia/agentes`): fichas, tareas a varios agentes a la vez, tablero en directo, motores Gemini y Claude Code, aprobaciones
 - **Cerebro (12 nov 2026):** hecho, ver «Cerebro» al final. Falta crear un token en `/ia/cerebro` y conectar la primera IA.
-- **Siguiente tarea:** verificar la fase 8 con los pasos manuales hechos (primer vídeo real del VoiceStudio). Después fase 9 (seguridad, rendimiento, copias, APK). Pendientes sueltos: verificación de la fase 7 (3 tareas a la vez) y del cerebro.
+- **Siguiente tarea (11 nov 2026):** «Estudio local», ver la sección de la fase 8. Se sigue en Claude Code en el PC de Raúl. Antes: verificar la fase 8 con los pasos manuales hechos (primer vídeo real del VoiceStudio). Después fase 9 (seguridad, rendimiento, copias, APK). Pendientes sueltos: verificación de la fase 7 (3 tareas a la vez) y del cerebro.
 
 ## Fase 0 — Cimientos
 
@@ -170,6 +170,20 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
 - [x] Demo del montaje probada en GitHub Actions (10 nov 2026): voz IA 23 s de vídeo en 47 s; voz clonada ~4 min para 15 s (7 GB de RAM; cabe en el runner gratuito). Se relanza con «Run workflow» → job_id `demo`
 - [ ] Verificación: creas una idea y la llevas hasta «Publicado» con su fecha en el calendario
 - [ ] Verificación VoiceStudio: un vídeo generado de principio a fin sin tocar nada
+
+### Estudio local (decidido el 11 nov 2026, punto de reanudación)
+
+La voz convertida (Kokoro + ChatterboxVC) no convence: sigue sin sonar de España. Decisión: el generador de vídeos pasa al PC de Raúl; la app no cambia.
+
+- **Qué se queda igual:** la web (Vercel), Supabase, la cola `video_jobs` y la pantalla `/contenido/estudio`. El estudio sigue en el dashboard.
+- **Qué cambia:** un worker local (en `studio/`, mismo repo) lee la cola de Supabase, genera el vídeo y lo sube igual que `studio.yml`. GitHub Actions queda de respaldo con la voz actual cuando el PC esté apagado.
+- **Piezas locales:**
+  1. **VoiceStudio** (app de Raúl ya instalada, motor OmniVoice): tiene **API** y **MCP** cuando está arrancada. El worker usa la API; el MCP es para probar voces desde Claude Code. Licencia de los pesos de OmniVoice: CC-BY-NC (uso no comercial).
+  2. **Remotion**: títulos, subtítulos y animaciones en React, renderizados como capas. Gratis para particulares.
+  3. **Concat** (github.com/jub0t/Concat, editor libre tipo CapCut, Rust, AGPL, beta 0.2.x): tiene MCP (`concat --mcp`) y API JSON-RPC. Monta la línea de tiempo (clips, voz, capas de Remotion, música) y exporta; Raúl puede abrir el proyecto y retocar a mano. Pendiente comprobar si exporta sin ventana. ffmpeg queda de reserva si falla.
+- **Datos que faltan (preguntar a Raúl al empezar):** sistema operativo y tarjeta gráfica del PC; puerto y documentación de la API de VoiceStudio.
+- **Plan en PR por fases:** (1) worker local + voz de VoiceStudio, (2) Remotion, (3) montaje y proyecto editable en Concat.
+- Las claves del worker local van en `.env.local` (nunca al repo).
 
 ### Pasos manuales pendientes para Contenido (los hace Raúl)
 
