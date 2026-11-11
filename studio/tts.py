@@ -1,8 +1,11 @@
 """Voces del VoiceStudio. Modelos abiertos que corren en la CPU de GitHub Actions:
 
 - «ai»: Kokoro-82M (Apache 2.0), voces en español.
-- «clone»: Chatterbox Multilingual (MIT), afinado de español de España, clona la voz a partir de
-  una muestra de ~10-60 s.
+- «clone»: tu voz con acento de España. Kokoro lee el texto en castellano (espeak «es»: «z» y
+  «ce/ci» como /θ/) y el conversor de voz de Chatterbox (MIT) le pone tu timbre a partir de una
+  muestra de ~10-60 s. La pronunciación y el ritmo son los de Kokoro: el acento no depende de
+  cómo clone el modelo. Con STUDIO_CLONE_ENGINE=tts se usa el clonador de texto a voz (Chatterbox
+  afinado es-es), que imita mejor tu forma de hablar pero puede sonar latinoamericano.
 """
 
 from __future__ import annotations
@@ -59,6 +62,28 @@ def _spain_checkpoint(work: Path) -> tuple[Path, str]:
     return merged, weights[0].name
 
 
+class ConvertedVoice:
+    """Kokoro en castellano + conversión al timbre de la muestra (ChatterboxVC)."""
+
+    def __init__(self, sample: Path, voice: str) -> None:
+        import torch
+        from chatterbox.vc import ChatterboxVC
+
+        torch.set_num_threads(4)
+        self.reader = KokoroVoice(voice)
+        self.vc = ChatterboxVC.from_pretrained("cpu")
+        self.vc.set_target_voice(str(sample))
+        self.work = sample.parent
+        print("voz clonada: castellano (Kokoro) convertido a tu timbre", flush=True)
+
+    def synth(self, text: str, out: Path) -> None:
+        import torchaudio
+
+        source = self.work / f"{out.stem}.castellano.wav"
+        self.reader.synth(text, source)
+        torchaudio.save(str(out), self.vc.generate(str(source)), self.vc.sr)
+
+
 class CloneVoice:
     def __init__(self, sample: Path) -> None:
         import torch
@@ -95,7 +120,15 @@ class CloneVoice:
 
 def make_voice(mode: str, voice: str, sample: Path | None):
     if mode == "clone":
+        import os
+
         if not sample:
             raise RuntimeError("Falta la muestra de voz para clonar")
-        return CloneVoice(sample)
+        if os.environ.get("STUDIO_CLONE_ENGINE", "vc") == "tts":
+            return CloneVoice(sample)
+        try:
+            return ConvertedVoice(sample, voice)
+        except Exception as e:  # sin el conversor, el clonador de texto a voz
+            print(f"aviso: conversión de voz no disponible ({type(e).__name__}: {str(e)[:120]})", flush=True)
+            return CloneVoice(sample)
     return KokoroVoice(voice)
