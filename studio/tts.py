@@ -118,10 +118,102 @@ class CloneVoice:
         torchaudio.save(str(out), torch.cat(waves, dim=-1), self.model.sr)
 
 
-def make_voice(mode: str, voice: str, sample: Path | None):
-    if mode == "clone":
+# ---------------------------------------------------------------------------
+# VoiceStudio (estudio local): la app de escritorio de Raúl con OmniVoice en la GPU. Habla por su API
+# local (sin clave desde 127.0.0.1). «clone» usa el perfil de voz guardado en VoiceStudio (o, si no hay,
+# la muestra de la app); «ai» diseña la voz con las etiquetas de OmniVoice (sexo, edad, tono).
+# ---------------------------------------------------------------------------
+
+VOICESTUDIO_DESIGN = {
+    "es_male": "male, young adult, moderate pitch",
+    "es_female": "female, young adult, moderate pitch",
+    "es_male_2": "male, middle-aged, low pitch",
+}
+
+
+def _multipart(fields: dict[str, str], files: dict[str, Path] | None = None) -> tuple[bytes, str]:
+    import uuid
+
+    boundary = f"----studio{uuid.uuid4().hex}"
+    out = bytearray()
+    for name, value in fields.items():
+        out += f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n'.encode()
+        out += str(value).encode() + b"\r\n"
+    for name, path in (files or {}).items():
+        out += (
+            f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"; filename="{path.name}"\r\n'
+            "Content-Type: application/octet-stream\r\n\r\n"
+        ).encode()
+        out += path.read_bytes() + b"\r\n"
+    out += f"--{boundary}--\r\n".encode()
+    return bytes(out), f"multipart/form-data; boundary={boundary}"
+
+
+class VoiceStudioVoice:
+    def __init__(self, mode: str, voice: str, sample: Path | None, base: str | None = None) -> None:
         import os
 
+        self.base = (base or os.environ.get("VOICESTUDIO_URL") or "http://127.0.0.1:3900").rstrip("/")
+        health = self._get("/health")
+        if health.get("status") != "ok":
+            raise RuntimeError("VoiceStudio no está listo")
+        self.fields: dict[str, str] = {"language": os.environ.get("VOICESTUDIO_LANGUAGE", "Spanish")}
+        self.files: dict[str, Path] = {}
+        if mode == "clone":
+            profile = os.environ.get("VOICESTUDIO_PROFILE", "").strip() or self._own_profile()
+            if profile:
+                self.fields["profile_id"] = profile
+                print("voz clonada: perfil de VoiceStudio", flush=True)
+            elif sample:
+                self.files["ref_audio"] = sample
+                print("voz clonada: muestra de la app en VoiceStudio", flush=True)
+            else:
+                raise RuntimeError("Falta la muestra de voz para clonar (ni perfil en VoiceStudio ni muestra en la app)")
+        else:
+            self.fields["instruct"] = VOICESTUDIO_DESIGN.get(voice, VOICESTUDIO_DESIGN["es_male"])
+            # Misma semilla en todas las escenas: la voz diseñada no cambia de una a otra
+            self.fields["seed"] = os.environ.get("VOICESTUDIO_SEED", "1234")
+        print(f"VoiceStudio {health.get('version', '?')} en {health.get('device', '?')}", flush=True)
+
+    def _get(self, path: str):
+        import json
+        import urllib.request
+
+        with urllib.request.urlopen(self.base + path, timeout=15) as res:
+            return json.loads(res.read())
+
+    def _own_profile(self) -> str | None:
+        """Primer perfil clonado que no sea el de demostración (el que grabó Raúl)."""
+        try:
+            profiles = self._get("/profiles")
+        except Exception:
+            return None
+        own = [p for p in profiles if p.get("kind", "clone") == "clone" and not p.get("is_demo")]
+        own.sort(key=lambda p: p.get("created_at") or 0, reverse=True)
+        return own[0]["id"] if own else None
+
+    def synth(self, text: str, out: Path) -> None:
+        import urllib.error
+        import urllib.request
+
+        body, ctype = _multipart({**self.fields, "text": text}, self.files)
+        req = urllib.request.Request(self.base + "/generate", data=body, method="POST", headers={"Content-Type": ctype})
+        try:
+            with urllib.request.urlopen(req, timeout=600) as res:
+                data = res.read()
+        except urllib.error.HTTPError as e:
+            raise RuntimeError(f"VoiceStudio respondió {e.code}: {e.read()[:300].decode(errors='ignore')}") from e
+        if not data.startswith(b"RIFF"):
+            raise RuntimeError("VoiceStudio no devolvió un WAV")
+        out.write_bytes(data)
+
+
+def make_voice(mode: str, voice: str, sample: Path | None):
+    import os
+
+    if os.environ.get("STUDIO_VOICE_ENGINE") == "voicestudio":
+        return VoiceStudioVoice(mode, voice, sample)
+    if mode == "clone":
         if not sample:
             raise RuntimeError("Falta la muestra de voz para clonar")
         if os.environ.get("STUDIO_CLONE_ENGINE", "vc") == "tts":

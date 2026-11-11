@@ -7,7 +7,7 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 - **Fase:** 8 — Contenido
 - **Última tarea hecha:** centro de agentes (`/ia/agentes`): fichas, tareas a varios agentes a la vez, tablero en directo, motores Gemini y Claude Code, aprobaciones
 - **Cerebro (12 nov 2026):** hecho, ver «Cerebro» al final. Falta crear un token en `/ia/cerebro` y conectar la primera IA.
-- **Siguiente tarea (11 nov 2026):** «Estudio local», ver la sección de la fase 8. Se sigue en Claude Code en el PC de Raúl. Antes: verificar la fase 8 con los pasos manuales hechos (primer vídeo real del VoiceStudio). Después fase 9 (seguridad, rendimiento, copias, APK). Pendientes sueltos: verificación de la fase 7 (3 tareas a la vez) y del cerebro.
+- **Siguiente tarea (11 nov 2026):** «Estudio local» fase 1 hecha en código (ver la sección de la fase 8); migración aplicada; falta desplegar, crear la clave del PC y probar un vídeo real. Luego fase 2 (Remotion). Antes: verificar la fase 8 con los pasos manuales hechos (primer vídeo real del VoiceStudio). Después fase 9 (seguridad, rendimiento, copias, APK). Pendientes sueltos: verificación de la fase 7 (3 tareas a la vez) y del cerebro.
 
 ## Fase 0 — Cimientos
 
@@ -181,8 +181,12 @@ La voz convertida (Kokoro + ChatterboxVC) no convence: sigue sin sonar de Españ
   1. **VoiceStudio** (app de Raúl ya instalada, motor OmniVoice): tiene **API** y **MCP** cuando está arrancada. El worker usa la API; el MCP es para probar voces desde Claude Code. Licencia de los pesos de OmniVoice: CC-BY-NC (uso no comercial).
   2. **Remotion**: títulos, subtítulos y animaciones en React, renderizados como capas. Gratis para particulares.
   3. **Concat** (github.com/jub0t/Concat, editor libre tipo CapCut, Rust, AGPL, beta 0.2.x): tiene MCP (`concat --mcp`) y API JSON-RPC. Monta la línea de tiempo (clips, voz, capas de Remotion, música) y exporta; Raúl puede abrir el proyecto y retocar a mano. Pendiente comprobar si exporta sin ventana. ffmpeg queda de reserva si falla.
-- **Datos que faltan (preguntar a Raúl al empezar):** sistema operativo y tarjeta gráfica del PC; puerto y documentación de la API de VoiceStudio.
+- **Datos del PC (11 nov 2026):** Windows 11, RTX 4070 SUPER (12 GB), 32 GB de RAM. VoiceStudio 0.5.7 (OmniVoice en CUDA) con API en `http://127.0.0.1:3900` (OpenAPI en `/openapi.json`, sin clave desde localhost; `POST /generate` multipart → WAV 24 kHz). Perfil de voz de Raúl: «test». Trae su `uv.exe` y un Python 3.11, que usa `studio\local.ps1`. ffmpeg instalado con winget (Gyan.FFmpeg).
 - **Plan en PR por fases:** (1) worker local + voz de VoiceStudio, (2) Remotion, (3) montaje y proyecto editable en Concat.
+- [x] **Fase 1 (código):** migración `studio_local_worker` (clave propia del PC `local_token_hash`, `local_worker_seen_at`/`info`, `video_jobs.worker`; acciones `heartbeat` y `next` en `studio_worker`; `claim`/`fail` no pisan un trabajo del otro equipo). `studio/local.py` + `studio/local.ps1`: con VoiceStudio abierto avisa cada 20 s y reclama el siguiente vídeo; voz por la API de VoiceStudio (`tts.VoiceStudioVoice`: «tu voz» = último perfil propio o `VOICESTUDIO_PROFILE`; «voz IA» = voz diseñada con etiquetas de OmniVoice), Whisper «small», copia en `Vídeos\Estudio`. La app no lanza GitHub si el PC avisó hace <90 s; si no lo coge en 3 min pasa a GitHub, y si el PC calla 20 min a mitad de montaje se marca fallido. Ajustes del estudio: ficha «Tu PC» (estado y «Crear la clave del PC»). Rutas de ffmpeg arregladas para Windows. Demo en el PC: 27,5 s de vídeo con tu voz en 48 s. Pruebas: `studio/test_local.py`, `src/lib/studio/local.test.ts`.
+- [x] Migración `studio_local_worker` aplicada en Supabase (11 nov 2026). Ojo en PL/pgSQL: un `case … then … end` dentro de la condición de un `if` corta el `if` en el primer `then` (por eso `v_me`).
+- [ ] Ajustes del VoiceStudio → «Tu PC» → «Crear la clave del PC» y pegar `STUDIO_LOCAL_TOKEN=…` en `.env.local`; arrancar `.\studio\local.ps1` con VoiceStudio abierto; un vídeo real de principio a fin.
+- Nota: el Node local (22.12) no corre Vitest 5 (undici); usar `npx -y node@22 node_modules/vitest/vitest.mjs run` o actualizar Node.
 - Las claves del worker local van en `.env.local` (nunca al repo).
 
 ### Pasos manuales pendientes para Contenido (los hace Raúl)

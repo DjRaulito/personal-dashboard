@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { StudioSettingsForm, VoiceSample, WorkerKey } from "@/components/studio/settings";
+import { LocalWorker, StudioSettingsForm, VoiceSample, WorkerKey } from "@/components/studio/settings";
 import { BackLink, Tile, TileTitle } from "@/components/ui";
 import { aiConfigured, aiProviderNames } from "@/lib/ai/llm";
 import { DRIVE_FILE_SCOPE } from "@/lib/google/calendar";
 import { hasGoogleScope } from "@/lib/google/server";
 import { AI_VOICES, type AiVoice } from "@/lib/studio/catalog";
 import { studioGithubConfigured } from "@/lib/studio/github";
+import { localWorkerOnline } from "@/lib/studio/local";
 import { stockConfigured, stockSources } from "@/lib/studio/stock";
 import { getStudioSettings } from "@/lib/studio/server";
 
@@ -31,6 +32,12 @@ export default async function StudioSettingsPage() {
   const [settings, drive] = await Promise.all([getStudioSettings(), hasGoogleScope(DRIVE_FILE_SCOPE)]);
   const voice = (settings?.ai_voice ?? "es_male") as AiVoice;
   const hasSample = Boolean(settings?.has_voice_sample);
+  const seenAt = settings?.local_worker_seen_at ?? null;
+  const lastSeen = seenAt
+    ? new Intl.DateTimeFormat("es-ES", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Madrid" }).format(
+        new Date(seenAt),
+      )
+    : null;
 
   return (
     <>
@@ -60,7 +67,18 @@ export default async function StudioSettingsPage() {
             </ul>
           </Tile>
           <Tile>
-            <TileTitle dot="bg-content">Clave del estudio</TileTitle>
+            <TileTitle dot="bg-content">Tu PC (estudio local)</TileTitle>
+            <div className="mt-3">
+              <LocalWorker
+                configured={Boolean(settings?.local_token_hash)}
+                online={localWorkerOnline(seenAt)}
+                info={settings?.local_worker_info ?? null}
+                lastSeen={lastSeen}
+              />
+            </div>
+          </Tile>
+          <Tile>
+            <TileTitle dot="bg-content">Clave del estudio (GitHub)</TileTitle>
             <div className="mt-3">
               <WorkerKey configured={Boolean(settings?.worker_token_hash)} />
             </div>

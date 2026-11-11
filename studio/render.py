@@ -20,6 +20,17 @@ def run(args: list[str]) -> None:
         raise RuntimeError(f"ffmpeg falló: {proc.stderr[-600:]}")
 
 
+def filter_path(path: Path) -> str:
+    """Ruta para un filtro de ffmpeg (ass): barras normales, la «:» de la unidad de Windows escapada y
+    entre comillas. En Linux solo cambian las comillas."""
+    return "'" + Path(path).resolve().as_posix().replace(":", "\\:") + "'"
+
+
+def list_line(path: Path) -> str:
+    """Línea de una lista de concat de ffmpeg (barras normales también en Windows)."""
+    return f"file '{path.resolve().as_posix()}'\n"
+
+
 def duration(path: Path) -> float:
     out = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", str(path)],
@@ -38,7 +49,7 @@ def normalize_audio(src: Path, out: Path, pad: float = 0.0) -> None:
 
 def concat_audio(parts: list[Path], out: Path) -> None:
     listing = out.with_suffix(".txt")
-    listing.write_text("".join(f"file '{p.resolve()}'\n" for p in parts))
+    listing.write_text("".join(list_line(p) for p in parts))
     run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", str(listing), "-c", "copy", str(out)])
 
 
@@ -74,7 +85,7 @@ def clip_segment(
 
 def concat_video(parts: list[Path], out: Path) -> None:
     listing = out.with_suffix(".txt")
-    listing.write_text("".join(f"file '{p.resolve()}'\n" for p in parts))
+    listing.write_text("".join(list_line(p) for p in parts))
     run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", str(listing), "-c", "copy", str(out)])
 
 
@@ -111,7 +122,7 @@ def final_mix(
         v = "[ov]"
     graph.append(f"color=c={bar_color}@0.8:s={width}x{bar_h}:r={FPS}[bar]")
     graph.append(f"{v}[bar]overlay=x='-W+W*t/{total:.3f}':y=H-h:eval=frame:shortest=1[pb]")
-    graph.append(f"[pb]ass={subtitles}:fontsdir={fonts}[v]")
+    graph.append(f"[pb]ass=filename={filter_path(subtitles)}:fontsdir={filter_path(fonts)}[v]")
 
     audio_index = 2 if overlay is not None else 1
     inputs += ["-i", str(narration)]

@@ -1601,6 +1601,9 @@ export type Database = {
           voice_sample: string | null;
           voice_sample_mime: string | null;
           worker_token_hash: string | null;
+          local_token_hash: string | null;
+          local_worker_seen_at: string | null;
+          local_worker_info: string | null;
         };
         Insert: {
           ai_voice?: string;
@@ -1614,6 +1617,9 @@ export type Database = {
           voice_sample?: string | null;
           voice_sample_mime?: string | null;
           worker_token_hash?: string | null;
+          local_token_hash?: string | null;
+          local_worker_seen_at?: string | null;
+          local_worker_info?: string | null;
         };
         Update: {
           ai_voice?: string;
@@ -1627,6 +1633,9 @@ export type Database = {
           voice_sample?: string | null;
           voice_sample_mime?: string | null;
           worker_token_hash?: string | null;
+          local_token_hash?: string | null;
+          local_worker_seen_at?: string | null;
+          local_worker_info?: string | null;
         };
         Relationships: [];
       };
@@ -1717,6 +1726,7 @@ export type Database = {
           voice_mode: string;
           workflow_run_id: number | null;
           workflow_url: string | null;
+          worker: string | null;
         };
         Insert: {
           assets?: Json | null;
@@ -1744,6 +1754,7 @@ export type Database = {
           voice_mode?: string;
           workflow_run_id?: number | null;
           workflow_url?: string | null;
+          worker?: string | null;
         };
         Update: {
           assets?: Json | null;
@@ -1771,6 +1782,7 @@ export type Database = {
           voice_mode?: string;
           workflow_run_id?: number | null;
           workflow_url?: string | null;
+          worker?: string | null;
         };
         Relationships: [
           {

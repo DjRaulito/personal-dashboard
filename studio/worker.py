@@ -1,4 +1,4 @@
-"""Worker del VoiceStudio (corre en GitHub Actions).
+"""Worker del VoiceStudio (corre en GitHub Actions; en tu PC lo usa `local.py`).
 
 Uso: python worker.py claim <job_id>   → guarda job.json y escribe voice_mode en GITHUB_OUTPUT
      python worker.py render <job_id>  → genera el vídeo, lo sube a Drive y marca el trabajo como listo
@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import tempfile
 import time
 import traceback
 import urllib.error
@@ -25,7 +26,7 @@ from pathlib import Path
 import captions
 import render
 
-WORK = Path(os.environ.get("STUDIO_WORKDIR", "/tmp/studio"))
+WORK = Path(os.environ.get("STUDIO_WORKDIR") or Path(tempfile.gettempdir()) / "studio")
 FONTS = Path(os.environ.get("STUDIO_FONTS", WORK / "fonts"))
 SCENE_GAP = 0.25  # respiro entre escenas (s)
 IMAGE_API = os.environ.get("STUDIO_IMAGE_API", "https://image.pollinations.ai/prompt")
@@ -108,7 +109,9 @@ def produce(job: dict, progress: Progress) -> tuple[Path, Path, float]:
 
     # 1. Voz
     sample = None
-    if job["voice_mode"] == "clone":
+    # Sin muestra (demo en el PC) la voz clonada sale del perfil de VoiceStudio
+    has_sample = bool(job.get("voice_sample") or (job.get("assets") or {}).get("voice_sample_url"))
+    if job["voice_mode"] == "clone" and has_sample:
         progress(5, "Preparando tu muestra de voz")
         raw = WORK / "sample.src"
         if job.get("voice_sample"):
@@ -299,12 +302,39 @@ def transcribe(audio: Path) -> list[captions.Word]:
     try:
         from faster_whisper import WhisperModel
 
-        model = WhisperModel("base", device="cpu", compute_type="int8")
+        model = WhisperModel(os.environ.get("STUDIO_WHISPER_MODEL", "base"), device="cpu", compute_type="int8")
         segments, _ = model.transcribe(str(audio), language="es", word_timestamps=True, vad_filter=False)
         return [captions.Word(w.word.strip(), w.start, w.end) for s in segments for w in (s.words or [])]
     except Exception as e:
         print(f"aviso: sin Whisper ({type(e).__name__}); subtítulos repartidos por longitud")
         return []
+
+
+def render_job(job_id: str, job: dict) -> Path | None:
+    """Monta el trabajo, lo sube a Drive y lo marca como listo. Devuelve el vídeo o None si falló
+    (el fallo queda avisado en la app)."""
+    progress = Progress(job_id)
+    try:
+        final, thumb, secs = produce(job, progress)
+        progress(95, "Subiendo a tu Google Drive")
+        video_id = upload_to_drive(job["assets"]["video_upload_url"], final, "video/mp4")
+        thumb_id = None
+        if job["assets"].get("thumb_upload_url"):
+            try:
+                thumb_id = upload_to_drive(job["assets"]["thumb_upload_url"], thumb, "image/jpeg")
+            except Exception as e:
+                print(f"aviso: miniatura sin subir ({type(e).__name__})")
+        rpc(job_id, "done", {"drive_file_id": video_id, "drive_thumb_id": thumb_id, "duration_s": round(secs, 1)})
+        print(f"listo: {secs:.1f} s, {final.stat().st_size / 1e6:.1f} MB")
+        return final
+    except Exception as e:
+        traceback.print_exc(limit=3)
+        message = f"{type(e).__name__}: {str(e)[:400]}"
+        try:
+            rpc(job_id, "fail", {"error": message})
+        except Exception:
+            pass
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -337,28 +367,7 @@ def main() -> int:
     if command == "render":
         job_id = sys.argv[2]
         job = json.loads((WORK / "job.json").read_text())
-        progress = Progress(job_id)
-        try:
-            final, thumb, secs = produce(job, progress)
-            progress(95, "Subiendo a tu Google Drive")
-            video_id = upload_to_drive(job["assets"]["video_upload_url"], final, "video/mp4")
-            thumb_id = None
-            if job["assets"].get("thumb_upload_url"):
-                try:
-                    thumb_id = upload_to_drive(job["assets"]["thumb_upload_url"], thumb, "image/jpeg")
-                except Exception as e:
-                    print(f"aviso: miniatura sin subir ({type(e).__name__})")
-            rpc(job_id, "done", {"drive_file_id": video_id, "drive_thumb_id": thumb_id, "duration_s": round(secs, 1)})
-            print(f"listo: {secs:.1f} s, {final.stat().st_size / 1e6:.1f} MB")
-            return 0
-        except Exception as e:
-            traceback.print_exc(limit=3)
-            message = f"{type(e).__name__}: {str(e)[:400]}"
-            try:
-                rpc(job_id, "fail", {"error": message})
-            except Exception:
-                pass
-            return 1
+        return 0 if render_job(job_id, job) else 1
 
     if command == "fail":
         rpc(sys.argv[2], "fail", {"error": sys.argv[3] if len(sys.argv) > 3 else "El montaje falló"})

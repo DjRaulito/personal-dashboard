@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState, useTransition } from "reac
 import { clsx } from "clsx";
 import { useRouter } from "next/navigation";
 import {
+  createLocalWorkerKey,
   createWorkerKey,
   deleteVoiceSample,
   saveStudioSettings,
@@ -56,6 +57,68 @@ export function WorkerKey({ configured }: { configured: boolean }) {
           </code>
           <p className="text-muted text-xs">
             Para el piloto automático, crea también <code>STUDIO_APP_URL</code> con la dirección del dashboard.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Estudio local (tu PC)
+// ---------------------------------------------------------------------------
+
+export function LocalWorker({
+  configured,
+  online,
+  info,
+  lastSeen,
+}: {
+  configured: boolean;
+  online: boolean;
+  info: string | null;
+  lastSeen: string | null;
+}) {
+  const [pending, start] = useTransition();
+  const [result, setResult] = useState<KeyResult | null>(null);
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-sm">
+        {!configured ? (
+          <span className="text-attention">Sin clave.</span>
+        ) : online ? (
+          <span className="text-finance">Encendido{info ? ` · ${info}` : ""}.</span>
+        ) : (
+          <span className="text-muted">Apagado{lastSeen ? ` (última señal: ${lastSeen})` : ""}.</span>
+        )}{" "}
+        <span className="text-muted">
+          Con el estudio local encendido, tus vídeos se montan en tu PC con VoiceStudio (tu voz con la GPU). Si está
+          apagado, se montan en GitHub Actions como siempre.
+        </span>
+      </p>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => {
+          if (configured && !confirm("¿Crear una clave nueva para tu PC? La anterior deja de valer.")) return;
+          start(async () => setResult(await createLocalWorkerKey()));
+        }}
+        className={clsx(buttonClass.secondary, "self-start")}
+      >
+        {pending ? "Creando…" : configured ? "Crear una clave nueva" : "Crear la clave del PC"}
+      </button>
+      {result && <FormMessage state={result} />}
+      {result?.token && (
+        <div className="bg-surface-2 rounded-inner flex flex-col gap-2 p-3.5 text-sm">
+          <p>
+            Pégala en el archivo <code className="text-content">.env.local</code> del proyecto, en tu PC (solo se muestra
+            ahora):
+          </p>
+          <code className="bg-surface border-border-strong rounded-inner block border px-3 py-2 break-all">
+            STUDIO_LOCAL_TOKEN={result.token}
+          </code>
+          <p className="text-muted text-xs">
+            Después, con VoiceStudio abierto, arranca <code>studio\local.ps1</code> y déjalo en marcha.
           </p>
         </div>
       )}

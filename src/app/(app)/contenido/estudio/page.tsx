@@ -36,8 +36,8 @@ export default async function StudioPage({ searchParams }: { searchParams: Promi
 
   const missing = [
     !aiConfigured() && "una clave de IA (guiones)",
-    !studioGithubConfigured() && "GITHUB_AGENT_TOKEN (montaje en GitHub Actions)",
-    !settings?.worker_token_hash && "la clave del estudio",
+    !settings?.local_token_hash && !studioGithubConfigured() && "GITHUB_AGENT_TOKEN (montaje en GitHub Actions)",
+    !settings?.local_token_hash && !settings?.worker_token_hash && "la clave del estudio",
   ].filter(Boolean);
   const voice = (settings?.ai_voice ?? "es_male") as AiVoice;
 

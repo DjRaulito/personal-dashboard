@@ -43,12 +43,16 @@ async function driveAccess(): Promise<{ token: string } | { error: string }> {
   }
 }
 
-/** Comprueba lo necesario para montar vídeos; devuelve el primer problema o null. */
+/** Comprueba lo necesario para montar vídeos (en tu PC o en GitHub); devuelve el primer problema o null. */
 async function renderBlocker(): Promise<string | null> {
-  if (!studioGithubConfigured())
-    return "Falta GITHUB_AGENT_TOKEN en Vercel (lo mismo que para los agentes de Claude Code).";
   const supabase = await contentSession();
-  const { data } = await supabase.from("studio_settings").select("worker_token_hash").maybeSingle();
+  const { data } = await supabase
+    .from("studio_settings")
+    .select("worker_token_hash, local_token_hash")
+    .maybeSingle();
+  if (data?.local_token_hash) return null; // tu PC lo monta; GitHub queda de respaldo si está configurado
+  if (!studioGithubConfigured())
+    return "Falta GITHUB_AGENT_TOKEN en Vercel (lo mismo que para los agentes de Claude Code) o la clave de tu PC.";
   if (!data?.worker_token_hash) return "Falta crear la clave del estudio en Ajustes del VoiceStudio.";
   return null;
 }
@@ -315,6 +319,21 @@ export async function createWorkerKey(): Promise<KeyResult> {
         "La clave está creada, pero GitHub no dejó guardarla (el token necesita el permiso «Secrets»). Cópiala a mano.",
     };
   }
+}
+
+/**
+ * Crea la clave del estudio local (tu PC). Se muestra una sola vez: va en `.env.local` como
+ * STUDIO_LOCAL_TOKEN. La base de datos guarda solo su huella; la de GitHub no cambia.
+ */
+export async function createLocalWorkerKey(): Promise<KeyResult> {
+  const supabase = await contentSession();
+  const token = `studio_pc_${randomBytes(32).toString("base64url")}`;
+  const { error } = await supabase
+    .from("studio_settings")
+    .upsert({ local_token_hash: hashToken(token) }, { onConflict: "user_id" });
+  if (error) return { ok: false, message: "No se pudo crear la clave." };
+  refresh();
+  return { ok: true, token, message: "Clave creada. Cópiala ahora: no se vuelve a mostrar." };
 }
 
 const SAMPLE_TYPES = [

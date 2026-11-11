@@ -1,0 +1,7 @@
+# Estudio local (tu PC): la voz la pone VoiceStudio por su API, así que no hace falta torch ni Kokoro.
+# Tiempos de palabra (faster-whisper), titulares (Pillow), música y sonidos generados (scipy).
+faster-whisper==1.2.1
+soundfile==0.13.1
+numpy>=1.24,<2
+pillow==11.3.0
+scipy==1.13.1

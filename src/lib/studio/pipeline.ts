@@ -14,15 +14,17 @@ import {
   type VideoScript,
 } from "./catalog";
 import { dispatchStudio } from "./github";
+import { localWorkerOnline } from "./local";
 import { searchClips } from "./stock";
 
 // Cadena del VoiceStudio en la app: guion (IA) → clips (Pixabay/Pexels) → sesiones de subida a Drive →
-// cola → GitHub Actions. Se usa con la sesión del usuario (pantalla) o con la clave del estudio
+// cola → tu PC (worker local) o GitHub Actions. Se usa con la sesión del usuario (pantalla) o con la clave del estudio
 // (piloto automático, sin sesión); el «almacén» abstrae esa diferencia.
 
 export interface JobStore {
   setScript(jobId: string, script: VideoScript): Promise<void>;
-  queue(jobId: string, assets: Record<string, string>): Promise<void>;
+  /** Pone el trabajo en cola. `localOnline`: el PC está encendido y lo cogerá él (no hace falta GitHub). */
+  queue(jobId: string, assets: Record<string, string>): Promise<{ localOnline: boolean }>;
   fail(jobId: string, error: string): Promise<void>;
 }
 
@@ -40,12 +42,15 @@ export function sessionStore(supabase: SessionClient): JobStore {
       if (error) throw new Error("No se pudo guardar el guion.");
     },
     async queue(jobId, assets) {
+      const { data: settings } = await supabase.from("studio_settings").select("local_worker_seen_at").maybeSingle();
+      const localOnline = localWorkerOnline(settings?.local_worker_seen_at);
       const { error } = await supabase
         .from("video_jobs")
         .update({
           assets,
           status: "queued",
-          stage: "En cola",
+          stage: localOnline ? "En cola en tu PC" : "En cola",
+          worker: localOnline ? null : "github",
           progress: 0,
           error: null,
           queued_at: new Date().toISOString(),
@@ -57,6 +62,7 @@ export function sessionStore(supabase: SessionClient): JobStore {
         .eq("id", jobId)
         .in("status", ["script_ready", "failed"]);
       if (error) throw new Error("No se pudo poner en cola.");
+      return { localOnline };
     },
     async fail(jobId, message) {
       await supabase
@@ -94,7 +100,8 @@ export function tokenStore(token: string): JobStore & { autopilot(): Promise<Aut
       await call("set_script", jobId, { script });
     },
     async queue(jobId, assets) {
-      await call("queue", jobId, { assets });
+      const result = await call("queue", jobId, { assets });
+      return { localOnline: result.local_online === true };
     },
     async fail(jobId, message) {
       await call("fail", jobId, { error: message.slice(0, 2000) });
@@ -176,7 +183,7 @@ function safeName(title: string): string {
   );
 }
 
-/** Abre las subidas a Drive, pone el trabajo en cola y lanza el workflow. */
+/** Abre las subidas a Drive y pone el trabajo en cola: lo coge tu PC si está encendido o, si no, GitHub. */
 export async function queueRender(
   store: JobStore,
   jobId: string,
@@ -190,8 +197,8 @@ export async function queueRender(
     createUploadSession(googleAccessToken, folder, `${base}.mp4`, "video/mp4"),
     createUploadSession(googleAccessToken, folder, `${base}.jpg`, "image/jpeg"),
   ]);
-  await store.queue(jobId, { video_upload_url: video, thumb_upload_url: thumb });
-  await dispatchStudio(jobId);
+  const { localOnline } = await store.queue(jobId, { video_upload_url: video, thumb_upload_url: thumb });
+  if (!localOnline) await dispatchStudio(jobId);
 }
 
 /** Guion y, si no hay que revisarlo, montaje. Nunca lanza: los errores quedan en el trabajo. */

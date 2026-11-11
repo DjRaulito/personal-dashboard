@@ -79,7 +79,7 @@ jobs:
 
       - name: Pruebas de los subtítulos y los efectos
         working-directory: studio
-        run: python -m unittest test_captions test_fx
+        run: python -m unittest test_captions test_fx test_local
 
       - name: Montaje
         if: ${{ inputs.job_id != 'demo' }}
