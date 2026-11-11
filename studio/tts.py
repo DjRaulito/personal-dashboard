@@ -1,4 +1,4 @@
-"""Voces del VoiceStudio. Modelos abiertos que corren en la CPU de GitHub Actions:
+"""Voces del estudio de vídeo. Modelos abiertos que corren en la CPU de GitHub Actions:
 
 - «ai»: Kokoro-82M (Apache 2.0), voces en español.
 - «clone»: tu voz con acento de España. Kokoro lee el texto en castellano (espeak «es»: «z» y

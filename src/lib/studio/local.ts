@@ -1,4 +1,4 @@
-// Estudio local: el montaje puede correr en el PC de Raúl (worker `studio/local.py` con VoiceStudio).
+// Estudio local: el montaje puede correr en el PC de Raúl (worker `studio/local.py`; la voz la pone el programa VoiceStudio).
 // El PC avisa cada ~20 s; si avisó hace poco se considera encendido y la app no lanza GitHub Actions.
 
 /** Mismo margen que la función `studio_worker` (acción `queue`). */

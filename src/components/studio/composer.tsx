@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { clsx } from "clsx";
-import { createVideo } from "@/app/(app)/contenido/estudio/actions";
+import { createVideo } from "@/app/(app)/contenido/estudio/actions/videos";
 import { buttonClass, Field, FormMessage, inputClass } from "@/components/ui";
 import {
   AI_VOICES,

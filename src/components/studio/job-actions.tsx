@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { clsx } from "clsx";
 import { useRouter } from "next/navigation";
-import { approveVideo, discardVideo, renderVideo, saveScript } from "@/app/(app)/contenido/estudio/actions";
+import { approveVideo, discardVideo, renderVideo, saveScript } from "@/app/(app)/contenido/estudio/actions/videos";
 import { buttonClass, FormMessage, inputClass } from "@/components/ui";
 import { estimateSeconds, formatDuration, type VideoScript } from "@/lib/studio/catalog";
 

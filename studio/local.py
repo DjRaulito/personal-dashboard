@@ -1,4 +1,4 @@
-"""Estudio local: monta los vídeos del VoiceStudio en tu PC con la voz de VoiceStudio (OmniVoice en la GPU).
+"""Estudio local: monta los vídeos del estudio de vídeo en tu PC con la voz del programa VoiceStudio (OmniVoice en la GPU).
 
 Uso (lo arranca `studio/local.ps1`):
     python local.py               → se queda esperando trabajos de la app y los monta
@@ -6,7 +6,7 @@ Uso (lo arranca `studio/local.ps1`):
     python local.py demo [ai|clone] [guion.json] → vídeo de prueba (demo_job.json u otro) sin tocar la app
 
 Lee la configuración de `.env.local` (raíz del proyecto, nunca va al repo):
-    STUDIO_LOCAL_TOKEN                     clave del PC (Ajustes del VoiceStudio → «Tu PC»)
+    STUDIO_LOCAL_TOKEN                     clave del PC (Ajustes del estudio de vídeo → «Tu PC»)
     NEXT_PUBLIC_SUPABASE_URL               ya está para la web
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY   ya está para la web
     VOICESTUDIO_URL       opcional, por defecto http://127.0.0.1:3900
@@ -171,7 +171,7 @@ def clean_workdir() -> None:
 def serve(once: bool) -> int:
     for key in ("STUDIO_LOCAL_TOKEN", "SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY"):
         if not os.environ.get(key):
-            raise SystemExit(f"Falta {key} en .env.local (la clave del PC se crea en Ajustes del VoiceStudio → «Tu PC»).")
+            raise SystemExit(f"Falta {key} en .env.local (la clave del PC se crea en Ajustes del estudio de vídeo → «Tu PC»).")
     ensure_fonts()
     import worker
 

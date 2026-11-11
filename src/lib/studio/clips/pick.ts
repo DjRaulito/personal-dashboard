@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { aiConfigured, askJson, type AiImage } from "@/lib/ai/llm";
-import type { Clip } from "./catalog";
+import type { Clip } from "../catalog";
 import { toClip, type StockCandidate } from "./stock";
 
 // Elección de planos con IA: la búsqueda de stock trae varios candidatos por escena y un modelo que ve

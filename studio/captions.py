@@ -1,4 +1,4 @@
-"""Subtítulos del VoiceStudio: alinea las palabras del guion con los tiempos que da Whisper y
+"""Subtítulos del estudio de vídeo: alinea las palabras del guion con los tiempos que da Whisper y
 genera un archivo ASS con frases cortas y la palabra que suena resaltada."""
 
 from __future__ import annotations

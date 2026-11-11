@@ -19,7 +19,7 @@ import {
 } from "@/lib/studio/catalog";
 import { getJob } from "@/lib/studio/server";
 
-export const metadata: Metadata = { title: "Vídeo · VoiceStudio" };
+export const metadata: Metadata = { title: "Vídeo · Estudio de vídeo" };
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
@@ -37,7 +37,7 @@ export default async function VideoJobPage({ params }: { params: Promise<{ id: s
   return (
     <>
       <LiveStudio active={running} />
-      <BackLink href="/contenido/estudio">VoiceStudio</BackLink>
+      <BackLink href="/contenido/estudio">Estudio de vídeo</BackLink>
       <div className="grid items-start gap-3.5 lg:grid-cols-5">
         <div className="flex flex-col gap-3.5 lg:col-span-2">
           <Tile>

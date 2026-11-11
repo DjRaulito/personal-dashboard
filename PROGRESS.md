@@ -7,7 +7,7 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 - **Fase:** 8 — Contenido
 - **Última tarea hecha:** centro de agentes (`/ia/agentes`): fichas, tareas a varios agentes a la vez, tablero en directo, motores Gemini y Claude Code, aprobaciones
 - **Cerebro (12 nov 2026):** hecho, ver «Cerebro» al final. Falta crear un token en `/ia/cerebro` y conectar la primera IA.
-- **Siguiente tarea (11 nov 2026):** «Estudio local» fase 1 hecha en código (ver la sección de la fase 8); migración aplicada; falta desplegar, crear la clave del PC y probar un vídeo real. Fase 2 (Remotion) hecha en la rama `estudio-local-fase-2`; después fase 3 (Concat). Antes: verificar la fase 8 con los pasos manuales hechos (primer vídeo real del VoiceStudio). Después fase 9 (seguridad, rendimiento, copias, APK). Pendientes sueltos: verificación de la fase 7 (3 tareas a la vez) y del cerebro.
+- **Siguiente tarea (11 nov 2026):** «Estudio local» fase 1 hecha en código (ver la sección de la fase 8); migración aplicada; falta desplegar, crear la clave del PC y probar un vídeo real. Fase 2 (Remotion) hecha en la rama `estudio-local-fase-2` (PR #24, encima del #23). **Cambio de enfoque (11 nov 2026):** los vídeos 100 % automáticos (stock + voz IA) difícilmente se harán virales; el estudio pasa a ser sobre todo un editor de las grabaciones de Raúl (sus clips y sus datos reales, p. ej. Hevy), sin quitar la generación automática. Hecho en la rama `estudio-de-video`: la sección se llama **«Estudio de vídeo»** (antes «VoiceStudio», que era un malentendido: VoiceStudio es el programa de voz del PC) y el código está reorganizado. Siguiente: subir clips propios desde el móvil. Después fase 3 (Concat). Antes: verificar la fase 8 con los pasos manuales hechos (primer vídeo real del estudio). Después fase 9 (seguridad, rendimiento, copias, APK). Pendientes sueltos: verificación de la fase 7 (3 tareas a la vez) y del cerebro.
 
 ## Fase 0 — Cimientos
 
@@ -149,7 +149,7 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
   - Propuesta: el «cerebro» como servidor MCP remoto dentro de este dashboard (tabla en Supabase con RLS + endpoint MCP en Vercel con token; herramientas recordar / buscar / olvidar / olvidar todo; pantalla para ver y borrar al momento). Coste 0 €, sin VPS. Hermes en Oracle queda como extra opcional: agente 24/7 por Telegram que usa ese mismo cerebro como cliente MCP
 - [ ] **Cuando la app esté acabada (pedido el 10 nov 2026):** en Ajustes, que cada usuario pueda añadir sus propias claves y tokens (Gemini, Groq, Mistral, OpenRouter, Cerebras, Pixabay, Pexels, Pollinations, GitHub, Google…), para que personas externas usen las suyas sin gastar las de Raúl. Idea: tabla `user_api_keys` con `user_id` + RLS, valores cifrados con `TOKEN_ENCRYPTION_KEY` (nunca se devuelven al navegador, solo «configurada» y los últimos 4 caracteres), botón «Probar» por clave, y la app usa primero la clave del usuario y, si no tiene, ninguna (las de Vercel quedan solo para Raúl). El worker del estudio recibiría las claves del usuario por la RPC, no por secretos del repo.
 
-## Fase 8 — Contenido (+ VoiceStudio, pedido el 10 nov 2026)
+## Fase 8 — Contenido (+ estudio de vídeo, antes «VoiceStudio», pedido el 10 nov 2026)
 
 - [x] Migraciones `content` (content_pieces, content_metrics, content_piece_transactions) y `studio` (studio_settings, video_jobs, `studio_worker`, bucket privado `studio`) con RLS (aplicadas)
 - [x] Banco de ideas (`/contenido/ideas`) con formato, prioridad, etiquetas y plataformas
@@ -193,6 +193,9 @@ La voz convertida (Kokoro + ChatterboxVC) no convence: sigue sin sonar de Españ
 - [ ] Ajustar el estilo con Raúl tras ver la demo.
 - Nota: el Node local (22.12) no corre Vitest 5 (undici); usar `npx -y node@22 node_modules/vitest/vitest.mjs run` o actualizar Node.
 - Las claves del worker local van en `.env.local` (nunca al repo).
+
+- [x] **Renombrado y reorganización (rama `estudio-de-video`):** la sección se llama «Estudio de vídeo» (pestaña «Estudio»); «VoiceStudio» queda solo para el programa de voz del PC. La carpeta de Drive pasa a «Estudio de vídeo» (la antigua «VoiceStudio» se renombra sola al montar el siguiente vídeo). Acciones del servidor separadas en `estudio/actions/{videos,settings,shared}.ts`; los componentes de ajustes en `components/studio/{workers,voice-sample,settings-form}.tsx`; la búsqueda y la elección de clips en `lib/studio/clips/`. Ajustes reordenados: puesta a punto y «Dónde se montan los vídeos» (tu PC y GitHub de respaldo) a la izquierda; tu voz, voz IA y piloto automático a la derecha.
+- [ ] Siguiente: subir clips propios (móvil) y montar con ellos en vez de stock.
 
 ### Pasos manuales pendientes para Contenido (los hace Raúl)
 

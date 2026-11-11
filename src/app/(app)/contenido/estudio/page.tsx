@@ -8,10 +8,10 @@ import { aiConfigured } from "@/lib/ai/llm";
 import { contentSession } from "@/lib/content/server";
 import { AI_VOICES, type AiVoice } from "@/lib/studio/catalog";
 import { studioGithubConfigured } from "@/lib/studio/github";
-import { stockConfigured } from "@/lib/studio/stock";
+import { stockConfigured } from "@/lib/studio/clips/stock";
 import { getJobs, getStudioSettings, syncActiveJobs } from "@/lib/studio/server";
 
-export const metadata: Metadata = { title: "VoiceStudio · Contenido" };
+export const metadata: Metadata = { title: "Estudio de vídeo · Contenido" };
 // Escribir el guion y preparar la subida corre después de responder (after)
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -37,7 +37,7 @@ export default async function StudioPage({ searchParams }: { searchParams: Promi
   const missing = [
     !aiConfigured() && "una clave de IA (guiones)",
     !settings?.local_token_hash && !studioGithubConfigured() && "GITHUB_AGENT_TOKEN (montaje en GitHub Actions)",
-    !settings?.local_token_hash && !settings?.worker_token_hash && "la clave del estudio",
+    !settings?.local_token_hash && !settings?.worker_token_hash && "la clave de tu PC o de GitHub",
   ].filter(Boolean);
   const voice = (settings?.ai_voice ?? "es_male") as AiVoice;
 

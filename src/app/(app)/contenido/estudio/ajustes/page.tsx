@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { LocalWorker, StudioSettingsForm, VoiceSample, WorkerKey } from "@/components/studio/settings";
+import { StudioSettingsForm } from "@/components/studio/settings-form";
+import { VoiceSample } from "@/components/studio/voice-sample";
+import { LocalWorker, WorkerKey } from "@/components/studio/workers";
 import { BackLink, Tile, TileTitle } from "@/components/ui";
 import { aiConfigured, aiProviderNames } from "@/lib/ai/llm";
 import { DRIVE_FILE_SCOPE } from "@/lib/google/calendar";
@@ -7,10 +9,10 @@ import { hasGoogleScope } from "@/lib/google/server";
 import { AI_VOICES, type AiVoice } from "@/lib/studio/catalog";
 import { studioGithubConfigured } from "@/lib/studio/github";
 import { localWorkerOnline } from "@/lib/studio/local";
-import { stockConfigured, stockSources } from "@/lib/studio/stock";
+import { stockConfigured, stockSources } from "@/lib/studio/clips/stock";
 import { getStudioSettings } from "@/lib/studio/server";
 
-export const metadata: Metadata = { title: "Ajustes · VoiceStudio" };
+export const metadata: Metadata = { title: "Ajustes · Estudio de vídeo" };
 export const dynamic = "force-dynamic";
 
 function Check({ ok, children }: { ok: boolean; children: React.ReactNode }) {
@@ -41,7 +43,7 @@ export default async function StudioSettingsPage() {
 
   return (
     <>
-      <BackLink href="/contenido/estudio">VoiceStudio</BackLink>
+      <BackLink href="/contenido/estudio">Estudio de vídeo</BackLink>
       <div className="grid items-start gap-3.5 lg:grid-cols-2">
         <div className="flex flex-col gap-3.5">
           <Tile>
@@ -55,9 +57,11 @@ export default async function StudioSettingsPage() {
               </Check>
               <Check ok={drive}>Permiso de Google Drive (cierra sesión y vuelve a entrar con Google si falta)</Check>
               <Check ok={studioGithubConfigured()}>
-                GitHub para el montaje (GITHUB_AGENT_TOKEN en Vercel, con Actions y Secrets)
+                GitHub para el montaje de respaldo (GITHUB_AGENT_TOKEN en Vercel, con Actions y Secrets)
               </Check>
-              <Check ok={Boolean(settings?.worker_token_hash)}>Clave del estudio (abajo)</Check>
+              <Check ok={Boolean(settings?.local_token_hash || settings?.worker_token_hash)}>
+                Clave de tu PC o de GitHub (abajo)
+              </Check>
               <Check ok={stockConfigured()}>
                 Clips de stock
                 {stockConfigured()
@@ -67,8 +71,12 @@ export default async function StudioSettingsPage() {
             </ul>
           </Tile>
           <Tile>
-            <TileTitle dot="bg-content">Tu PC (estudio local)</TileTitle>
-            <div className="mt-3">
+            <TileTitle dot="bg-content">Dónde se montan los vídeos</TileTitle>
+            <p className="text-muted mt-1 text-sm">
+              Si tu PC está encendido, el vídeo se monta en él (más rápido y con tu voz). Si no, en GitHub Actions.
+            </p>
+            <h3 className="mt-5 text-sm font-semibold">Tu PC</h3>
+            <div className="mt-2">
               <LocalWorker
                 configured={Boolean(settings?.local_token_hash)}
                 online={localWorkerOnline(seenAt)}
@@ -76,15 +84,21 @@ export default async function StudioSettingsPage() {
                 lastSeen={lastSeen}
               />
             </div>
-          </Tile>
-          <Tile>
-            <TileTitle dot="bg-content">Clave del estudio (GitHub)</TileTitle>
-            <div className="mt-3">
+            <h3 className="border-border mt-5 border-t pt-5 text-sm font-semibold">GitHub Actions (respaldo)</h3>
+            <div className="mt-2">
               <WorkerKey configured={Boolean(settings?.worker_token_hash)} />
             </div>
           </Tile>
+        </div>
+        <div className="flex flex-col gap-3.5">
           <Tile>
-            <TileTitle dot="bg-content">Voz y piloto automático</TileTitle>
+            <TileTitle dot="bg-content">Tu voz</TileTitle>
+            <div className="mt-3">
+              <VoiceSample hasSample={hasSample} />
+            </div>
+          </Tile>
+          <Tile>
+            <TileTitle dot="bg-content">Voz IA y piloto automático</TileTitle>
             <div className="mt-4">
               <StudioSettingsForm
                 hasSample={hasSample}
@@ -99,12 +113,6 @@ export default async function StudioSettingsPage() {
             </div>
           </Tile>
         </div>
-        <Tile>
-          <TileTitle dot="bg-content">Tu voz</TileTitle>
-          <div className="mt-3">
-            <VoiceSample hasSample={hasSample} />
-          </div>
-        </Tile>
       </div>
     </>
   );

@@ -14,10 +14,10 @@ import {
 } from "./catalog";
 import { dispatchStudio } from "./github";
 import { localWorkerOnline } from "./local";
-import { CANDIDATES_PER_SCENE, chooseClips, type SceneChoice } from "./pick";
-import { searchCandidates } from "./stock";
+import { CANDIDATES_PER_SCENE, chooseClips, type SceneChoice } from "./clips/pick";
+import { searchCandidates } from "./clips/stock";
 
-// Cadena del VoiceStudio en la app: guion (IA) → clips (Pixabay/Pexels) → sesiones de subida a Drive →
+// Cadena del estudio de vídeo en la app: guion (IA) → clips (Pixabay/Pexels) → sesiones de subida a Drive →
 // cola → tu PC (worker local) o GitHub Actions. Se usa con la sesión del usuario (pantalla) o con la clave del estudio
 // (piloto automático, sin sesión); el «almacén» abstrae esa diferencia.
 

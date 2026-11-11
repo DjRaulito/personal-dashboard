@@ -27,7 +27,7 @@ export default async function IdeasPage({ searchParams }: { searchParams: Promis
       <Tile>
         <TileTitle dot="bg-content">Apuntar una idea</TileTitle>
         <p className="text-muted mt-1 text-sm">
-          Entra en la columna «Idea» del tablero. El piloto automático del VoiceStudio coge las de prioridad alta
+          Entra en la columna «Idea» del tablero. El piloto automático del estudio de vídeo coge las de prioridad alta
           primero.
         </p>
         <div className="mt-4">

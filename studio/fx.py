@@ -1,4 +1,4 @@
-"""Efectos del VoiceStudio: fondos animados generados, titulares limpios (estilo editorial),
+"""Efectos del estudio de vídeo: fondos animados generados, titulares limpios (estilo editorial),
 música generada y efectos de sonido. Todo se crea aquí, sin licencias de terceros."""
 
 from __future__ import annotations

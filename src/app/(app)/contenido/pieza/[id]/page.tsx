@@ -66,7 +66,7 @@ export default async function PiecePage({ params }: { params: Promise<{ id: stri
         <div className="flex flex-col gap-3.5 lg:col-span-2">
           {(piece.format === "short" || piece.format === "long") && (
             <Tile>
-              <TileTitle dot="bg-content">VoiceStudio</TileTitle>
+              <TileTitle dot="bg-content">Estudio de vídeo</TileTitle>
               <p className="text-muted mt-1 text-sm">Convierte esta pieza en un vídeo terminado, sin grabar nada.</p>
               <Link href={`/contenido/estudio?pieza=${piece.id}`} className={`${buttonClass.secondary} mt-4`}>
                 Crear vídeo

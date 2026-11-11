@@ -1,6 +1,6 @@
-name: VoiceStudio
+name: Estudio de vídeo
 
-# Lo lanza la app (VoiceStudio) con la API de GitHub. Genera el vídeo (voz, clips, subtítulos,
+# Lo lanza la app (estudio de vídeo) con la API de GitHub. Genera el vídeo (voz, clips, subtítulos,
 # montaje) y lo sube al Google Drive del usuario con la sesión de subida que creó la app.
 # El repo es público: solo recibe el id del trabajo; el guion y los enlaces los pide a la base de
 # datos con la clave STUDIO_WORKER_TOKEN y no se imprimen en el registro.

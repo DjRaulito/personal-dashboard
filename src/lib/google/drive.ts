@@ -3,9 +3,11 @@ import { z } from "zod";
 import { GoogleAuthError } from "./calendar";
 
 // Google Drive con el permiso drive.file: la app solo ve los archivos y carpetas que crea ella.
-// Los vídeos del VoiceStudio se guardan en la carpeta «VoiceStudio» de tu Drive.
+// Los vídeos del estudio de vídeo se guardan en la carpeta «Estudio de vídeo» de tu Drive.
 
-const FOLDER_NAME = "VoiceStudio";
+const FOLDER_NAME = "Estudio de vídeo";
+/** Nombre antiguo de la carpeta: si existe, se renombra en vez de crear otra. */
+const LEGACY_FOLDER_NAME = "VoiceStudio";
 const FOLDER_MIME = "application/vnd.google-apps.folder";
 
 async function drive(token: string, url: string, init: RequestInit = {}): Promise<Response> {
@@ -21,16 +23,31 @@ async function drive(token: string, url: string, init: RequestInit = {}): Promis
   return res;
 }
 
-/** Carpeta «VoiceStudio» (la crea la primera vez). */
-export async function ensureFolder(token: string): Promise<string> {
-  const q = `name='${FOLDER_NAME}' and mimeType='${FOLDER_MIME}' and trashed=false`;
+async function findFolder(token: string, name: string): Promise<string | null> {
+  const q = `name='${name}' and mimeType='${FOLDER_MIME}' and trashed=false`;
   const found = await drive(
     token,
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)&pageSize=1&spaces=drive`,
   );
   if (!found.ok) throw new Error(`Google Drive ${found.status}`);
   const { files } = z.object({ files: z.array(z.object({ id: z.string() })) }).parse(await found.json());
-  if (files[0]) return files[0].id;
+  return files[0]?.id ?? null;
+}
+
+/** Carpeta «Estudio de vídeo» (renombra la antigua «VoiceStudio» o la crea la primera vez). */
+export async function ensureFolder(token: string): Promise<string> {
+  const current = await findFolder(token, FOLDER_NAME);
+  if (current) return current;
+  const legacy = await findFolder(token, LEGACY_FOLDER_NAME);
+  if (legacy) {
+    // Si no se deja renombrar, se sigue usando con su nombre antiguo
+    await drive(token, `https://www.googleapis.com/drive/v3/files/${legacy}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: FOLDER_NAME }),
+    }).catch(() => undefined);
+    return legacy;
+  }
 
   const created = await drive(token, "https://www.googleapis.com/drive/v3/files?fields=id", {
     method: "POST",

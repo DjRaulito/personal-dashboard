@@ -12,7 +12,7 @@ const TABS = [
     match: (p: string) => p === "/contenido" || p.startsWith("/contenido/pieza"),
   },
   { href: "/contenido/ideas", label: "Ideas", match: (p: string) => p.startsWith("/contenido/ideas") },
-  { href: "/contenido/estudio", label: "VoiceStudio", match: (p: string) => p.startsWith("/contenido/estudio") },
+  { href: "/contenido/estudio", label: "Estudio", match: (p: string) => p.startsWith("/contenido/estudio") },
   { href: "/contenido/calendario", label: "Calendario", match: (p: string) => p.startsWith("/contenido/calendario") },
   { href: "/contenido/metricas", label: "Métricas", match: (p: string) => p.startsWith("/contenido/metricas") },
 ];

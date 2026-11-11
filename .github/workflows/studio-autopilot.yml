@@ -1,7 +1,7 @@
-name: VoiceStudio · piloto automático
+name: Estudio de vídeo · piloto automático
 
 # Cada mañana avisa a la app para que, si toca ese día, convierta la siguiente idea del banco en un
-# vídeo. La app decide (días, formato y voz se eligen en Ajustes del VoiceStudio). Los secretos
+# vídeo. La app decide (días, formato y voz se eligen en Ajustes del estudio de vídeo). Los secretos
 # STUDIO_WORKER_TOKEN y STUDIO_APP_URL los guarda la propia app al crear la clave del estudio.
 on:
   schedule:
@@ -21,7 +21,7 @@ jobs:
           APP_URL: ${{ secrets.STUDIO_APP_URL }}
         run: |
           if [ -z "$TOKEN" ] || [ -z "$APP_URL" ]; then
-            echo "El VoiceStudio aún no tiene clave: nada que hacer."
+            echo "El estudio de vídeo aún no tiene clave: nada que hacer."
             exit 0
           fi
           status=$(curl -s -o "$RUNNER_TEMP/out.json" -w '%{http_code}' -X POST \

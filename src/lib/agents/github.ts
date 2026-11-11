@@ -18,7 +18,7 @@ export function githubRepo(): string | null {
 
 export const claudeConfigured = () => Boolean(process.env.GITHUB_AGENT_TOKEN && githubRepo());
 
-/** Llamada a la API de GitHub sobre el repo del dashboard (la usan también el VoiceStudio). */
+/** Llamada a la API de GitHub sobre el repo del dashboard (la usa también el estudio de vídeo). */
 export async function gh(path: string, init: RequestInit = {}): Promise<Response> {
   const repo = githubRepo();
   if (!process.env.GITHUB_AGENT_TOKEN || !repo) {

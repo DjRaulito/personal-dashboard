@@ -4,7 +4,7 @@ import type { DateRange } from "@/lib/calendar/range";
 
 /**
  * Permisos que pedimos a Google al iniciar sesión: leer y crear eventos (calendario editorial) y
- * archivos de Drive creados por la app (vídeos del VoiceStudio; no ve el resto de tu Drive).
+ * archivos de Drive creados por la app (vídeos del estudio; no ve el resto de tu Drive).
  */
 export const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/calendar.events",

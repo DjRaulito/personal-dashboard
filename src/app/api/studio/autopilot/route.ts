@@ -4,7 +4,7 @@ import { getGoogleConfig } from "@/lib/env.server";
 import { refreshAccessToken } from "@/lib/google/calendar";
 import { runJob, tokenStore } from "@/lib/studio/pipeline";
 
-// Piloto automático del VoiceStudio. Lo llama cada día el workflow `studio-autopilot.yml` con la
+// Piloto automático del estudio de vídeo. Lo llama cada día el workflow `studio-autopilot.yml` con la
 // clave del estudio; no hay sesión, así que todo pasa por la función `studio_worker`.
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";

@@ -1,4 +1,4 @@
-"""Worker del VoiceStudio (corre en GitHub Actions; en tu PC lo usa `local.py`).
+"""Worker del estudio de vídeo (corre en GitHub Actions; en tu PC lo usa `local.py`).
 
 Uso: python worker.py claim <job_id>   → guarda job.json y escribe voice_mode en GITHUB_OUTPUT
      python worker.py render <job_id>  → genera el vídeo, lo sube a Drive y marca el trabajo como listo
@@ -109,7 +109,7 @@ def produce(job: dict, progress: Progress) -> tuple[Path, Path, float]:
 
     # 1. Voz
     sample = None
-    # Sin muestra (demo en el PC) la voz clonada sale del perfil de VoiceStudio
+    # Sin muestra (demo en el PC) la voz clonada sale del perfil del programa VoiceStudio
     has_sample = bool(job.get("voice_sample") or (job.get("assets") or {}).get("voice_sample_url"))
     if job["voice_mode"] == "clone" and has_sample:
         progress(5, "Preparando tu muestra de voz")

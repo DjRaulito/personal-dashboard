@@ -1,4 +1,4 @@
-# VoiceStudio: voz IA (Kokoro), tiempos de palabra (faster-whisper). Torch de CPU (índice de PyTorch).
+# Estudio de vídeo (GitHub Actions): voz IA (Kokoro), tiempos de palabra (faster-whisper). Torch de CPU (índice de PyTorch).
 torch==2.6.0
 kokoro==0.9.4
 soundfile==0.13.1

@@ -10,7 +10,7 @@ import {
   scriptToText,
 } from "./catalog";
 
-describe("VoiceStudio · catálogo", () => {
+describe("Estudio de vídeo · catálogo", () => {
   it("calcula escenas según formato y duración, con límites", () => {
     expect(sceneCount("short", 60)).toBe(12);
     expect(sceneCount("long", 420)).toBe(47);

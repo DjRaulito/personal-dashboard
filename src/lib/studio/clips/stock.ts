@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import type { Clip, VideoFormat } from "./catalog";
+import type { Clip, VideoFormat } from "../catalog";
 
 // Clips de vídeo de stock gratuitos y sin atribución obligatoria: Pixabay (principal) y Pexels
 // (si hay clave; Pexels ya no da claves nuevas). Sin ninguna, el montaje usa imágenes IA o fondos

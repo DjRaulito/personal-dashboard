@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// VoiceStudio: formatos, voces, estados y forma del guion que escribe la IA.
+// Estudio de vídeo: formatos, voces, estados y forma del guion que escribe la IA.
 
 export const VIDEO_FORMATS = ["short", "long"] as const;
 export type VideoFormat = (typeof VIDEO_FORMATS)[number];

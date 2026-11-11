@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { refreshStudio } from "@/app/(app)/contenido/estudio/actions";
+import { refreshStudio } from "@/app/(app)/contenido/estudio/actions/videos";
 import { createClient } from "@/lib/supabase/client";
 
 const POLL_MS = 30000;

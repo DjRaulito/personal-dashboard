@@ -1,4 +1,4 @@
-# Estudio local: monta los vídeos del VoiceStudio en este PC con VoiceStudio (abrir VoiceStudio antes).
+# Estudio local: monta los vídeos del estudio de vídeo en este PC; la voz la pone el programa VoiceStudio (ábrelo antes).
 # Uso:  .\studio\local.ps1            → espera trabajos de la app y los monta
 #       .\studio\local.ps1 demo clone → vídeo de prueba con tu voz (sin la app)
 # La primera vez crea el entorno de Python (studio\.venv) con el uv y el Python que trae VoiceStudio.
