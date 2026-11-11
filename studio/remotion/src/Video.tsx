@@ -51,7 +51,11 @@ export function Video(props: VideoProps) {
 
       {scenes.map((scene, i) =>
         i > 0 && scene.headline ? (
-          <Sequence key={`head-${i}`} from={f(scene.start + 0.15)} durationInFrames={f(Math.min(scene.seconds - 0.15, 3))}>
+          <Sequence
+            key={`head-${i}`}
+            from={f(scene.start + 0.15)}
+            durationInFrames={f(Math.min(scene.seconds - 0.15, 3))}
+          >
             <Headline text={scene.headline} accent={props.accent} vertical={vertical} />
           </Sequence>
         ) : null,
@@ -140,9 +144,7 @@ function Fallback({ accent }: { accent: string }) {
   const frame = useCurrentFrame();
   const angle = 140 + frame * 0.4;
   return (
-    <AbsoluteFill
-      style={{ background: `linear-gradient(${angle}deg, #16161B 0%, #2A3150 55%, ${accent}55 100%)` }}
-    />
+    <AbsoluteFill style={{ background: `linear-gradient(${angle}deg, #16161B 0%, #2A3150 55%, ${accent}55 100%)` }} />
   );
 }
 
@@ -237,7 +239,9 @@ function Headline({ text, accent, vertical }: { text: string; accent: string; ve
         opacity: out,
       }}
     >
-      <div style={{ width: size * 1.6 * bar, height: Math.max(6, size * 0.1), backgroundColor: accent, borderRadius: 4 }} />
+      <div
+        style={{ width: size * 1.6 * bar, height: Math.max(6, size * 0.1), backgroundColor: accent, borderRadius: 4 }}
+      />
       <div
         style={{
           display: "flex",

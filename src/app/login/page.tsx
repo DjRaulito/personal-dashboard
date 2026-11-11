@@ -16,8 +16,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <section className="rounded-tile border-border bg-surface border p-7">
         <h1 className="font-display text-4xl leading-none font-extrabold tracking-tight">Entrar</h1>
         <p className="text-muted mt-3">
-          Solo con tu cuenta de Google. Se pedirá permiso para tu calendario y para guardar los vídeos del estudio
-          en tu Drive.
+          Solo con tu cuenta de Google. Se pedirá permiso para tu calendario y para guardar los vídeos del estudio en tu
+          Drive.
         </p>
         {message && (
           <p role="alert" className="bg-surface-2 text-attention rounded-inner mt-5 px-4 py-3 text-sm">
