@@ -1440,6 +1440,164 @@ export type Database = {
         };
         Relationships: [];
       };
+      property_listings: {
+        Row: {
+          confidence: string;
+          created_at: string;
+          data: Json;
+          discard_reason: string;
+          first_price_cents: number;
+          first_seen_at: string;
+          id: string;
+          last_checked_at: string;
+          listing_state: string;
+          municipality: string;
+          neighborhood: string;
+          price_cents: number;
+          removed_at: string | null;
+          rooms: number | null;
+          source: string;
+          sqm: number | null;
+          status: string;
+          title: string;
+          updated_at: string;
+          url: string;
+          url_key: string;
+          user_id: string;
+          user_notes: string;
+        };
+        Insert: {
+          confidence?: string;
+          created_at?: string;
+          data?: Json;
+          discard_reason?: string;
+          first_price_cents: number;
+          first_seen_at?: string;
+          id?: string;
+          last_checked_at?: string;
+          listing_state?: string;
+          municipality: string;
+          neighborhood?: string;
+          price_cents: number;
+          removed_at?: string | null;
+          rooms?: number | null;
+          source?: string;
+          sqm?: number | null;
+          status?: string;
+          title?: string;
+          updated_at?: string;
+          url: string;
+          url_key?: string;
+          user_id?: string;
+          user_notes?: string;
+        };
+        Update: {
+          confidence?: string;
+          created_at?: string;
+          data?: Json;
+          discard_reason?: string;
+          first_price_cents?: number;
+          first_seen_at?: string;
+          id?: string;
+          last_checked_at?: string;
+          listing_state?: string;
+          municipality?: string;
+          neighborhood?: string;
+          price_cents?: number;
+          removed_at?: string | null;
+          rooms?: number | null;
+          source?: string;
+          sqm?: number | null;
+          status?: string;
+          title?: string;
+          updated_at?: string;
+          url?: string;
+          url_key?: string;
+          user_id?: string;
+          user_notes?: string;
+        };
+        Relationships: [];
+      };
+      property_price_history: {
+        Row: {
+          id: number;
+          listing_id: string;
+          price_cents: number;
+          seen_at: string;
+          user_id: string;
+        };
+        Insert: {
+          id?: number;
+          listing_id: string;
+          price_cents: number;
+          seen_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          id?: number;
+          listing_id?: string;
+          price_cents?: number;
+          seen_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "property_price_history_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "property_listings";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      property_runs: {
+        Row: {
+          examined: number;
+          id: string;
+          ran_at: string;
+          saved: number;
+          summary: string;
+          user_id: string;
+        };
+        Insert: {
+          examined?: number;
+          id?: string;
+          ran_at?: string;
+          saved?: number;
+          summary?: string;
+          user_id?: string;
+        };
+        Update: {
+          examined?: number;
+          id?: string;
+          ran_at?: string;
+          saved?: number;
+          summary?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      property_settings: {
+        Row: {
+          assumptions: Json;
+          criteria: Json;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          assumptions?: Json;
+          criteria?: Json;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          assumptions?: Json;
+          criteria?: Json;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       recurring_payments: {
         Row: {
           account_id: string | null;
@@ -1831,6 +1989,10 @@ export type Database = {
           month: string;
           net_worth_cents: number;
         }[];
+      };
+      property_call: {
+        Args: { p_action: string; p_args?: Json; p_token: string };
+        Returns: Json;
       };
       studio_worker: {
         Args: {

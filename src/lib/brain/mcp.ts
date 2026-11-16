@@ -1,14 +1,9 @@
 // Servidor MCP del cerebro (JSON-RPC sobre HTTP, sin estado). Esta parte es pura: recibe el mensaje
 // y una función `call` que ejecuta la acción en la base de datos (brain_call).
 
-export type BrainCall = (action: string, args: Record<string, unknown>) => Promise<Record<string, unknown>>;
+import { handleJsonRpc } from "@/lib/mcp/jsonrpc";
 
-interface JsonRpcRequest {
-  jsonrpc?: string;
-  id?: string | number | null;
-  method?: string;
-  params?: Record<string, unknown>;
-}
+export type BrainCall = (action: string, args: Record<string, unknown>) => Promise<Record<string, unknown>>;
 
 export const SERVER_INFO = { name: "cerebro-dashboard", version: "1.0.0" };
 
@@ -88,51 +83,18 @@ export const BRAIN_TOOLS = [
   },
 ] as const;
 
-const TOOL_NAMES = new Set<string>(BRAIN_TOOLS.map((t) => t.name));
-
-const ok = (id: JsonRpcRequest["id"], result: unknown) => ({ jsonrpc: "2.0", id: id ?? null, result });
-const fail = (id: JsonRpcRequest["id"], code: number, message: string) => ({
-  jsonrpc: "2.0",
-  id: id ?? null,
-  error: { code, message },
-});
-
 /**
  * Procesa un mensaje JSON-RPC. Devuelve la respuesta, o null si era una notificación (sin respuesta).
  * Los errores de las herramientas (token, datos) van como resultado con isError, como pide MCP.
  */
-export async function handleMcp(msg: unknown, call: BrainCall): Promise<Record<string, unknown> | null> {
-  if (!msg || typeof msg !== "object" || Array.isArray(msg)) return fail(null, -32600, "Mensaje no válido");
-  const req = msg as JsonRpcRequest;
-  if (typeof req.method !== "string") return fail(req.id, -32600, "Falta el método");
-  if (req.id === undefined) return null; // notificación
-
-  switch (req.method) {
-    case "initialize": {
-      const asked = typeof req.params?.protocolVersion === "string" ? req.params.protocolVersion : "2025-03-26";
-      return ok(req.id, {
-        protocolVersion: asked,
-        capabilities: { tools: {} },
-        serverInfo: SERVER_INFO,
-        instructions:
-          "Memoria personal de Raúl. Antes de responder sobre su vida, gustos o proyectos, busca con «search». Guarda con «remember» lo que valga la pena recordar.",
-      });
-    }
-    case "ping":
-      return ok(req.id, {});
-    case "tools/list":
-      return ok(req.id, { tools: BRAIN_TOOLS });
-    case "tools/call": {
-      const name = req.params?.name;
-      if (typeof name !== "string" || !TOOL_NAMES.has(name)) return fail(req.id, -32602, "Herramienta desconocida");
-      const args = (req.params?.arguments ?? {}) as Record<string, unknown>;
-      const result = await call(name, args);
-      const isError = typeof result.error === "string";
-      return ok(req.id, { content: [{ type: "text", text: JSON.stringify(result) }], isError });
-    }
-    default:
-      return fail(req.id, -32601, "Método no soportado");
-  }
+export function handleMcp(msg: unknown, call: BrainCall): Promise<Record<string, unknown> | null> {
+  return handleJsonRpc(msg, {
+    info: SERVER_INFO,
+    instructions:
+      "Memoria personal de Raúl. Antes de responder sobre su vida, gustos o proyectos, busca con «search». Guarda con «remember» lo que valga la pena recordar.",
+    tools: BRAIN_TOOLS,
+    call,
+  });
 }
 
 /** Token de la petición: cabecera Bearer o, para clientes que solo admiten una dirección, `?token=`. */
