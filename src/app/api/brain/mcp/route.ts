@@ -1,7 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
-import { extractToken, handleMcp, type BrainCall } from "@/lib/brain/mcp";
+import { extractToken, type BrainCall } from "@/lib/brain/mcp";
+import { dashboardServer } from "@/lib/mcp/dashboard";
+import { respondJsonRpc } from "@/lib/mcp/jsonrpc";
+import type { PropertyRpc } from "@/lib/realestate/mcp";
 
-// Endpoint MCP del cerebro: lo usan Claude, ChatGPT, Cursor, Hermes… con un token (Bearer).
+// Endpoint MCP del dashboard (cerebro + inmuebles): lo usan Claude, Cowork, ChatGPT, Cursor… con un token (Bearer).
 // No hay sesión: la función brain_call de Supabase comprueba el token y solo toca los datos de su dueño.
 
 export const dynamic = "force-dynamic";
@@ -29,19 +32,13 @@ export async function POST(request: Request) {
     return data as Record<string, unknown>;
   };
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "JSON no válido" } }, 400);
-  }
+  const property: PropertyRpc = async (action, args) => {
+    const { data, error } = await supabase.rpc("property_call", { p_token: token, p_action: action, p_args: args });
+    if (error || !data || typeof data !== "object") return { error: "No se pudo completar la acción" };
+    return data as Record<string, unknown>;
+  };
 
-  if (Array.isArray(body)) {
-    const replies = (await Promise.all(body.slice(0, 20).map((m) => handleMcp(m, call)))).filter(Boolean);
-    return replies.length ? json(replies) : new Response(null, { status: 202 });
-  }
-  const reply = await handleMcp(body, call);
-  return reply ? json(reply) : new Response(null, { status: 202 });
+  return respondJsonRpc(request, dashboardServer(call, property));
 }
 
 // El transporte sin estado no abre canal de notificaciones: GET no está soportado

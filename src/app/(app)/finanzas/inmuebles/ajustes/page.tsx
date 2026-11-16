@@ -23,7 +23,7 @@ export default async function PropertySettingsPage() {
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const origin = `${proto}://${host}`;
-  const endpoint = `${origin}/api/inmuebles/mcp`;
+  const endpoint = `${origin}/api/brain/mcp`;
   const prompt = taskPrompt(origin);
 
   return (
@@ -36,14 +36,12 @@ export default async function PropertySettingsPage() {
         <TileTitle dot="bg-content">Conectar la tarea de Cowork</TileTitle>
         <ol className="mt-4 flex list-decimal flex-col gap-3 pl-5 text-sm">
           <li>
-            Crea un token en{" "}
+            <span className="font-medium">Si ya tienes el conector del cerebro en Claude</span>, no hace falta nada más:
+            ese mismo conector incluye las herramientas de inmuebles. Si no lo tienes, crea un token en{" "}
             <Link href="/ia/cerebro" className="text-content hover:underline">
               IA → Cerebro
             </Link>{" "}
-            (por ejemplo «Cowork inmuebles»). Sirve el mismo tipo de token.
-          </li>
-          <li>
-            En Claude, añade un conector personalizado llamado «Inmuebles» con esta dirección, cambiando{" "}
+            y añade en Claude un conector personalizado con esta dirección, cambiando{" "}
             <code className="bg-surface-2 rounded px-1 text-xs">TU_TOKEN</code> por el token:
             <div className="mt-2">
               <Code>{`${endpoint}?token=TU_TOKEN`}</Code>

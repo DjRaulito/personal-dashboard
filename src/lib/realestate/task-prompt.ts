@@ -4,7 +4,7 @@
 export function taskPrompt(dashboardUrl: string): string {
   return `Cazador diario de pisos (inversión para alquiler de larga duración)
 
-Usa el conector «Inmuebles» de mi dashboard.
+Usa el conector de mi dashboard (el mismo del cerebro).
 
 1. Llama a get_search_context. Ahí están mis zonas por prioridad, el rango de precio, el tope excepcional, el capital propio máximo, la rentabilidad bruta objetivo y los anuncios que ya conoces.
 2. Haz una búsqueda web nueva y real en portales públicos (Idealista, Fotocasa, Habitaclia, pisos.com, agencias locales y otras fuentes) en esas zonas y precios. No inventes anuncios ni datos.
