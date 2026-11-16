@@ -7,6 +7,7 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 - **Fase:** 8 — Contenido
 - **Última tarea hecha:** centro de agentes (`/ia/agentes`): fichas, tareas a varios agentes a la vez, tablero en directo, motores Gemini y Claude Code, aprobaciones
 - **Cerebro (12 nov 2026):** hecho, ver «Cerebro» al final. Falta crear un token en `/ia/cerebro` y conectar la primera IA.
+- **Radar (16 nov 2026):** Inmuebles hecho (PR abierto), falta conectar la tarea de Cowork; después Trabajo. Ver «Radar» abajo.
 - **Siguiente tarea (11 nov 2026):** «Estudio local» fase 1 hecha en código (ver la sección de la fase 8); migración aplicada; falta desplegar, crear la clave del PC y probar un vídeo real. Fase 2 (Remotion) hecha en la rama `estudio-local-fase-2` (PR #24, encima del #23). **Cambio de enfoque (11 nov 2026):** los vídeos 100 % automáticos (stock + voz IA) difícilmente se harán virales; el estudio pasa a ser sobre todo un editor de las grabaciones de Raúl (sus clips y sus datos reales, p. ej. Hevy), sin quitar la generación automática. Hecho en la rama `estudio-de-video`: la sección se llama **«Estudio de vídeo»** (antes «VoiceStudio», que era un malentendido: VoiceStudio es el programa de voz del PC) y el código está reorganizado. Siguiente: subir clips propios desde el móvil. Después fase 3 (Concat). Antes: verificar la fase 8 con los pasos manuales hechos (primer vídeo real del estudio). Después fase 9 (seguridad, rendimiento, copias, APK). Pendientes sueltos: verificación de la fase 7 (3 tareas a la vez) y del cerebro.
 
 ## Fase 0 — Cimientos
@@ -205,6 +206,19 @@ La voz convertida (Kokoro + ChatterboxVC) no convence: sigue sin sonar de Españ
 4. VoiceStudio: el token `GITHUB_AGENT_TOKEN` (paso 2 de los agentes de Claude Code) con un permiso más: **Secrets** de lectura y escritura. Después, en Ajustes del estudio, «Crear la clave» (se guarda sola en GitHub).
 5. ~~Clips de stock e imágenes IA~~: hecho, `PIXABAY_API_KEY` en Vercel y `POLLINATIONS_API_KEY` en GitHub Secrets (Pexels ya no da claves nuevas).
 6. Ojo: GitHub desactiva los workflows programados de repos públicos tras 60 días sin actividad; si el piloto deja de funcionar, reactívalo en la pestaña Actions.
+
+## Radar: inmuebles y trabajo (pedido el 16 nov 2026)
+
+Las tareas programadas de Cowork buscan y guardan **datos** en el dashboard con un conector MCP; la web los recuerda y **hace las cuentas**. Así no hay informes de texto interminables, el historial es real y los números no dependen de la IA.
+
+- [x] **Inmuebles** (`/finanzas/inmuebles`, pestaña de Finanzas): inversión para alquiler de larga duración.
+  - Migración `properties` (aplicada): `property_settings`, `property_listings` (única por URL sin parámetros), `property_price_history`, `property_runs`, todo con `user_id` y RLS. `property_call` (SECURITY DEFINER) es el único acceso sin sesión y valida un token del cerebro (`brain_tokens`).
+  - Conector `POST /api/inmuebles/mcp` (`?token=` o Bearer): `get_search_context`, `save_listing`, `mark_removed`, `save_run_summary`. La entrada se valida con Zod (`src/lib/realestate/schemas.ts`); la IA manda euros y se guardan céntimos. JSON-RPC compartido con el cerebro en `src/lib/mcp/jsonrpc.ts`.
+  - Motor (`src/lib/realestate/engine.ts`, con tests): ITP, gastos de compra, reforma con imprevistos, hipoteca al 80 % y al 70 %, cuota, gastos operativos (vacancia, comunidad, IBI, seguros, mantenimiento, gestión, impago), rentabilidad bruta y neta, cash flow, cash-on-cash, renta limitada por el tope legal, renta necesaria para el 8 % y el 10 %, precio máximo (por rentabilidad, capital y cash flow), sensibilidades, puntuación 0–100 con pesos editables y veredicto.
+  - Pantallas: resumen (mejor oportunidad, cuántos cumplen, nuevos, rebajas, última búsqueda), tarjetas o tabla con filtros, ficha completa (veredicto, escenarios, capital, financiación, gastos, sensibilidades, origen de cada dato, comparables, documentos a pedir, historial de precio, tu decisión y notas) y «Criterios y conexión» (criterios, supuestos, pesos, cómo conectar y el texto nuevo de la tarea con botón de copiar).
+  - Criterios iniciales de Raúl cargados en su fila de `property_settings` (no en el código).
+- [ ] Paso manual (Raúl): crear un token en IA → Cerebro, añadir el conector «Inmuebles» en Claude y cambiar el texto de la tarea «Cazador diario de pisos» por el de la pantalla de criterios. Verificar con la primera ejecución.
+- [ ] **Trabajo** (`/trabajo`): ofertas con modalidad y días de teletrabajo, tablero de candidaturas, CV base privado y candidatura opcional (carta y CV adaptado en Drive). Mismo patrón de conector.
 
 ## Decisiones
 

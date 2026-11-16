@@ -4,6 +4,7 @@ const PUBLIC_PREFIXES = [
   "/auth/",
   "/api/health/",
   "/api/brain/mcp",
+  "/api/inmuebles/mcp",
   "/api/studio/autopilot",
   "/manifest.webmanifest",
 ];
