@@ -8,6 +8,7 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 - **Última tarea hecha:** centro de agentes (`/ia/agentes`): fichas, tareas a varios agentes a la vez, tablero en directo, motores Gemini y Claude Code, aprobaciones
 - **Cerebro (12 nov 2026):** hecho, ver «Cerebro» al final. Falta crear un token en `/ia/cerebro` y conectar la primera IA.
 - **Radar (16 nov 2026):** Inmuebles hecho (PR abierto), falta conectar la tarea de Cowork; después Trabajo. Ver «Radar» abajo.
+- **Plataforma de agentes (16 nov 2026):** plan completo escrito (6 fases, 47 pasos), pendiente del «adelante» de Raúl para empezar la fase 1. Ver «Plataforma de agentes» abajo.
 - **Siguiente tarea (11 nov 2026):** «Estudio local» fase 1 hecha en código (ver la sección de la fase 8); migración aplicada; falta desplegar, crear la clave del PC y probar un vídeo real. Fase 2 (Remotion) hecha en la rama `estudio-local-fase-2` (PR #24, encima del #23). **Cambio de enfoque (11 nov 2026):** los vídeos 100 % automáticos (stock + voz IA) difícilmente se harán virales; el estudio pasa a ser sobre todo un editor de las grabaciones de Raúl (sus clips y sus datos reales, p. ej. Hevy), sin quitar la generación automática. Hecho en la rama `estudio-de-video`: la sección se llama **«Estudio de vídeo»** (antes «VoiceStudio», que era un malentendido: VoiceStudio es el programa de voz del PC) y el código está reorganizado. Siguiente: subir clips propios desde el móvil. Después fase 3 (Concat). Antes: verificar la fase 8 con los pasos manuales hechos (primer vídeo real del estudio). Después fase 9 (seguridad, rendimiento, copias, APK). Pendientes sueltos: verificación de la fase 7 (3 tareas a la vez) y del cerebro.
 
 ## Fase 0 — Cimientos
@@ -219,6 +220,29 @@ Las tareas programadas de Cowork buscan y guardan **datos** en el dashboard con 
   - Criterios iniciales de Raúl cargados en su fila de `property_settings` (no en el código).
 - [ ] Paso manual (Raúl): en la tarea «Cazador diario de pisos», activar el conector del cerebro (ya existente) y cambiar el texto de la tarea «Cazador diario de pisos» por el de la pantalla de criterios. Verificar con la primera ejecución.
 - [ ] **Trabajo** (`/trabajo`): ofertas con modalidad y días de teletrabajo, tablero de candidaturas, CV base privado y candidatura opcional (carta y CV adaptado en Drive). Mismo patrón de conector.
+
+## Plataforma de agentes (plan del 16 nov 2026, sin empezar)
+
+Raúl quiere un equipo de agentes que él crea y al que delega tareas para que las resuelvan solos y vuelvan con un resultado, con un coordinador que reparte el trabajo cuando hace falta. El plan detallado (arquitectura, diagramas y los 47 pasos con su comprobación) está en un documento privado de Claude que tiene Raúl; aquí queda el resumen para retomarlo.
+
+Decisiones tomadas:
+
+- Claude corre fuera de la web con la suscripción de Raúl (Claude Code sin interfaz, `claude -p`) y entra a los datos por el conector MCP. Coste 0 €. La API de pago queda como opción aparte.
+- **Interruptor de runner:** GitHub por defecto y el PC de Raúl como alternativa, en tres niveles (ajuste general, ficha del agente, tarea).
+- **Sin repo privado por ahora:** el runner de GitHub corre en este repo público con cuatro protecciones: el workflow solo recibe el id de la ejecución; la clave del runner es un secreto de GitHub; la salida de Claude Code no se imprime ni se sube; los agentes con datos no tienen terminal ni escritura y el workflow es de solo lectura. Los agentes de código siguen por `agent.yml` (rama y PR) y no pueden tener permisos de datos.
+- Jerarquía de un nivel (coordinador y especialistas), con los subagentes de Claude Code.
+- Supuestos sin confirmar por Raúl: sesión corta firmada por la pasarela (exige un secreto nuevo en Vercel; el paso 1.2 lo prueba y, si falla, se sigue con funciones SQL) y equipos que navegan y leen datos privados permitidos solo con un permiso explícito en la ficha.
+
+Fases (una rama y un PR por fase):
+
+- [ ] **Fase 1 · Herramientas y permisos (8 pasos):** `scopes` y caducidad en `brain_tokens`, tabla `agent_tool_calls`, prueba de la sesión corta, registro único en `src/lib/platform/tools` (fusiona `ai/tools.ts`, `brain/mcp.ts` y `realestate/mcp.ts`), adaptadores a MCP y a la IA gratuita, pasarela `src/lib/platform/gateway.ts` con ruta `/api/mcp` (las antiguas siguen), pantalla de conectores en Ajustes y pantalla de llamadas. Salida: el cazador de pisos funciona con un token que solo abre inmuebles y se ve cada llamada.
+- [ ] **Fase 2 · Agente autónomo con datos (10 pasos):** `agent_runs.runner`, `agent_run_tokens`, `agent_runner_keys`, clave del runner, ruta `/api/agents/package`, herramientas `log`, `propose_action` y `deliver_result`, workflow `agent-data.yml`, ejecutores de acciones en `src/lib/platform/actions`, permisos por dominio en la ficha y pantalla de ejecución. Salida: una tarea real sobre los gastos vuelve con su informe sin intervención.
+- [ ] **Fase 3 · Interruptor GitHub o PC (7 pasos):** runner por defecto en el perfil y por agente y tarea, regla de decisión pura, trabajador del PC en `agents/` (patrón de `studio/local.ps1`), cola, selector en la web y respaldo a GitHub a los 5 minutos. Salida: la misma tarea termina igual en los dos.
+- [ ] **Fase 4 · Equipos y coordinador (7 pasos):** `agents.parent_id` y `description`, `src/lib/agents/team.ts`, paquete con subagentes, bloqueo de equipos mixtos sin permiso, registro por agente y pantalla de equipo. Salida: un coordinador con tres especialistas entrega un resultado único.
+- [ ] **Fase 5 · Resultados, memoria y horarios (8 pasos):** biblioteca de resultados, aviso de tarea hecha, memoria por agente (`brain_memories.agent_id`), `agent_schedules` con `/api/agents/tick` y workflow con horario, cazador de pisos como agente programado (una semana en paralelo con Cowork) y módulo Trabajo. Salida: pisos y empleo corren como tareas programadas. Riesgo: Claude Code lee páginas sin navegador y los portales pueden bloquearlo; si pasa, ese agente sigue en Cowork.
+- [ ] **Fase 6 · Calidad y control (7 pasos):** topes por tarea y por día, acciones de confianza, casos de prueba por agente, panel de salud, avisos de fallo, limpieza (`property_runs`, `/api/inmuebles/mcp`) y, opcional, mover el runner a un repo privado.
+
+Pasos manuales de Raúl: secreto de la sesión corta en Vercel (fase 1); `CLAUDE_CODE_OAUTH_TOKEN` y `AGENT_RUNNER_KEY` en los secretos de GitHub y `GITHUB_AGENT_TOKEN` en Vercel (fase 2); Claude Code con sesión iniciada en el PC (fase 3); CV y criterios de empleo en la web y desactivar las tareas de Cowork (fase 5).
 
 ## Decisiones
 
