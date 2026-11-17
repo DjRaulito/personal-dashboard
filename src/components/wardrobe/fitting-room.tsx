@@ -3,7 +3,7 @@
 import { useActionState, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { clsx } from "clsx";
-import { ChevronLeft, ChevronRight, Shuffle, Sparkles, X } from "lucide-react";
+import { Camera, ChevronLeft, ChevronRight, Shuffle, Sparkles, X } from "lucide-react";
 import { saveCity, saveOutfit, suggestOutfits } from "@/app/(app)/armario/actions";
 import { buttonClass, EmptyState, Field, FormMessage, inputClass, Tile, TileTitle } from "@/components/ui";
 import type { FormState } from "@/lib/finance/schemas";
@@ -356,6 +356,15 @@ export function FittingRoom({
             <button type="button" onClick={shuffle} className={clsx(buttonClass.secondary, "ml-auto")}>
               <Shuffle aria-hidden="true" className="h-4 w-4" /> Mezclar
             </button>
+            <Link
+              href={`/armario/probar?${new URLSearchParams({
+                ...((look.top ?? look.outerwear) ? { arriba: (look.top ?? look.outerwear)! } : {}),
+                ...(look.bottom ? { abajo: look.bottom } : {}),
+              })}`}
+              className={buttonClass.secondary}
+            >
+              <Camera aria-hidden="true" className="h-4 w-4" /> Probar en mí
+            </Link>
           </div>
           <ul className="mt-4 flex flex-col">
             {rows

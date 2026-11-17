@@ -8,6 +8,7 @@ import { LinkPending } from "@/components/link-pending";
 const TABS = [
   { href: "/armario", label: "Probador", match: (p: string) => p === "/armario" },
   { href: "/armario/prendas", label: "Prendas", match: (p: string) => p.startsWith("/armario/prendas") },
+  { href: "/armario/probar", label: "Probar en mí", match: (p: string) => p.startsWith("/armario/probar") },
   { href: "/armario/outfits", label: "Outfits", match: (p: string) => p.startsWith("/armario/outfits") },
 ];
 

@@ -117,3 +117,10 @@ export function lookFrom(ids: string[], garments: Garment[]): Look {
 
 export const lookIds = (look: Look): string[] =>
   [look.outerwear, look.top, look.bottom, look.shoes, ...look.accessories].filter((id): id is string => !!id);
+
+/** Zona del cuerpo para «Probar en mí»: solo se pueden probar estas categorías. */
+export const TRYON_PARTS = {
+  top: "upper_body",
+  outerwear: "upper_body",
+  bottom: "lower_body",
+} as const satisfies Partial<Record<Category, "upper_body" | "lower_body">>;
