@@ -114,3 +114,54 @@ export async function getTodayWeather(settings: WardrobeSettings): Promise<Weath
     return null;
   }
 }
+
+// ---------------------------------------------------------------------------
+// «Probar en mí»: foto de cuerpo entero y resultados guardados
+// ---------------------------------------------------------------------------
+
+/** Rutas en el bucket: la foto del usuario y sus pruebas, dentro de su carpeta. */
+export const personPhotoPath = (userId: string) => `${userId}/me/person.jpg`;
+export const tryOnFolder = (userId: string) => `${userId}/tryon`;
+/** Pruebas que se guardan; las más viejas se borran. */
+export const MAX_TRYONS = 12;
+
+export interface TryOnResult {
+  path: string;
+  url: string;
+  createdAt: string;
+}
+
+export interface TryOnState {
+  personUrl: string | null;
+  results: TryOnResult[];
+}
+
+export async function getTryOnState(): Promise<TryOnState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { personUrl: null, results: [] };
+  const bucket = supabase.storage.from(WARDROBE_BUCKET);
+  const [me, tries] = await Promise.all([
+    bucket.list(`${user.id}/me`, { limit: 5 }),
+    bucket.list(tryOnFolder(user.id), { limit: MAX_TRYONS, sortBy: { column: "created_at", order: "desc" } }),
+  ]);
+  const hasPerson = (me.data ?? []).some((f) => f.name === "person.jpg");
+  const files = (tries.data ?? []).filter((f) => f.name.endsWith(".webp"));
+  const paths = [
+    ...(hasPerson ? [personPhotoPath(user.id)] : []),
+    ...files.map((f) => `${tryOnFolder(user.id)}/${f.name}`),
+  ];
+  if (paths.length === 0) return { personUrl: null, results: [] };
+  const { data: signed } = await bucket.createSignedUrls(paths, SIGNED_URL_SECONDS);
+  const urls = new Map((signed ?? []).filter((s) => !s.error && s.path).map((s) => [s.path!, s.signedUrl]));
+  return {
+    personUrl: hasPerson ? (urls.get(personPhotoPath(user.id)) ?? null) : null,
+    results: files.flatMap((f) => {
+      const path = `${tryOnFolder(user.id)}/${f.name}`;
+      const url = urls.get(path);
+      return url ? [{ path, url, createdAt: f.created_at ?? "" }] : [];
+    }),
+  };
+}
