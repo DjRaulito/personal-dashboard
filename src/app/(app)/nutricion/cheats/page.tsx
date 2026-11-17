@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CheatForm, DeleteButton } from "@/components/nutrition/forms";
+import { CheatForm, DeleteCheatButton } from "@/components/nutrition/forms";
 import { EmptyState, Tile, TileTitle } from "@/components/ui";
 import { APP_LOCALE, dayKey } from "@/lib/datetime";
 import { getCheats, getReviews } from "@/lib/nutrition/server";
@@ -72,7 +72,7 @@ export default async function CheatsPage() {
                     </p>
                     {c.ai_notes && <p className="text-muted mt-0.5 text-xs">{c.ai_notes}</p>}
                   </div>
-                  <DeleteButton kind="cheat" id={c.id} label={`el cheat meal del ${date(c.eaten_on)}`} />
+                  <DeleteCheatButton id={c.id} label={`el cheat meal del ${date(c.eaten_on)}`} />
                 </li>
               ))}
             </ul>

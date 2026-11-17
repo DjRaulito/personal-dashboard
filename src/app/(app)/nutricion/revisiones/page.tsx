@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { clsx } from "clsx";
-import { TrendChart } from "@/components/gym/charts";
-import { DeleteButton, ReviewForm } from "@/components/nutrition/forms";
+import { MeasureChart, ReviewSheetForm, SyncReviewsButton, type MeasureSeries } from "@/components/nutrition/reviews";
 import { EmptyState, Tile, TileTitle } from "@/components/ui";
 import { APP_LOCALE, dayKey } from "@/lib/datetime";
 import { getMeasurements } from "@/lib/gym/server";
-import { getCheats, getChecks, getReviews } from "@/lib/nutrition/server";
+import { getCheats, getChecks, getNutritionSettings, getReviews } from "@/lib/nutrition/server";
+import { MEASURE_LABELS, MEASURES } from "@/lib/nutrition/sheet";
 
 export const metadata: Metadata = { title: "Revisiones · Nutrición" };
 
@@ -16,21 +16,14 @@ const num = (v: number | null | undefined, unit = "") =>
 const delta = (a: number | null | undefined, b: number | null | undefined) =>
   a === null || a === undefined || b === null || b === undefined ? null : Math.round((a - b) * 100) / 100;
 
-const COLUMNS = [
-  ["weight_kg", "Peso"],
-  ["chest_cm", "Pecho"],
-  ["shoulder_cm", "Hombro"],
-  ["arm_cm", "Brazo"],
-  ["abdomen_cm", "Abdomen"],
-  ["waist_cm", "Cintura"],
-  ["hip_cm", "Cadera"],
-  ["thigh_cm", "Muslo"],
-  ["calf_cm", "Gemelo"],
-] as const;
-
 export default async function ReviewsPage() {
   const today = dayKey(new Date());
-  const [reviews, measurements, cheats] = await Promise.all([getReviews(), getMeasurements(), getCheats()]);
+  const [reviews, measurements, cheats, settings] = await Promise.all([
+    getReviews(),
+    getMeasurements(),
+    getCheats(),
+    getNutritionSettings(),
+  ]);
   const oldest = reviews[reviews.length - 1]?.review_on ?? today;
   const checks = await getChecks(oldest, today);
   const byDate = new Map(measurements.map((m) => [m.measured_on, m]));
@@ -57,15 +50,22 @@ export default async function ReviewsPage() {
   const currentChecks = checks.filter((c) => !last || c.day > last);
   const currentCheats = cheats.filter((c) => !last || c.eaten_on > last).length;
 
-  const weights = measurements
-    .filter((m) => m.weight_kg !== null)
-    .map((m) => ({ date: m.measured_on, value: m.weight_kg!, secondary: undefined as number | undefined }))
-    .reverse();
-  const waist = measurements
-    .filter((m) => m.waist_cm !== null || m.abdomen_cm !== null)
-    .map((m) => ({ date: m.measured_on, value: (m.abdomen_cm ?? m.waist_cm)!, secondary: m.waist_cm ?? undefined }))
-    .reverse();
-  const withMeasures = measurements.filter((m) => COLUMNS.some(([k]) => m[k] !== null));
+  const lastWeight = measurements.find((m) => m.weight_kg !== null)?.weight_kg;
+  const series: MeasureSeries = {};
+  for (const key of MEASURES) {
+    series[key] = measurements
+      .filter((m) => m[key] !== null)
+      .map((m) => ({ date: m.measured_on, value: m[key]! }))
+      .reverse();
+  }
+  const withMeasures = measurements.filter((m) => MEASURES.some((k) => m[k] !== null));
+  const syncedAt = settings.syncedAt
+    ? new Intl.DateTimeFormat(APP_LOCALE, {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: "Europe/Madrid",
+      }).format(new Date(settings.syncedAt))
+    : null;
 
   return (
     <>
@@ -78,7 +78,7 @@ export default async function ReviewsPage() {
         <Tile>
           <p className="text-muted text-sm">Peso actual</p>
           <p className="font-display mt-2 text-2xl font-extrabold tracking-tight tabular-nums">
-            {num(weights[weights.length - 1]?.value, " kg")}
+            {num(lastWeight, " kg")}
           </p>
         </Tile>
         <Tile>
@@ -97,34 +97,34 @@ export default async function ReviewsPage() {
         </Tile>
       </section>
 
-      <div className="grid gap-3.5 lg:grid-cols-2">
-        <Tile>
-          <TileTitle dot="bg-nutrition">Peso</TileTitle>
-          <div className="mt-4">
-            {weights.length >= 2 ? (
-              <TrendChart points={weights} unit="kg" label="Peso" tone="nutrition" />
-            ) : (
-              <EmptyState>Hacen falta dos revisiones con peso.</EmptyState>
-            )}
+      <Tile>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <TileTitle dot="bg-nutrition">Hoja de control</TileTitle>
+          {settings.sheetId && (
+            <div className="ml-auto">
+              <SyncReviewsButton />
+            </div>
+          )}
+        </div>
+        <p className="text-muted mt-2 text-sm">
+          {settings.sheetId
+            ? `Las revisiones se leen de la hoja de tu nutricionista. ${syncedAt ? `Última lectura: ${syncedAt}.` : "Aún no se ha leído desde aquí."}`
+            : "Indica cuál es la hoja de cálculo donde tu nutricionista apunta el peso y las medidas."}
+        </p>
+        <details className="mt-3" open={!settings.sheetId}>
+          <summary className="text-muted hover:text-text cursor-pointer text-sm">
+            {settings.sheetId ? "Cambiar de hoja" : "Elegir hoja"}
+          </summary>
+          <div className="mt-3 max-w-xl">
+            <ReviewSheetForm configured={Boolean(settings.sheetId)} />
           </div>
-        </Tile>
-        <Tile>
-          <TileTitle dot="bg-nutrition">Abdomen y cintura</TileTitle>
-          <div className="mt-4">
-            {waist.length >= 2 ? (
-              <TrendChart points={waist} unit="cm" label="Abdomen" secondary="Cintura" tone="nutrition" />
-            ) : (
-              <EmptyState>Hacen falta dos revisiones con medidas.</EmptyState>
-            )}
-          </div>
-        </Tile>
-      </div>
+        </details>
+      </Tile>
 
       <Tile>
-        <TileTitle dot="bg-nutrition">Nueva revisión</TileTitle>
-        <p className="text-muted mt-1 text-sm">Cada 14 días: peso, perímetros en cm y cómo ha ido.</p>
+        <TileTitle dot="bg-nutrition">Evolución</TileTitle>
         <div className="mt-4">
-          <ReviewForm today={today} lastPhase={reviews[0]?.phase ?? null} />
+          <MeasureChart series={series} />
         </div>
       </Tile>
 
@@ -168,7 +168,6 @@ export default async function ReviewsPage() {
                   </p>
                   {r.notes && <p className="mt-1 text-xs">{r.notes}</p>}
                 </div>
-                <DeleteButton kind="review" id={r.id} label={`la revisión del ${date(r.review_on)}`} />
               </li>
             ))}
           </ul>
@@ -178,7 +177,7 @@ export default async function ReviewsPage() {
       {withMeasures.length > 0 && (
         <Tile className="p-0 sm:p-0">
           <div className="px-6 pt-6">
-            <TileTitle dot="bg-nutrition">Hoja de control</TileTitle>
+            <TileTitle dot="bg-nutrition">Todas las medidas</TileTitle>
           </div>
           <div className="relative mt-3 overflow-x-auto">
             <table className="w-full min-w-[760px] text-sm tabular-nums">
@@ -187,9 +186,9 @@ export default async function ReviewsPage() {
                   <th scope="col" className="px-6 py-2 font-normal">
                     Fecha
                   </th>
-                  {COLUMNS.map(([k, l]) => (
+                  {MEASURES.map((k) => (
                     <th key={k} scope="col" className="px-2 py-2 text-right font-normal last:pr-6">
-                      {l}
+                      {MEASURE_LABELS[k]}
                     </th>
                   ))}
                 </tr>
@@ -200,7 +199,7 @@ export default async function ReviewsPage() {
                   return (
                     <tr key={m.id} className="border-border border-b last:border-0">
                       <td className="px-6 py-2">{date(m.measured_on)}</td>
-                      {COLUMNS.map(([k]) => {
+                      {MEASURES.map((k) => {
                         const d = delta(m[k], prev?.[k]);
                         return (
                           <td

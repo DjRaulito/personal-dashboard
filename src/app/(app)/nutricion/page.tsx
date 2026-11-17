@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { DayActions } from "@/components/nutrition/day-actions";
-import { MealTracker } from "@/components/nutrition/meal-tracker";
+import { DayChecklist, type MealStatus } from "@/components/nutrition/day-checklist";
 import { CreatePlanForm, LoadCatalogButton } from "@/components/nutrition/setup";
 import { buttonClass, Tile, TileTitle } from "@/components/ui";
 import { APP_LOCALE, dayKey } from "@/lib/datetime";
-import { groupPortionTotals, sumTotals, totalsOf } from "@/lib/nutrition/portions";
-import { getActivePlan, getCheats, getDay, getFoods, getReviews } from "@/lib/nutrition/server";
+import { groupPortionTotals, sumTotals } from "@/lib/nutrition/portions";
+import { getActivePlan, getDay, getFoods } from "@/lib/nutrition/server";
 
 export const metadata: Metadata = { title: "Nutrición · Personal Dashboard" };
 
@@ -15,21 +14,13 @@ const shift = (d: string, days: number) => {
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
 };
-const kcal = (v: number) => `${Math.round(v).toLocaleString(APP_LOCALE)} kcal`;
+const round = (v: number) => Math.round(v).toLocaleString(APP_LOCALE);
 
-export default async function NutritionTodayPage({ searchParams }: { searchParams: Promise<{ dia?: string }> }) {
+export default async function NutritionPlanPage({ searchParams }: { searchParams: Promise<{ dia?: string }> }) {
   const { dia } = await searchParams;
   const today = dayKey(new Date());
   const day = dia && /^\d{4}-\d{2}-\d{2}$/.test(dia) && dia <= today ? dia : today;
-  const prevDay = shift(day, -1);
-  const [plan, foods, data, prev, cheats, reviews] = await Promise.all([
-    getActivePlan(),
-    getFoods(),
-    getDay(day),
-    getDay(prevDay),
-    getCheats(),
-    getReviews(),
-  ]);
+  const [plan, foods, data] = await Promise.all([getActivePlan(), getFoods(), getDay(day)]);
 
   if (foods.length === 0 || !plan) {
     return (
@@ -48,110 +39,104 @@ export default async function NutritionTodayPage({ searchParams }: { searchParam
   }
 
   const foodMap = new Map(foods.map((f) => [f.id, f]));
-  const eaten = totalsOf(data.logs, foodMap);
   const planned = sumTotals(plan.meals.flatMap((m) => m.groups.map((g) => groupPortionTotals(g, foodMap))));
-  const checked = plan.meals.filter((m) => data.checks.has(m.id));
-  const ok = checked.filter((m) => data.checks.get(m.id)!.status === "done").length;
-  const isEmpty = (mealId: string) => !data.checks.has(mealId) && !data.logs.some((l) => l.meal_id === mealId);
-  const yesterdayOf = (mealId: string) => {
-    const logs = prev.logs.filter((l) => l.meal_id === mealId);
-    if (logs.length === 0 && !prev.checks.has(mealId)) return null;
-    const summary = logs.length
-      ? logs.map((l) => `${Math.round(l.grams)} g ${foodMap.get(l.food_id)?.name ?? "?"}`).join(", ")
-      : "Marcada como hecha";
-    return { day: prevDay, summary };
-  };
-  const canCopy = plan.meals.some((m) => isEmpty(m.id) && yesterdayOf(m.id) !== null);
-  const lastReview = reviews[0]?.review_on ?? null;
-  const cheatsSince = cheats.filter((c) => !lastReview || c.eaten_on > lastReview).length;
+  const macroKcal = planned.protein_g * 4 + planned.carbs_g * 4 + planned.fat_g * 9;
+  const macros = [
+    { label: "Proteína", grams: planned.protein_g, share: (planned.protein_g * 4) / macroKcal },
+    { label: "Hidratos", grams: planned.carbs_g, share: (planned.carbs_g * 4) / macroKcal },
+    { label: "Grasa", grams: planned.fat_g, share: (planned.fat_g * 9) / macroKcal },
+  ];
   const label = new Intl.DateTimeFormat(APP_LOCALE, {
     weekday: "long",
     day: "numeric",
     month: "long",
     timeZone: "UTC",
   }).format(new Date(`${day}T00:00:00Z`));
+  const initial: Record<string, MealStatus> = {};
+  for (const m of plan.meals) {
+    const check = data.checks.get(m.id);
+    if (check) initial[m.id] = check.status;
+  }
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-3">
-        <nav aria-label="Día" className="bg-surface border-border flex items-center gap-1 rounded-full border p-1">
-          <Link
-            href={`/nutricion?dia=${shift(day, -1)}`}
-            className="text-muted hover:text-text rounded-full px-3 py-1.5 text-sm"
-            aria-label="Día anterior"
-          >
-            ←
-          </Link>
-          <span className="px-2 text-sm font-semibold first-letter:uppercase">{day === today ? "Hoy" : label}</span>
-          {day < today ? (
-            <Link
-              href={day === shift(today, -1) ? "/nutricion" : `/nutricion?dia=${shift(day, 1)}`}
-              className="text-muted hover:text-text rounded-full px-3 py-1.5 text-sm"
-              aria-label="Día siguiente"
-            >
-              →
-            </Link>
-          ) : (
-            <span className="text-border-strong px-3 py-1.5 text-sm" aria-hidden="true">
-              →
-            </span>
-          )}
-        </nav>
-        <Link href="/nutricion/cheats" className={`${buttonClass.secondary} ml-auto`}>
-          Apuntar cheat meal
-        </Link>
-      </div>
-
-      <section aria-label="Resumen del día" className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
+      <section aria-label="Kcal y macros del plan" className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
         <Tile>
-          <p className="text-muted text-sm">Comidas marcadas</p>
+          <p className="text-muted text-sm">Kcal al día</p>
           <p className="font-display mt-2 text-2xl font-extrabold tracking-tight tabular-nums sm:text-3xl">
-            {checked.length}/{plan.meals.length}
+            {round(planned.kcal)}
           </p>
-          <p className="text-muted mt-1 text-xs">{ok} como en el plan</p>
+          <p className="text-muted mt-1 text-xs">{plan.name}</p>
         </Tile>
-        <Tile>
-          <p className="text-muted text-sm">Apuntado</p>
-          <p className="font-display mt-2 text-2xl font-extrabold tracking-tight tabular-nums sm:text-3xl">
-            {data.logs.length ? kcal(eaten.kcal) : "—"}
-          </p>
-          <p className="text-muted mt-1 text-xs">Plan: ~{kcal(planned.kcal)}</p>
-        </Tile>
-        <Tile>
-          <p className="text-muted text-sm">Macros del plan</p>
-          <p className="mt-2 text-sm tabular-nums">
-            P {Math.round(planned.protein_g)} g · HC {Math.round(planned.carbs_g)} g · G {Math.round(planned.fat_g)} g
-          </p>
-          <p className="text-muted mt-1 text-xs">Aproximados (mediana de cada grupo)</p>
-        </Tile>
-        <Tile>
-          <p className="text-muted text-sm">Cheat meals</p>
-          <p className="font-display mt-2 text-2xl font-extrabold tracking-tight tabular-nums sm:text-3xl">
-            {cheatsSince}
-          </p>
-          <p className="text-muted mt-1 text-xs">{lastReview ? "desde la última revisión" : "en total"}</p>
-        </Tile>
-      </section>
-
-      <DayActions day={day} yesterday={prevDay} pendingMeals={plan.meals.length - checked.length} canCopy={canCopy} />
-
-      <div className="grid gap-3.5 xl:grid-cols-2">
-        {plan.meals.map((m) => (
-          <MealTracker
-            key={`${day}-${m.id}`}
-            day={day}
-            meal={m}
-            foodList={foods}
-            initialLogs={data.logs.filter((l) => l.meal_id === m.id)}
-            initialStatus={data.checks.get(m.id)?.status ?? null}
-            yesterday={yesterdayOf(m.id)}
-          />
+        {macros.map((m) => (
+          <Tile key={m.label}>
+            <p className="text-muted text-sm">{m.label}</p>
+            <p className="font-display mt-2 text-2xl font-extrabold tracking-tight tabular-nums sm:text-3xl">
+              {round(m.grams)} g
+            </p>
+            <p className="text-muted mt-1 text-xs">
+              {macroKcal > 0 ? `${Math.round(m.share * 100)} % de las kcal` : "—"}
+            </p>
+          </Tile>
         ))}
-      </div>
-      <p className="text-muted text-sm">
-        Los pesos del plan son en crudo. Si apuntas arroz o pasta cocidos, se convierten solos (arroz ÷ 2,5, pasta ÷ 2;
-        el factor de cada alimento se cambia en Alimentos).
+      </section>
+      <p className="text-muted -mt-2 text-xs">
+        Valores aproximados: una ración de cada grupo de cada comida (la opción intermedia de cada grupo).
       </p>
+
+      <Tile>
+        <div className="flex flex-wrap items-center gap-3">
+          <TileTitle dot="bg-nutrition">Notas del plan</TileTitle>
+          <Link href="/nutricion/plan" className={`${buttonClass.secondary} ml-auto`}>
+            Ver o editar comidas y raciones
+          </Link>
+        </div>
+        {plan.notes ? (
+          <p className="mt-3 text-sm leading-relaxed whitespace-pre-line">{plan.notes}</p>
+        ) : (
+          <p className="text-muted mt-3 text-sm">Sin notas. Puedes añadirlas al editar el plan.</p>
+        )}
+      </Tile>
+
+      <Tile>
+        <div className="flex flex-wrap items-center gap-3">
+          <TileTitle dot="bg-nutrition">¿Cómo ha ido?</TileTitle>
+          <nav
+            aria-label="Día"
+            className="bg-surface-2 border-border ml-auto flex items-center gap-1 rounded-full border p-1"
+          >
+            <Link
+              href={`/nutricion?dia=${shift(day, -1)}`}
+              className="text-muted hover:text-text rounded-full px-3 py-1 text-sm"
+              aria-label="Día anterior"
+            >
+              ←
+            </Link>
+            <span className="px-2 text-sm font-semibold first-letter:uppercase">{day === today ? "Hoy" : label}</span>
+            {day < today ? (
+              <Link
+                href={day === shift(today, -1) ? "/nutricion" : `/nutricion?dia=${shift(day, 1)}`}
+                className="text-muted hover:text-text rounded-full px-3 py-1 text-sm"
+                aria-label="Día siguiente"
+              >
+                →
+              </Link>
+            ) : (
+              <span className="text-border-strong px-3 py-1 text-sm" aria-hidden="true">
+                →
+              </span>
+            )}
+          </nav>
+        </div>
+        <div className="mt-3">
+          <DayChecklist
+            key={day}
+            day={day}
+            meals={plan.meals.map((m) => ({ id: m.id, name: m.name }))}
+            initial={initial}
+          />
+        </div>
+      </Tile>
     </>
   );
 }

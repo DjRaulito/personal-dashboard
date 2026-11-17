@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import type { Food, GroupKind, LogEntry, PlanGroup, PlanOption } from "./portions";
+import type { Food, FoodCategory, GroupKind, PlanGroup, PlanOption } from "./portions";
 
 export interface PlanMeal {
   id: string;
@@ -25,7 +25,9 @@ export const getFoods = cache(async (): Promise<Food[]> => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("nutrition_foods")
-    .select("id, name, kcal, protein_g, carbs_g, fat_g, unit_label, unit_grams, cooked_from, cooked_factor")
+    .select(
+      "id, name, kcal, protein_g, carbs_g, fat_g, unit_label, unit_grams, cooked_from, cooked_factor, category, price_cents_per_kg, price_source",
+    )
     .order("name");
   if (error) throw error;
   return (data ?? []).map((f) => ({
@@ -36,6 +38,8 @@ export const getFoods = cache(async (): Promise<Food[]> => {
     fat_g: Number(f.fat_g),
     unit_grams: n(f.unit_grams),
     cooked_factor: n(f.cooked_factor),
+    category: f.category as FoodCategory,
+    price_source: f.price_source as Food["price_source"],
   }));
 });
 
@@ -100,25 +104,13 @@ export const getActivePlan = cache(async (): Promise<ActivePlan | null> => {
 
 export type MealStatus = "done" | "less" | "more" | "skipped" | "cheat";
 
-export interface DayLog extends LogEntry {
-  meal_id: string | null;
-}
-
+/** Checklist de un día: estado de cada comida del plan. */
 export async function getDay(day: string) {
   const supabase = await createClient();
-  const [logs, checks] = await Promise.all([
-    supabase
-      .from("nutrition_logs")
-      .select("id, meal_id, group_id, food_id, grams")
-      .eq("eaten_on", day)
-      .order("created_at"),
-    supabase.from("nutrition_meal_checks").select("meal_id, status, note").eq("day", day),
-  ]);
-  if (logs.error) throw logs.error;
-  if (checks.error) throw checks.error;
+  const { data, error } = await supabase.from("nutrition_meal_checks").select("meal_id, status, note").eq("day", day);
+  if (error) throw error;
   return {
-    logs: (logs.data ?? []).map((l) => ({ ...l, grams: Number(l.grams) })) as DayLog[],
-    checks: new Map((checks.data ?? []).map((c) => [c.meal_id, { status: c.status as MealStatus, note: c.note }])),
+    checks: new Map((data ?? []).map((c) => [c.meal_id, { status: c.status as MealStatus, note: c.note }])),
   };
 }
 
@@ -155,4 +147,22 @@ export async function getReviews() {
     .limit(500);
   if (error) throw error;
   return data ?? [];
+}
+
+/** Opciones del plan elegidas para la lista de la compra: id de la opción → días por semana. */
+export async function getShoppingPicks(): Promise<Map<string, number>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("nutrition_shopping_picks").select("option_id, days_per_week");
+  if (error) throw error;
+  return new Map((data ?? []).map((p) => [p.option_id, p.days_per_week]));
+}
+
+export async function getNutritionSettings() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("nutrition_settings")
+    .select("review_sheet_id, reviews_synced_at")
+    .maybeSingle();
+  if (error) throw error;
+  return { sheetId: data?.review_sheet_id ?? null, syncedAt: data?.reviews_synced_at ?? null };
 }

@@ -12,8 +12,7 @@ import { financePeriods } from "@/lib/finance/periods";
 import { getUpcomingPayments } from "@/lib/finance/planning-server";
 import { getAccounts } from "@/lib/finance/server";
 import { getPortfolio } from "@/lib/investments/server";
-import { totalsOf } from "@/lib/nutrition/portions";
-import { getActivePlan, getDay, getFoods } from "@/lib/nutrition/server";
+import { getActivePlan, getDay } from "@/lib/nutrition/server";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function Home() {
@@ -31,7 +30,6 @@ export default async function Home() {
     payments,
     { data: lastWorkout },
     plan,
-    foods,
     nutritionDay,
   ] = await Promise.all([
     supabase.from("profiles").select("display_name").maybeSingle(),
@@ -47,10 +45,9 @@ export default async function Home() {
       .limit(1)
       .maybeSingle(),
     getActivePlan(),
-    getFoods(),
     getDay(today),
   ]);
-  const kcalToday = totalsOf(nutritionDay.logs, new Map(foods.map((f) => [f.id, f]))).kcal;
+  const mealsOnPlan = plan ? plan.meals.filter((m) => nutritionDay.checks.get(m.id)?.status === "done").length : 0;
   const mealsMarked = plan ? plan.meals.filter((m) => nutritionDay.checks.has(m.id)).length : 0;
   const portfolioValue = [...portfolio.positions.values()].reduce((s, x) => s + x.valueEur, 0);
   const hasAccounts = accounts.length > 0 || portfolio.operations.length > 0;
@@ -170,9 +167,7 @@ export default async function Home() {
                 {mealsMarked}/{plan.meals.length} comidas
               </span>
               <span className="text-muted mt-1 block text-sm">
-                {nutritionDay.logs.length
-                  ? `${Math.round(kcalToday).toLocaleString("es-ES")} kcal apuntadas`
-                  : "Marca cómo vas con el plan"}
+                {mealsMarked ? `${mealsOnPlan} según el plan` : "Marca cómo vas con el plan"}
               </span>
             </>
           ) : (

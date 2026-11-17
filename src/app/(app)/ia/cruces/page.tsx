@@ -15,8 +15,7 @@ import { getCategories } from "@/lib/finance/server";
 import { formatCents } from "@/lib/finance/money";
 import { getMeasurements, getSetsForWorkouts, getWorkouts, workoutDates } from "@/lib/gym/server";
 import { isWorkingSet, weeksBetween } from "@/lib/gym/stats";
-import { totalsOf } from "@/lib/nutrition/portions";
-import { getActivePlan, getCheats, getChecks, getFoods } from "@/lib/nutrition/server";
+import { getActivePlan, getCheats, getChecks } from "@/lib/nutrition/server";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Cruces" };
@@ -49,19 +48,12 @@ export default async function CrossesPage() {
   const checksFrom = dietFrom < monthsFrom ? dietFrom : monthsFrom;
   const supabase = await createClient();
 
-  const [workouts, measurements, plan, checks, cheats, foods, logs, categories] = await Promise.all([
+  const [workouts, measurements, plan, checks, cheats, categories] = await Promise.all([
     getWorkouts(),
     getMeasurements(),
     getActivePlan(),
     getChecks(checksFrom, today),
     getCheats(),
-    getFoods(),
-    supabase
-      .from("nutrition_logs")
-      .select("eaten_on, food_id, grams")
-      .gte("eaten_on", dietFrom)
-      .lte("eaten_on", today)
-      .limit(5000),
     getCategories(),
   ]);
 
@@ -88,18 +80,12 @@ export default async function CrossesPage() {
   }
 
   // Entreno frente a descanso
-  const foodMap = new Map(foods.map((f) => [f.id, f]));
-  const logsByDay = new Map<string, { food_id: string; grams: number }[]>();
-  for (const l of logs.data ?? [])
-    logsByDay.set(l.eaten_on, [...(logsByDay.get(l.eaten_on) ?? []), { food_id: l.food_id, grams: Number(l.grams) }]);
-  const kcalByDay = new Map([...logsByDay].map(([d, list]) => [d, totalsOf(list, foodMap).kcal]));
   const dietDays = Array.from({ length: DIET_DAYS }, (_, i) => addDaysIso(dietFrom, i));
   const cheatDays = cheats.map((c) => c.eaten_on);
   const split = trainingVsRest(
     dietDays,
     new Set(workouts.map((w) => dateOf.get(w.id)!)),
     checks.filter((c) => c.day >= dietFrom),
-    kcalByDay,
     cheatDays,
     plan?.meals.length ?? 0,
   );
@@ -230,11 +216,6 @@ function DayTypeCard({ title, stats }: { title: string; stats: DayTypeStats }) {
   const rows = [
     { label: "Días", value: String(stats.days) },
     { label: "Comidas según el plan", value: pct(stats.adherence) },
-    {
-      label: "Kcal medias apuntadas",
-      value: stats.avgKcal === null ? "—" : `${stats.avgKcal.toLocaleString(APP_LOCALE)} kcal`,
-      hint: stats.loggedDays ? `${stats.loggedDays} días con registro` : undefined,
-    },
     { label: "Cheat meals", value: String(stats.cheats) },
   ];
   return (
@@ -243,10 +224,7 @@ function DayTypeCard({ title, stats }: { title: string; stats: DayTypeStats }) {
       <dl className="mt-3 flex flex-col gap-2 text-sm">
         {rows.map((r) => (
           <div key={r.label} className="flex items-baseline justify-between gap-3">
-            <dt className="text-muted">
-              {r.label}
-              {r.hint && <span className="block text-xs">{r.hint}</span>}
-            </dt>
+            <dt className="text-muted">{r.label}</dt>
             <dd className="font-semibold tabular-nums">{r.value}</dd>
           </div>
         ))}

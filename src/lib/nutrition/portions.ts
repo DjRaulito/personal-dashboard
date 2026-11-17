@@ -51,6 +51,39 @@ export interface Food {
   /** Versión cocida de otro alimento: peso cocido = peso crudo × cooked_factor. */
   cooked_from?: string | null;
   cooked_factor?: number | null;
+  /** Apartado de la lista de alimentos. */
+  category?: FoodCategory;
+  /** Precio aproximado en céntimos por kilo (o litro), para la lista de la compra. */
+  price_cents_per_kg?: number | null;
+  price_source?: "manual" | "ai" | null;
+}
+
+export const FOOD_CATEGORIES = ["protein", "carbs", "fat", "fruit", "dairy", "veg", "other"] as const;
+export type FoodCategory = (typeof FOOD_CATEGORIES)[number];
+
+export const FOOD_CATEGORY_LABELS: Record<FoodCategory, string> = {
+  protein: "Proteína",
+  carbs: "Hidratos",
+  fat: "Grasas",
+  fruit: "Fruta",
+  dairy: "Lácteos",
+  veg: "Verdura",
+  other: "Otros",
+};
+
+type MacroValues = Pick<Food, "protein_g" | "carbs_g" | "fat_g">;
+
+/** Macro que más calorías aporta a un alimento (proteína e hidratos 4 kcal/g, grasa 9). */
+export function dominantMacro(food: MacroValues): Exclude<Macro, "kcal"> | null {
+  const kcal = { protein_g: food.protein_g * 4, carbs_g: food.carbs_g * 4, fat_g: food.fat_g * 9 };
+  const top = (Object.keys(kcal) as (keyof typeof kcal)[]).reduce((a, b) => (kcal[b] > kcal[a] ? b : a));
+  return kcal[top] > 0 ? top : null;
+}
+
+/** Apartado por defecto de un alimento nuevo, según su macro dominante. */
+export function inferCategory(food: MacroValues): FoodCategory {
+  const macro = dominantMacro(food);
+  return macro === "protein_g" ? "protein" : macro === "carbs_g" ? "carbs" : macro === "fat_g" ? "fat" : "other";
 }
 
 export interface PlanOption {

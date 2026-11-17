@@ -51,15 +51,11 @@ describe("cruces", () => {
         { day: "2026-11-04", status: "done" },
         { day: "2026-11-04", status: "skipped" },
       ],
-      new Map([
-        ["2026-11-03", 2400],
-        ["2026-11-04", 2000],
-      ]),
       ["2026-11-05"],
       2,
     );
-    expect(training).toEqual({ days: 1, adherence: 1, avgKcal: 2400, loggedDays: 1, cheats: 0 });
-    expect(rest).toEqual({ days: 2, adherence: 0.5, avgKcal: 2000, loggedDays: 1, cheats: 1 });
+    expect(training).toEqual({ days: 1, adherence: 1, cheats: 0 });
+    expect(rest).toEqual({ days: 2, adherence: 0.5, cheats: 1 });
   });
 
   it("suma el gasto en comida por mes", () => {

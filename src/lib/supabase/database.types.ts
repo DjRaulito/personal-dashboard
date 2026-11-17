@@ -1077,6 +1077,7 @@ export type Database = {
       nutrition_foods: {
         Row: {
           carbs_g: number;
+          category: string;
           cooked_factor: number | null;
           cooked_from: string | null;
           created_at: string;
@@ -1084,6 +1085,8 @@ export type Database = {
           id: string;
           kcal: number;
           name: string;
+          price_cents_per_kg: number | null;
+          price_source: string | null;
           protein_g: number;
           source: string;
           unit_grams: number | null;
@@ -1093,6 +1096,7 @@ export type Database = {
         };
         Insert: {
           carbs_g?: number;
+          category?: string;
           cooked_factor?: number | null;
           cooked_from?: string | null;
           created_at?: string;
@@ -1100,6 +1104,8 @@ export type Database = {
           id?: string;
           kcal: number;
           name: string;
+          price_cents_per_kg?: number | null;
+          price_source?: string | null;
           protein_g?: number;
           source?: string;
           unit_grams?: number | null;
@@ -1109,6 +1115,7 @@ export type Database = {
         };
         Update: {
           carbs_g?: number;
+          category?: string;
           cooked_factor?: number | null;
           cooked_from?: string | null;
           created_at?: string;
@@ -1116,6 +1123,8 @@ export type Database = {
           id?: string;
           kcal?: number;
           name?: string;
+          price_cents_per_kg?: number | null;
+          price_source?: string | null;
           protein_g?: number;
           source?: string;
           unit_grams?: number | null;
@@ -1410,6 +1419,59 @@ export type Database = {
         };
         Relationships: [];
       };
+      nutrition_settings: {
+        Row: {
+          review_sheet_id: string | null;
+          reviews_synced_at: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          review_sheet_id?: string | null;
+          reviews_synced_at?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          review_sheet_id?: string | null;
+          reviews_synced_at?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      nutrition_shopping_picks: {
+        Row: {
+          days_per_week: number;
+          id: string;
+          option_id: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          days_per_week: number;
+          id?: string;
+          option_id: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          days_per_week?: number;
+          id?: string;
+          option_id?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "nutrition_shopping_picks_option_id_fkey";
+            columns: ["option_id"];
+            isOneToOne: false;
+            referencedRelation: "nutrition_plan_options";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           avatar_url: string | null;
@@ -1462,7 +1524,7 @@ export type Database = {
           title: string;
           updated_at: string;
           url: string;
-          url_key: string;
+          url_key: string | null;
           user_id: string;
           user_notes: string;
         };
@@ -1487,7 +1549,7 @@ export type Database = {
           title?: string;
           updated_at?: string;
           url: string;
-          url_key?: string;
+          url_key?: string | null;
           user_id?: string;
           user_notes?: string;
         };
@@ -1512,7 +1574,7 @@ export type Database = {
           title?: string;
           updated_at?: string;
           url?: string;
-          url_key?: string;
+          url_key?: string | null;
           user_id?: string;
           user_notes?: string;
         };
@@ -1527,14 +1589,14 @@ export type Database = {
           user_id: string;
         };
         Insert: {
-          id?: number;
+          id?: never;
           listing_id: string;
           price_cents: number;
           seen_at?: string;
           user_id?: string;
         };
         Update: {
-          id?: number;
+          id?: never;
           listing_id?: string;
           price_cents?: number;
           seen_at?: string;
@@ -1754,14 +1816,14 @@ export type Database = {
           autopilot_format: string;
           autopilot_last_on: string | null;
           autopilot_voice: string;
+          local_token_hash: string | null;
+          local_worker_info: string | null;
+          local_worker_seen_at: string | null;
           updated_at: string;
           user_id: string;
           voice_sample: string | null;
           voice_sample_mime: string | null;
           worker_token_hash: string | null;
-          local_token_hash: string | null;
-          local_worker_seen_at: string | null;
-          local_worker_info: string | null;
         };
         Insert: {
           ai_voice?: string;
@@ -1770,14 +1832,14 @@ export type Database = {
           autopilot_format?: string;
           autopilot_last_on?: string | null;
           autopilot_voice?: string;
+          local_token_hash?: string | null;
+          local_worker_info?: string | null;
+          local_worker_seen_at?: string | null;
           updated_at?: string;
           user_id?: string;
           voice_sample?: string | null;
           voice_sample_mime?: string | null;
           worker_token_hash?: string | null;
-          local_token_hash?: string | null;
-          local_worker_seen_at?: string | null;
-          local_worker_info?: string | null;
         };
         Update: {
           ai_voice?: string;
@@ -1786,14 +1848,14 @@ export type Database = {
           autopilot_format?: string;
           autopilot_last_on?: string | null;
           autopilot_voice?: string;
+          local_token_hash?: string | null;
+          local_worker_info?: string | null;
+          local_worker_seen_at?: string | null;
           updated_at?: string;
           user_id?: string;
           voice_sample?: string | null;
           voice_sample_mime?: string | null;
           worker_token_hash?: string | null;
-          local_token_hash?: string | null;
-          local_worker_seen_at?: string | null;
-          local_worker_info?: string | null;
         };
         Relationships: [];
       };
@@ -1882,9 +1944,9 @@ export type Database = {
           user_id: string;
           voice: string;
           voice_mode: string;
+          worker: string | null;
           workflow_run_id: number | null;
           workflow_url: string | null;
-          worker: string | null;
         };
         Insert: {
           assets?: Json | null;
@@ -1910,9 +1972,9 @@ export type Database = {
           user_id?: string;
           voice?: string;
           voice_mode?: string;
+          worker?: string | null;
           workflow_run_id?: number | null;
           workflow_url?: string | null;
-          worker?: string | null;
         };
         Update: {
           assets?: Json | null;
@@ -1938,9 +2000,9 @@ export type Database = {
           user_id?: string;
           voice?: string;
           voice_mode?: string;
+          worker?: string | null;
           workflow_run_id?: number | null;
           workflow_url?: string | null;
-          worker?: string | null;
         };
         Relationships: [
           {
