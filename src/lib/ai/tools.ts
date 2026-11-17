@@ -15,8 +15,7 @@ import {
 } from "@/lib/gym/server";
 import { exerciseHistory, exerciseRecords, isWorkingSet, summarizeWorkout } from "@/lib/gym/stats";
 import { getPortfolio } from "@/lib/investments/server";
-import { totalsOf } from "@/lib/nutrition/portions";
-import { getActivePlan, getCheats, getChecks, getFoods, getReviews } from "@/lib/nutrition/server";
+import { getActivePlan, getCheats, getChecks, getReviews } from "@/lib/nutrition/server";
 import { createClient } from "@/lib/supabase/server";
 import { addDaysIso, dateRange, RANGE_PARAMS } from "./assistant";
 import type { AiTool } from "./llm";
@@ -321,41 +320,17 @@ export function assistantTools(today: string): AiTool[] {
     {
       name: "nutricion",
       description:
-        "Cumplimiento del plan nutricional por días (comidas hechas, de menos, de más, saltadas, cheat), kcal apuntadas y cheat meals en un rango de fechas. Incluye las comidas del plan activo.",
+        "Cumplimiento del plan nutricional por días (comidas hechas, de menos, de más, saltadas, cheat) y cheat meals en un rango de fechas. Incluye las comidas del plan activo.",
       parameters: { type: "object", properties: { ...RANGE_PARAMS } },
       run: async (args) => {
         const { from, to } = dateRange(args, today, 14, 400);
-        const supabase = await createClient();
-        const [plan, checks, cheats, foods, logs] = await Promise.all([
-          getActivePlan(),
-          getChecks(from, to),
-          getCheats(),
-          getFoods(),
-          supabase
-            .from("nutrition_logs")
-            .select("eaten_on, food_id, grams")
-            .gte("eaten_on", from)
-            .lte("eaten_on", to)
-            .limit(5000),
-        ]);
-        if (logs.error) throw logs.error;
-        const foodMap = new Map(foods.map((f) => [f.id, f]));
+        const [plan, checks, cheats] = await Promise.all([getActivePlan(), getChecks(from, to), getCheats()]);
         const mealName = new Map((plan?.meals ?? []).map((m) => [m.id, m.name]));
         const days = new Map<string, Record<string, unknown>>();
         for (const c of checks) {
           const d = days.get(c.day) ?? { fecha: c.day, comidas: {} as Record<string, string> };
           (d.comidas as Record<string, string>)[mealName.get(c.meal_id) ?? "otra"] = c.status;
           days.set(c.day, d);
-        }
-        const logsByDay = new Map<string, { food_id: string; grams: number }[]>();
-        for (const l of logs.data ?? [])
-          logsByDay.set(l.eaten_on, [...(logsByDay.get(l.eaten_on) ?? []), { ...l, grams: Number(l.grams) }]);
-        for (const [day, list] of logsByDay) {
-          const t = totalsOf(list, foodMap);
-          const d = days.get(day) ?? { fecha: day, comidas: {} };
-          d.kcal_apuntadas = Math.round(t.kcal);
-          d.proteina_g = Math.round(t.protein_g);
-          days.set(day, d);
         }
         const count = (s: string) => checks.filter((c) => c.status === s).length;
         const cheatsInRange = cheats.filter((c) => c.eaten_on >= from && c.eaten_on <= to);

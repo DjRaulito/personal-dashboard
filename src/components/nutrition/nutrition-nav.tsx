@@ -5,12 +5,16 @@ import { usePathname } from "next/navigation";
 import { clsx } from "clsx";
 import { LinkPending } from "@/components/link-pending";
 
+const under = (prefix: string) => (p: string) => p.startsWith(prefix);
+
 const TABS = [
-  { href: "/nutricion", label: "Hoy", match: (p: string) => p === "/nutricion" },
-  { href: "/nutricion/plan", label: "Plan", match: (p: string) => p.startsWith("/nutricion/plan") },
-  { href: "/nutricion/revisiones", label: "Revisiones", match: (p: string) => p.startsWith("/nutricion/revisiones") },
-  { href: "/nutricion/cheats", label: "Cheat meals", match: (p: string) => p.startsWith("/nutricion/cheats") },
-  { href: "/nutricion/alimentos", label: "Alimentos", match: (p: string) => p.startsWith("/nutricion/alimentos") },
+  { href: "/nutricion", label: "Plan", match: (p: string) => p === "/nutricion" || p.startsWith("/nutricion/plan") },
+  { href: "/nutricion/calculadora", label: "Calculadora", match: under("/nutricion/calculadora") },
+  { href: "/nutricion/chef", label: "Chef", match: under("/nutricion/chef") },
+  { href: "/nutricion/revisiones", label: "Revisiones", match: under("/nutricion/revisiones") },
+  { href: "/nutricion/alimentos", label: "Alimentos", match: under("/nutricion/alimentos") },
+  { href: "/nutricion/cheats", label: "Cheat meals", match: under("/nutricion/cheats") },
+  { href: "/nutricion/compra", label: "Compra", match: under("/nutricion/compra") },
 ];
 
 export function NutritionNav() {

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { PlanEditor } from "@/components/nutrition/plan-editor";
 import { CreatePlanForm, LoadCatalogButton } from "@/components/nutrition/setup";
-import { Tile, TileTitle } from "@/components/ui";
+import { BackLink, Tile, TileTitle } from "@/components/ui";
 import { getActivePlan, getFoods } from "@/lib/nutrition/server";
 
 export const metadata: Metadata = { title: "Plan · Nutrición" };
@@ -21,6 +21,7 @@ export default async function PlanPage() {
   }
   return (
     <>
+      <BackLink href="/nutricion">Plan</BackLink>
       {plan ? (
         <PlanEditor plan={plan} foods={foods} />
       ) : (

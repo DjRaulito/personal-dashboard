@@ -13,22 +13,25 @@ import {
   cheatPrompt,
   foodEstimateSchema,
   foodPrompt,
-  mealLogPrompt,
-  mealLogSchema,
   mealPrompt,
   mealSuggestionSchema,
-  resolveMealLog,
+  priceEstimateSchema,
+  pricePrompt,
   resolveProposals,
   SYSTEM_NUTRITION,
   type CheatEstimate,
   type CheatPhotoEstimate,
   type FoodEstimate,
-  type ResolvedMealLog,
   type ResolvedProposal,
 } from "@/lib/nutrition/ai";
 import catalog from "@/lib/nutrition/catalog.json";
-import { GROUP_KINDS, groupProgress } from "@/lib/nutrition/portions";
-import { getActivePlan, getDay, getFoods } from "@/lib/nutrition/server";
+import { GoogleAuthError, SHEETS_READ_SCOPE } from "@/lib/google/calendar";
+import { getGoogleAccess } from "@/lib/google/server";
+import { readSpreadsheet, SheetAccessError } from "@/lib/google/sheets";
+import { FOOD_CATEGORIES, GROUP_KINDS, inferCategory } from "@/lib/nutrition/portions";
+import { getActivePlan, getDay, getFoods, getNutritionSettings } from "@/lib/nutrition/server";
+import { MEASURES, mergeControl, parseSheet, sheetIdFrom, type Measure } from "@/lib/nutrition/sheet";
+import { dayKey } from "@/lib/datetime";
 import { createClient } from "@/lib/supabase/server";
 
 async function session() {
@@ -73,40 +76,8 @@ async function runAi<T>(fn: () => Promise<T>): Promise<AiResult<T>> {
 }
 
 // ---------------------------------------------------------------------------
-// Registro del día
+// Checklist del día
 // ---------------------------------------------------------------------------
-
-const logSchema = z.object({
-  day,
-  meal_id: uuid.nullable(),
-  group_id: uuid.nullable(),
-  food_id: uuid,
-  grams: z.number().positive().max(9999),
-});
-
-export async function addLogs(items: z.input<typeof logSchema>[]) {
-  const rows = z.array(logSchema).min(1).max(30).parse(items);
-  const supabase = await session();
-  const { data, error } = await supabase
-    .from("nutrition_logs")
-    .insert(rows.map(({ day: eaten_on, ...r }) => ({ ...r, eaten_on })))
-    .select("id, meal_id, group_id, food_id, grams");
-  if (error) throw new Error("No se pudo apuntar.");
-  refresh();
-  return (data ?? []).map((l) => ({ ...l, grams: Number(l.grams) }));
-}
-
-export async function deleteLog(id: string) {
-  const supabase = await session();
-  await supabase.from("nutrition_logs").delete().eq("id", uuid.parse(id));
-  refresh();
-}
-
-export async function clearMealLogs(dayKey: string, mealId: string) {
-  const supabase = await session();
-  await supabase.from("nutrition_logs").delete().eq("eaten_on", day.parse(dayKey)).eq("meal_id", uuid.parse(mealId));
-  refresh();
-}
 
 const STATUSES = ["done", "less", "more", "skipped", "cheat"] as const;
 
@@ -146,107 +117,41 @@ export async function markRestAsPlanned(dayKey: string): Promise<number> {
   return pending.length;
 }
 
-/**
- * Copia lo comido otro día (registros y estado). Con mealId, solo esa comida; sin él, todas las
- * comidas del día destino que estén vacías (sin registros ni estado).
- */
-export async function copyFromDay(fromKey: string, toKey: string, mealId?: string): Promise<number> {
-  const from = day.parse(fromKey);
-  const to = day.parse(toKey);
-  const only = mealId ? uuid.parse(mealId) : null;
-  const supabase = await session();
-  const [plan, source, target] = await Promise.all([getActivePlan(), getDay(from), getDay(to)]);
-  const meals = (plan?.meals ?? []).filter((m) =>
-    only ? m.id === only : !target.checks.has(m.id) && !target.logs.some((l) => l.meal_id === m.id),
-  );
-  const ids = new Set(meals.map((m) => m.id));
-  const logs = source.logs.filter((l) => l.meal_id && ids.has(l.meal_id));
-  const checks = meals.filter((m) => source.checks.has(m.id));
-  if (logs.length === 0 && checks.length === 0) return 0;
-  if (logs.length) {
-    const { error } = await supabase.from("nutrition_logs").insert(
-      logs.map((l) => ({
-        eaten_on: to,
-        meal_id: l.meal_id,
-        group_id: l.group_id,
-        food_id: l.food_id,
-        grams: l.grams,
-      })),
-    );
-    if (error) throw new Error("No se pudo copiar.");
-  }
-  if (checks.length) {
-    await supabase.from("nutrition_meal_checks").upsert(
-      checks.map((m) => ({ day: to, meal_id: m.id, status: source.checks.get(m.id)!.status })),
-      { onConflict: "user_id,day,meal_id" },
-    );
-  }
-  refresh();
-  return new Set([...logs.map((l) => l.meal_id), ...checks.map((m) => m.id)]).size;
-}
+// ---------------------------------------------------------------------------
+// Chef: platos con IA para una comida del plan
+// ---------------------------------------------------------------------------
 
-/** Texto libre o foto de lo que has comido → alimentos del catálogo con gramos (no guarda nada). */
-export async function parseMealLog(
-  dayKey: string,
-  mealId: string,
-  text: string,
-  image?: unknown,
-): Promise<AiResult<ResolvedMealLog>> {
+const chefSchema = z.object({
+  mealId: uuid,
+  groupIds: z.array(uuid).max(20),
+  maxPerGroup: z.number().int().min(1).max(3),
+  pins: z.record(uuid, z.array(uuid).max(4)),
+  wishes: z.string().max(300).catch(""),
+});
+
+/** Propuestas de plato que cuadran las raciones de una comida del plan (no guarda nada). */
+export async function chefMeal(input: z.input<typeof chefSchema>): Promise<AiResult<ResolvedProposal[]>> {
   await session();
-  day.parse(dayKey);
-  const clean = z.string().max(500).catch("").parse(text).trim();
-  const img = image === undefined ? null : imageSchema.safeParse(image);
-  if (img && !img.success) return { ok: false, message: "La foto no es válida o es demasiado grande." };
-  if (!clean && !img) return { ok: false, message: "Escribe qué has comido o haz una foto." };
+  const parsed = chefSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Revisa lo que has elegido." };
+  const { mealId, groupIds, maxPerGroup, pins, wishes } = parsed.data;
   const [plan, foods] = await Promise.all([getActivePlan(), getFoods()]);
-  const meal = plan?.meals.find((m) => m.id === uuid.parse(mealId));
+  const meal = plan?.meals.find((m) => m.id === mealId);
   if (!meal) return { ok: false, message: "No se encontró la comida en el plan." };
-  const foodMap = new Map(foods.map((f) => [f.id, f]));
-  return runAi(async () => {
-    const suggestion = await askJson(
-      mealLogSchema,
-      SYSTEM_NUTRITION,
-      mealLogPrompt(meal.name, meal.groups, foods, foodMap, clean, Boolean(img)),
-      img?.data,
-    );
-    const resolved = resolveMealLog(suggestion, meal.groups, foodMap);
-    if (resolved.items.length === 0 && resolved.unknown.length === 0)
-      throw new Error("No he reconocido ningún alimento. Prueba a describirlo con otras palabras.");
-    return resolved;
-  });
-}
-
-/** Propuestas de comida con IA para completar lo que falta de una comida del plan. */
-export async function suggestMeal(
-  dayKey: string,
-  mealId: string,
-  wishes: string,
-): Promise<AiResult<ResolvedProposal[]>> {
-  await session();
-  const [plan, foods, dayData] = await Promise.all([getActivePlan(), getFoods(), getDay(day.parse(dayKey))]);
-  const meal = plan?.meals.find((m) => m.id === uuid.parse(mealId));
-  if (!meal) return { ok: false, message: "No se encontró la comida en el plan." };
-  const foodMap = new Map(foods.map((f) => [f.id, f]));
-  const logs = dayData.logs.filter((l) => l.meal_id === meal.id);
+  const wanted = new Set(groupIds);
   const pending = meal.groups
-    .map((group) => ({ group, remaining: groupProgress(group, logs, foodMap).remaining }))
-    .filter((p) => p.remaining > 0.05 && p.group.options.length > 0);
-  if (pending.length === 0) return { ok: false, message: "Esta comida ya está completa." };
+    .filter((g) => wanted.has(g.id) && g.options.length > 0)
+    .map((group) => ({ group, remaining: 1 }));
+  if (pending.length === 0) return { ok: false, message: "Elige al menos un grupo de la comida." };
+  const foodMap = new Map(foods.map((f) => [f.id, f]));
+  const options = { maxPerGroup, pins, wishes: wishes.trim() };
   return runAi(async () => {
     const suggestion = await askJson(
       mealSuggestionSchema,
       SYSTEM_NUTRITION,
-      mealPrompt(
-        meal.name,
-        pending,
-        foodMap,
-        z
-          .string()
-          .max(300)
-          .parse(wishes ?? ""),
-      ),
+      mealPrompt(meal.name, pending, foodMap, options),
     );
-    const resolved = resolveProposals(suggestion, pending, foodMap);
+    const resolved = resolveProposals(suggestion, pending, foodMap, options);
     if (resolved.length === 0) throw new Error("La IA no devolvió propuestas válidas. Vuelve a intentarlo.");
     return resolved;
   });
@@ -280,13 +185,25 @@ const foodSchema = z.object({
     .transform((v) => v || null)
     .pipe(uuid.nullable()),
   cooked_factor: optionalNumber(0.1, 9.9, "Factor de cocción"),
+  category: z
+    .string()
+    .optional()
+    .transform((v) => v || null)
+    .pipe(z.enum(FOOD_CATEGORIES).nullable()),
+  price_eur_per_kg: optionalNumber(0, 500, "Precio"),
   source: z.enum(["manual", "ai"]).optional().default("manual"),
 });
 
 export async function saveFood(_: FormState, formData: FormData): Promise<FormState> {
   const parsed = foodSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
-  const { id, ...values } = parsed.data;
+  const { id, price_eur_per_kg, category, ...rest } = parsed.data;
+  const values = {
+    ...rest,
+    category: category ?? inferCategory(rest),
+    price_cents_per_kg: price_eur_per_kg === null ? null : Math.round(price_eur_per_kg * 100),
+    price_source: price_eur_per_kg === null ? null : "manual",
+  };
   if (values.unit_label && !values.unit_grams) {
     return { ok: false, errors: { unit_grams: "Indica cuánto pesa una unidad" } };
   }
@@ -339,6 +256,7 @@ export async function loadCatalog() {
       fat_g: e.fat_g,
       unit_label: e.unit_label ?? null,
       unit_grams: e.unit_grams ?? null,
+      category: inferCategory(e),
       source: "seed",
     })),
     { onConflict: "user_id,name", ignoreDuplicates: true },
@@ -520,61 +438,166 @@ export async function estimateCheatPhoto(image: unknown, hint: string): Promise<
 }
 
 // ---------------------------------------------------------------------------
-// Revisiones (las medidas se guardan en body_measurements, compartidas con Gimnasio)
+// Lista de la compra
 // ---------------------------------------------------------------------------
 
-const reviewSchema = z.object({
-  review_on: z.iso.date("Fecha no válida"),
-  phase: z
-    .string()
-    .trim()
-    .max(60)
-    .optional()
-    .transform((v) => v || null),
-  adherence: z
-    .string()
-    .optional()
-    .transform((v) => (v ? Number(v) : null))
-    .refine((v) => v === null || (Number.isInteger(v) && v >= 1 && v <= 5), "Del 1 al 5"),
-  notes: z
-    .string()
-    .trim()
-    .max(4000)
-    .optional()
-    .transform((v) => v || null),
-  weight_kg: optionalNumber(20, 400, "Peso"),
-  chest_cm: optionalNumber(30, 250, "Pecho"),
-  shoulder_cm: optionalNumber(50, 250, "Hombro"),
-  arm_cm: optionalNumber(10, 80, "Brazo"),
-  abdomen_cm: optionalNumber(30, 250, "Abdomen"),
-  waist_cm: optionalNumber(30, 250, "Cintura"),
-  hip_cm: optionalNumber(30, 250, "Cadera"),
-  thigh_cm: optionalNumber(20, 120, "Muslo"),
-  calf_cm: optionalNumber(15, 80, "Gemelo"),
-});
-
-export async function saveReview(_: FormState, formData: FormData): Promise<FormState> {
-  const parsed = reviewSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
-  const { review_on, phase, adherence, notes, ...measures } = parsed.data;
+/** Días a la semana que se come una opción del plan (0 la quita de la lista). */
+export async function setShoppingDays(optionId: string, days: number) {
+  const option_id = uuid.parse(optionId);
+  const days_per_week = z.number().int().min(0).max(7).parse(days);
   const supabase = await session();
-  const { error } = await supabase
-    .from("nutrition_reviews")
-    .upsert({ review_on, phase, adherence, notes }, { onConflict: "user_id,review_on" });
-  if (error) return { ok: false, message: "No se pudo guardar la revisión." };
-  if (Object.values(measures).some((v) => v !== null)) {
-    const { error: mErr } = await supabase
-      .from("body_measurements")
-      .upsert({ measured_on: review_on, ...measures }, { onConflict: "user_id,measured_on" });
-    if (mErr) return { ok: false, message: "Revisión guardada, pero no las medidas." };
-  }
-  refresh();
-  revalidatePath("/gimnasio/cuerpo");
-  return { ok: true, message: "Revisión guardada." };
+  const { error } =
+    days_per_week === 0
+      ? await supabase.from("nutrition_shopping_picks").delete().eq("option_id", option_id)
+      : await supabase
+          .from("nutrition_shopping_picks")
+          .upsert({ option_id, days_per_week }, { onConflict: "user_id,option_id" });
+  if (error) throw new Error("No se pudo guardar.");
+  revalidatePath("/nutricion/compra");
 }
 
-export async function deleteReview(id: string) {
+/** Precio de un alimento en euros por kilo (null lo borra). */
+export async function setFoodPrice(foodId: string, eurPerKg: number | null) {
+  const id = uuid.parse(foodId);
+  const price = z.number().min(0).max(500).nullable().parse(eurPerKg);
   const supabase = await session();
-  await supabase.from("nutrition_reviews").delete().eq("id", uuid.parse(id));
+  const { error } = await supabase
+    .from("nutrition_foods")
+    .update({
+      price_cents_per_kg: price === null ? null : Math.round(price * 100),
+      price_source: price === null ? null : "manual",
+    })
+    .eq("id", id);
+  if (error) throw new Error("No se pudo guardar el precio.");
   refresh();
+}
+
+/** Precio aproximado con IA de los alimentos indicados que aún no tienen precio. */
+export async function estimatePrices(foodIds: string[]): Promise<AiResult<number>> {
+  const ids = new Set(z.array(uuid).min(1).max(80).parse(foodIds));
+  const supabase = await session();
+  const foods = (await getFoods()).filter((f) => ids.has(f.id) && (f.price_cents_per_kg ?? null) === null);
+  if (foods.length === 0) return { ok: true, data: 0 };
+  return runAi(async () => {
+    const { prices } = await askJson(priceEstimateSchema, SYSTEM_NUTRITION, pricePrompt(foods.map((f) => f.name)));
+    let saved = 0;
+    for (const p of prices) {
+      const food = foods[p.n];
+      if (!food || !(p.eur_per_kg > 0)) continue;
+      const { error } = await supabase
+        .from("nutrition_foods")
+        .update({ price_cents_per_kg: Math.round(p.eur_per_kg * 100), price_source: "ai" })
+        .eq("id", food.id)
+        .is("price_cents_per_kg", null);
+      if (!error) saved += 1;
+    }
+    if (saved === 0) throw new Error("La IA no devolvió precios. Vuelve a intentarlo.");
+    refresh();
+    return saved;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Revisiones: se leen de la hoja de control de la nutricionista (Google Sheets).
+// Las medidas se guardan en body_measurements, compartidas con Gimnasio.
+// ---------------------------------------------------------------------------
+
+export async function saveReviewSheet(_: FormState, formData: FormData): Promise<FormState> {
+  const sheetId = sheetIdFrom(String(formData.get("sheet") ?? ""));
+  if (!sheetId) return { ok: false, errors: { sheet: "Pega el enlace de la hoja de cálculo de Google." } };
+  const supabase = await session();
+  const { error } = await supabase
+    .from("nutrition_settings")
+    .upsert({ review_sheet_id: sheetId }, { onConflict: "user_id" });
+  if (error) return { ok: false, message: "No se pudo guardar." };
+  refresh();
+  return { ok: true, message: "Hoja guardada. Pulsa «Actualizar» para leerla." };
+}
+
+export type SyncResult = { ok: true; added: number; updated: number } | { ok: false; message: string };
+
+/** Vuelve a leer la hoja de control: añade las revisiones nuevas y corrige las medidas que hayan cambiado. */
+export async function syncReviews(): Promise<SyncResult> {
+  const supabase = await session();
+  const { sheetId } = await getNutritionSettings();
+  if (!sheetId) return { ok: false, message: "Aún no has indicado cuál es la hoja de control." };
+
+  let tabs: unknown[][][];
+  try {
+    const access = await getGoogleAccess();
+    if (access.status === "not_configured") return { ok: false, message: "Google no está configurado en la app." };
+    if (access.status !== "ok" || !access.scopes.includes(SHEETS_READ_SCOPE)) {
+      return {
+        ok: false,
+        message: "Falta el permiso para leer hojas de cálculo: cierra sesión y vuelve a entrar con Google.",
+      };
+    }
+    tabs = await readSpreadsheet(access.accessToken, sheetId);
+  } catch (e) {
+    if (e instanceof SheetAccessError) return { ok: false, message: e.message };
+    if (e instanceof GoogleAuthError) {
+      return { ok: false, message: "Google ha rechazado el acceso: cierra sesión y vuelve a entrar." };
+    }
+    return { ok: false, message: "No se pudo leer la hoja. Inténtalo de nuevo." };
+  }
+
+  const entries = mergeControl(
+    tabs.map(parseSheet).filter((rows) => rows.length > 0),
+    dayKey(new Date()),
+  );
+  if (entries.length === 0) return { ok: false, message: "No he encontrado revisiones en la hoja." };
+
+  const [measurements, reviews] = await Promise.all([
+    supabase
+      .from("body_measurements")
+      .select(`measured_on, ${MEASURES.join(", ")}`)
+      .limit(2000),
+    supabase.from("nutrition_reviews").select("review_on, notes").limit(2000),
+  ]);
+  if (measurements.error || reviews.error) return { ok: false, message: "No se pudieron leer tus revisiones." };
+  const current = new Map(
+    (measurements.data as unknown as ({ measured_on: string } & Record<Measure, number | null>)[]).map((m) => [
+      m.measured_on,
+      m,
+    ]),
+  );
+  const notes = new Map(reviews.data.map((r) => [r.review_on, r.notes]));
+
+  let added = 0;
+  let updated = 0;
+  for (const entry of entries) {
+    // Solo se escribe lo que cambia; lo que la hoja no trae (p. ej. % de grasa) no se toca
+    const existing = current.get(entry.date);
+    const changed: Partial<Record<Measure, number>> = {};
+    for (const m of MEASURES) {
+      const v = entry.values[m];
+      if (v !== undefined && (!existing || existing[m] === null || Number(existing[m]) !== v)) changed[m] = v;
+    }
+    let touched = false;
+    if (Object.keys(changed).length) {
+      const { error } = existing
+        ? await supabase.from("body_measurements").update(changed).eq("measured_on", entry.date)
+        : await supabase.from("body_measurements").insert({ measured_on: entry.date, ...changed });
+      if (error) return { ok: false, message: `No se pudieron guardar las medidas del ${entry.date}.` };
+      touched = Boolean(existing);
+    }
+    if (!notes.has(entry.date)) {
+      const { error } = await supabase.from("nutrition_reviews").insert({ review_on: entry.date, notes: entry.note });
+      if (error) return { ok: false, message: `No se pudo guardar la revisión del ${entry.date}.` };
+      added += 1;
+    } else {
+      if (entry.note && !notes.get(entry.date)) {
+        await supabase.from("nutrition_reviews").update({ notes: entry.note }).eq("review_on", entry.date);
+        touched = true;
+      }
+      if (touched) updated += 1;
+    }
+  }
+  await supabase
+    .from("nutrition_settings")
+    .update({ reviews_synced_at: new Date().toISOString() })
+    .not("review_sheet_id", "is", null);
+  refresh();
+  revalidatePath("/gimnasio/cuerpo");
+  return { ok: true, added, updated };
 }

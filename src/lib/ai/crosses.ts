@@ -66,9 +66,6 @@ export interface DayTypeStats {
   days: number;
   /** Comidas según el plan sobre las previstas (0-1), solo días con algo marcado. */
   adherence: number | null;
-  /** Kcal medias de los días con comida apuntada. */
-  avgKcal: number | null;
-  loggedDays: number;
   cheats: number;
 }
 
@@ -76,7 +73,6 @@ export function trainingVsRest(
   days: string[],
   trainingDays: Set<string>,
   checks: { day: string; status: Status }[],
-  kcalByDay: Map<string, number>,
   cheatDays: string[],
   mealsPerDay: number,
 ): { training: DayTypeStats; rest: DayTypeStats } {
@@ -84,15 +80,12 @@ export function trainingVsRest(
     const set = new Set(subset);
     const dayChecks = checks.filter((c) => set.has(c.day));
     const markedDays = new Set(dayChecks.map((c) => c.day)).size;
-    const kcals = subset.map((d) => kcalByDay.get(d)).filter((k): k is number => k !== undefined && k > 0);
     return {
       days: subset.length,
       adherence:
         markedDays && mealsPerDay
           ? Math.min(1, dayChecks.filter((c) => c.status === "done").length / (markedDays * mealsPerDay))
           : null,
-      avgKcal: kcals.length ? Math.round(kcals.reduce((s, k) => s + k, 0) / kcals.length) : null,
-      loggedDays: kcals.length,
       cheats: cheatDays.filter((d) => set.has(d)).length,
     };
   };

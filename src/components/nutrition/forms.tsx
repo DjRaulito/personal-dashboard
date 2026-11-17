@@ -4,17 +4,16 @@ import { useActionState, useEffect, useRef, useState, useTransition } from "reac
 import {
   deleteCheat,
   deleteFood,
-  deleteReview,
   estimateCheat,
   estimateCheatPhoto,
   estimateFood,
   saveCheat,
   saveFood,
-  saveReview,
 } from "@/app/(app)/nutricion/actions";
 import { PhotoButton } from "@/components/ai/photo-button";
 import { buttonClass, Field, FormMessage, inputClass } from "@/components/ui";
 import type { FormState } from "@/lib/finance/schemas";
+import { FOOD_CATEGORIES, FOOD_CATEGORY_LABELS, type FoodCategory } from "@/lib/nutrition/portions";
 
 const fmt = (v: number | null | undefined) => (v === null || v === undefined ? "" : String(v).replace(".", ","));
 
@@ -43,6 +42,8 @@ export interface FoodValues {
   unit_grams: number | null;
   cooked_from?: string | null;
   cooked_factor?: number | null;
+  category?: FoodCategory;
+  price_cents_per_kg?: number | null;
 }
 
 export function FoodForm({
@@ -150,6 +151,29 @@ export function FoodForm({
             placeholder="60…"
             value={values.unit_grams}
             onChange={set("unit_grams")}
+            className={`${inputClass} tabular-nums`}
+          />
+        </Field>
+        <Field label="Apartado" error={state.errors?.category}>
+          <select name="category" defaultValue={food?.category ?? ""} className={inputClass}>
+            {!food && <option value="">Automático (según sus macros)</option>}
+            {FOOD_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {FOOD_CATEGORY_LABELS[c]}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Precio (€/kg, opcional)" error={state.errors?.price_eur_per_kg}>
+          <input
+            name="price_eur_per_kg"
+            inputMode="decimal"
+            placeholder="2,50…"
+            defaultValue={fmt(
+              food?.price_cents_per_kg === null || food?.price_cents_per_kg === undefined
+                ? null
+                : food.price_cents_per_kg / 100,
+            )}
             className={`${inputClass} tabular-nums`}
           />
         </Field>
@@ -387,7 +411,7 @@ export function CheatForm({ today }: { today: string }) {
   );
 }
 
-export function DeleteButton({ kind, id, label }: { kind: "cheat" | "review"; id: string; label: string }) {
+export function DeleteCheatButton({ id, label }: { id: string; label: string }) {
   const [pending, startTransition] = useTransition();
   return (
     <button
@@ -397,77 +421,10 @@ export function DeleteButton({ kind, id, label }: { kind: "cheat" | "review"; id
       className={buttonClass.danger}
       onClick={() => {
         if (!confirm(`¿Borrar ${label}?`)) return;
-        startTransition(() => (kind === "cheat" ? deleteCheat(id) : deleteReview(id)));
+        startTransition(() => deleteCheat(id));
       }}
     >
       Borrar
     </button>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Revisiones
-// ---------------------------------------------------------------------------
-
-const MEASURES = [
-  ["weight_kg", "Peso (kg)"],
-  ["chest_cm", "Pecho"],
-  ["shoulder_cm", "Hombro"],
-  ["arm_cm", "Brazo"],
-  ["abdomen_cm", "Abdomen (ombligo)"],
-  ["waist_cm", "Cintura"],
-  ["hip_cm", "Cadera"],
-  ["thigh_cm", "Muslo"],
-  ["calf_cm", "Gemelo"],
-] as const;
-
-export function ReviewForm({ today, lastPhase }: { today: string; lastPhase: string | null }) {
-  const [state, action, pending] = useActionState(saveReview, { ok: false });
-  const ref = useResetOnSuccess(state, false);
-  return (
-    <form ref={ref} action={action} autoComplete="off" className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
-        <Field label="Fecha" error={state.errors?.review_on}>
-          <input type="date" name="review_on" required defaultValue={today} max={today} className={inputClass} />
-        </Field>
-        <Field label="Fase" error={state.errors?.phase}>
-          <input
-            name="phase"
-            maxLength={60}
-            defaultValue={lastPhase ?? ""}
-            placeholder="Volumen…"
-            className={inputClass}
-          />
-        </Field>
-        <Field label="¿Qué tal? (1-5)" error={state.errors?.adherence}>
-          <select name="adherence" defaultValue="" className={inputClass}>
-            <option value="">—</option>
-            <option value="5">5 · Perfecta</option>
-            <option value="4">4 · Bien</option>
-            <option value="3">3 · Regular</option>
-            <option value="2">2 · Floja</option>
-            <option value="1">1 · Mal</option>
-          </select>
-        </Field>
-        {MEASURES.map(([name, label]) => (
-          <Field key={name} label={label} error={state.errors?.[name]}>
-            <input name={name} inputMode="decimal" className={`${inputClass} tabular-nums`} />
-          </Field>
-        ))}
-        <Field
-          label="Cómo ha ido / qué dice la nutricionista"
-          error={state.errors?.notes}
-          className="col-span-2 sm:col-span-4 lg:col-span-6"
-        >
-          <textarea name="notes" rows={3} maxLength={4000} className={inputClass} />
-        </Field>
-      </div>
-      <FormMessage state={state} />
-      <div>
-        <button type="submit" disabled={pending} className={buttonClass.primary}>
-          {pending ? "Guardando…" : "Guardar revisión"}
-        </button>
-      </div>
-    </form>
   );
 }

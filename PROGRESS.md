@@ -114,7 +114,16 @@ Fuentes: carga inicial con la exportación de la cartera de Investing + operacio
 - [x] Carga inicial (solo en la BD, no en el repo): plan de sept. 2026 de la nutricionista y hoja de control desde dic. 2024 (42 revisiones)
 - [x] Portada: widget "Nutrición de hoy"
 - [x] Configurar `GEMINI_API_KEY` en Vercel (lo hace Raúl)
-- [ ] Verificación: unos días usando Hoy con el plan real
+- [x] Nutrición v2 (17 nov 2026), pestañas: Plan · Calculadora · Chef · Revisiones · Alimentos · Cheat meals · Compra
+  - Plan: solo kcal, macros y notas, más el checklist del día (hecha, menos, más, saltada, cheat). Ya no se apuntan gramos: `nutrition_logs` se queda con sus datos pero sin pantalla. Las comidas y raciones se editan en `/nutricion/plan`
+  - Calculadora de porciones: eliges comida y grupo, apuntas lo que llevas (g o unidades, cocido o crudo) y dice cuánto falta de cada alimento. No guarda nada
+  - Chef con IA: platos para una comida; cada macro en un alimento o repartido en 2-3, con alimentos obligatorios por grupo. Los gramos los calcula la app
+  - Revisiones: botón «Actualizar» que relee la hoja de control de la nutricionista (Google Sheets, permiso `spreadsheets.readonly`); gráfico de una medida a elegir. El id de la hoja vive en `nutrition_settings`, no en el repo
+  - Alimentos: macros por 100 g en columnas, búsqueda, filtro por macro principal y por apartado, orden, vista en lista o por apartados (`nutrition_foods.category`)
+  - Compra: eliges qué opciones comes y cuántos días; calcula kg y € por alimento a la semana y al mes (`nutrition_shopping_picks`, `nutrition_foods.price_cents_per_kg`, precios estimables con IA)
+  - Migración `nutrition_refactor` aplicada
+- [ ] Raúl: activar «Google Sheets API» en el proyecto de Google Cloud y cerrar sesión y volver a entrar para dar el permiso nuevo; luego probar «Actualizar» en Revisiones
+- [ ] Verificación: unos días usando la nutrición nueva con el plan real
 
 ## Fase 6 — IA, cruces y extras
 

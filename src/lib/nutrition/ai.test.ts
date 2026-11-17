@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   cheatEstimateSchema,
-  mealLogPrompt,
-  mealLogSchema,
   mealPrompt,
   mealSuggestionSchema,
-  resolveMealLog,
+  pricePrompt,
+  priceEstimateSchema,
   resolveProposals,
 } from "./ai";
 import type { Food, PlanGroup } from "./portions";
@@ -54,9 +53,14 @@ const prote: PlanGroup = {
 
 describe("IA de nutrición", () => {
   it("el prompt lista grupos, opciones y lo que falta", () => {
-    const p = mealPrompt("Comida", [{ group: hc, remaining: 0.5 }], foods, "algo rápido");
+    const p = mealPrompt("Comida", [{ group: hc, remaining: 0.5 }], foods, {
+      maxPerGroup: 2,
+      pins: {},
+      wishes: "algo rápido",
+    });
     expect(p).toContain('group_id "hc"');
-    expect(p).toContain("faltan 0.50 raciones");
+    expect(p).toContain("cubrir 0.50 raciones");
+    expect(p).toContain("hasta 2");
     expect(p).toContain('option_id "o-patata": Patata (675 g = 1 ración)');
     expect(p).toContain("algo rápido");
   });
@@ -117,88 +121,40 @@ describe("IA de nutrición", () => {
       notes: "",
     });
   });
-});
 
-describe("registro rápido con IA", () => {
-  const foods = new Map(
-    [
-      {
-        id: "pollo",
-        name: "Pechuga de pollo",
-        kcal: 110,
-        protein_g: 23,
-        carbs_g: 0,
-        fat_g: 1.5,
-        unit_label: null,
-        unit_grams: null,
-      },
-      {
-        id: "arroz",
-        name: "Arroz",
-        kcal: 350,
-        protein_g: 7,
-        carbs_g: 78,
-        fat_g: 1,
-        unit_label: null,
-        unit_grams: null,
-      },
-      {
-        id: "arroz-cocido",
-        name: "Arroz cocido",
-        kcal: 130,
-        protein_g: 2.7,
-        carbs_g: 28,
-        fat_g: 0.3,
-        unit_label: null,
-        unit_grams: null,
-        cooked_from: "arroz",
-        cooked_factor: 2.5,
-      },
-    ].map((f) => [f.id, f]),
-  );
-  const groups = [
-    {
-      id: "g1",
-      name: "Proteína",
-      kind: "protein" as const,
-      options: [{ id: "o1", food_id: "pollo", amount: 150, unit: "g" as const }],
-    },
-    {
-      id: "g2",
-      name: "Hidratos",
-      kind: "carbs" as const,
-      options: [{ id: "o2", food_id: "arroz", amount: 80, unit: "g" as const }],
-    },
-  ];
-
-  it("lista grupos y catálogo en el prompt", () => {
-    const p = mealLogPrompt("Comida", groups, [...foods.values()], foods, "pollo con arroz", false);
-    expect(p).toContain('group_id "g1"');
-    expect(p).toContain('food_id "arroz-cocido": Arroz cocido');
-    expect(p).toContain("pollo con arroz");
+  it("respeta los alimentos obligatorios y el máximo por grupo aunque la IA no lo haga", () => {
+    const suggestion = mealSuggestionSchema.parse({
+      proposals: [
+        {
+          title: "Arroz con patata",
+          steps: ["Cuece el arroz", " "],
+          groups: [
+            {
+              group_id: "hc",
+              picks: [
+                { option_id: "o-arroz", share: 0.7 },
+                { option_id: "o-patata", share: 0.3 },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const pending = [{ group: hc, remaining: 1 }];
+    // Sin mezclar: se queda el alimento con más parte
+    const single = resolveProposals(suggestion, pending, foods, { maxPerGroup: 1, pins: {} });
+    expect(single[0].items).toEqual([{ group_id: "hc", option_id: "o-arroz", food_id: "arroz", grams: 150 }]);
+    expect(single[0].steps).toEqual(["Cuece el arroz"]);
+    // Patata obligatoria: el arroz que propuso la IA se descarta
+    const pinned = resolveProposals(suggestion, pending, foods, { maxPerGroup: 1, pins: { hc: ["o-patata"] } });
+    expect(pinned[0].items).toEqual([{ group_id: "hc", option_id: "o-patata", food_id: "patata", grams: 675 }]);
   });
 
-  it("valida ids, asigna grupo por el plan (también a los cocidos) y separa lo desconocido", () => {
-    const r = resolveMealLog(
-      mealLogSchema.parse({
-        items: [
-          { food_id: "pollo", grams: "148.6", group_id: "inventado" },
-          { food_id: "arroz-cocido", grams: 200 },
-          { food_id: null, name: "Salsa barbacoa", grams: 20 },
-          { food_id: "nope", name: "", grams: 10 },
-        ],
-        notes: "ración normal",
-      }),
-      groups,
-      foods,
-    );
-    expect(r).toEqual({
-      items: [
-        { food_id: "pollo", grams: 149, group_id: "g1" },
-        { food_id: "arroz-cocido", grams: 200, group_id: "g2" },
-      ],
-      unknown: ["Salsa barbacoa"],
-      notes: "ración normal",
+  it("pide los precios numerados", () => {
+    expect(pricePrompt(["Arroz", "Huevo"])).toContain("  1. Huevo");
+    expect(priceEstimateSchema.parse({ prices: [{ n: "0", eur_per_kg: "1.35" }] }).prices[0]).toEqual({
+      n: 0,
+      eur_per_kg: 1.35,
     });
   });
 });
