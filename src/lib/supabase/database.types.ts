@@ -2014,6 +2014,132 @@ export type Database = {
           },
         ];
       };
+      wardrobe_garments: {
+        Row: {
+          category: string;
+          colors: string[];
+          created_at: string;
+          cutout: boolean;
+          id: string;
+          image_path: string;
+          name: string;
+          occasions: string[];
+          updated_at: string;
+          user_id: string;
+          warmth: number;
+        };
+        Insert: {
+          category: string;
+          colors?: string[];
+          created_at?: string;
+          cutout?: boolean;
+          id?: string;
+          image_path: string;
+          name: string;
+          occasions?: string[];
+          updated_at?: string;
+          user_id?: string;
+          warmth?: number;
+        };
+        Update: {
+          category?: string;
+          colors?: string[];
+          created_at?: string;
+          cutout?: boolean;
+          id?: string;
+          image_path?: string;
+          name?: string;
+          occasions?: string[];
+          updated_at?: string;
+          user_id?: string;
+          warmth?: number;
+        };
+        Relationships: [];
+      };
+      wardrobe_outfit_items: {
+        Row: {
+          garment_id: string;
+          outfit_id: string;
+          user_id: string;
+        };
+        Insert: {
+          garment_id: string;
+          outfit_id: string;
+          user_id?: string;
+        };
+        Update: {
+          garment_id?: string;
+          outfit_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "wardrobe_outfit_items_garment_id_fkey";
+            columns: ["garment_id"];
+            isOneToOne: false;
+            referencedRelation: "wardrobe_garments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "wardrobe_outfit_items_outfit_id_fkey";
+            columns: ["outfit_id"];
+            isOneToOne: false;
+            referencedRelation: "wardrobe_outfits";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      wardrobe_outfits: {
+        Row: {
+          created_at: string;
+          id: string;
+          name: string;
+          note: string | null;
+          occasion: string | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          name: string;
+          note?: string | null;
+          occasion?: string | null;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          name?: string;
+          note?: string | null;
+          occasion?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      wardrobe_settings: {
+        Row: {
+          city: string | null;
+          latitude: number | null;
+          longitude: number | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          city?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          city?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;

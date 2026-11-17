@@ -1,10 +1,11 @@
-export type NavIcon = "home" | "finance" | "calendar" | "content" | "gym" | "nutrition" | "ai" | "settings";
+export type NavIcon =
+  "home" | "finance" | "calendar" | "content" | "gym" | "nutrition" | "wardrobe" | "ai" | "settings";
 
 export interface NavItem {
   href: string;
   label: string;
   icon: NavIcon;
-  /** Oculto en la barra inferior del móvil (solo caben 7). */
+  /** Oculto en la barra inferior del móvil (solo caben 8). */
   desktopOnly?: boolean;
 }
 
@@ -15,6 +16,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/contenido", label: "Contenido", icon: "content", desktopOnly: true },
   { href: "/gimnasio", label: "Gimnasio", icon: "gym" },
   { href: "/nutricion", label: "Nutrición", icon: "nutrition" },
+  { href: "/armario", label: "Armario", icon: "wardrobe" },
   { href: "/ia", label: "IA", icon: "ai" },
   { href: "/ajustes", label: "Ajustes", icon: "settings" },
 ] as const;

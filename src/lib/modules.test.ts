@@ -7,9 +7,9 @@ describe("modulesByPhase", () => {
     expect(phases).toEqual([...phases].sort((a, b) => a - b));
   });
 
-  it("incluye los seis módulos del plan", () => {
+  it("incluye los siete módulos del plan", () => {
     expect(MODULES.map((m) => m.key).sort()).toEqual(
-      ["agentes", "calendario", "contenido", "finanzas", "gimnasio", "nutricion"].sort(),
+      ["agentes", "armario", "calendario", "contenido", "finanzas", "gimnasio", "nutricion"].sort(),
     );
   });
 
