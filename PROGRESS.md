@@ -8,6 +8,7 @@ Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es
 - **Última tarea hecha:** centro de agentes (`/ia/agentes`): fichas, tareas a varios agentes a la vez, tablero en directo, motores Gemini y Claude Code, aprobaciones
 - **Cerebro (12 nov 2026):** hecho, ver «Cerebro» al final. Falta crear un token en `/ia/cerebro` y conectar la primera IA.
 - **Radar (16 nov 2026):** Inmuebles hecho (PR abierto), falta conectar la tarea de Cowork; después Trabajo. Ver «Radar» abajo.
+- **Armario (17 nov 2026):** módulo nuevo hecho en código (PR abierto): prendas con foto, probador con maniquí y carrusel 3D, outfits y estilista con IA. Falta probarlo con fotos reales y decidir la «prueba en mí» con IA. Ver «Armario» abajo.
 - **Plataforma de agentes (16 nov 2026):** plan completo escrito (6 fases, 47 pasos), pendiente del «adelante» de Raúl para empezar la fase 1. Ver «Plataforma de agentes» abajo.
 - **Siguiente tarea (11 nov 2026):** «Estudio local» fase 1 hecha en código (ver la sección de la fase 8); migración aplicada; falta desplegar, crear la clave del PC y probar un vídeo real. Fase 2 (Remotion) hecha en la rama `estudio-local-fase-2` (PR #24, encima del #23). **Cambio de enfoque (11 nov 2026):** los vídeos 100 % automáticos (stock + voz IA) difícilmente se harán virales; el estudio pasa a ser sobre todo un editor de las grabaciones de Raúl (sus clips y sus datos reales, p. ej. Hevy), sin quitar la generación automática. Hecho en la rama `estudio-de-video`: la sección se llama **«Estudio de vídeo»** (antes «VoiceStudio», que era un malentendido: VoiceStudio es el programa de voz del PC) y el código está reorganizado. Siguiente: subir clips propios desde el móvil. Después fase 3 (Concat). Antes: verificar la fase 8 con los pasos manuales hechos (primer vídeo real del estudio). Después fase 9 (seguridad, rendimiento, copias, APK). Pendientes sueltos: verificación de la fase 7 (3 tareas a la vez) y del cerebro.
 
@@ -252,6 +253,20 @@ Fases (una rama y un PR por fase):
 - [ ] **Fase 6 · Calidad y control (7 pasos):** topes por tarea y por día, acciones de confianza, casos de prueba por agente, panel de salud, avisos de fallo, limpieza (`property_runs`, `/api/inmuebles/mcp`) y, opcional, mover el runner a un repo privado.
 
 Pasos manuales de Raúl: secreto de la sesión corta en Vercel (fase 1); `CLAUDE_CODE_OAUTH_TOKEN` y `AGENT_RUNNER_KEY` en los secretos de GitHub y `GITHUB_AGENT_TOKEN` en Vercel (fase 2); Claude Code con sesión iniciada en el PC (fase 3); CV y criterios de empleo en la web y desactivar las tareas de Cowork (fase 5).
+
+## Armario (pedido el 17 nov 2026)
+
+Módulo nuevo en `/armario` (color `--wardrobe`). Decidido con Raúl: maniquí con prendas recortadas como base y prueba realista con IA como extra opcional; el generador de outfits tiene en cuenta el tiempo, la ocasión y la combinación de colores.
+
+- [x] Migración `wardrobe`: `wardrobe_garments`, `wardrobe_outfits`, `wardrobe_outfit_items`, `wardrobe_settings` (RLS) y bucket privado `wardrobe` de Storage (carpeta = id del usuario). Aplicada en producción.
+- [x] **Prendas** (`/armario/prendas`): subir varias fotos a la vez; cada una se reduce, se le quita el fondo en el navegador (`@huggingface/transformers`, modelo RMBG-1.4, la foto no sale del dispositivo), se recorta a la prenda y la IA propone nombre, categoría, colores, abrigo y ocasiones, que se revisan antes de guardar. Si el recorte falla se guarda la foto tal cual. Lista con filtro por categoría, editar y borrar.
+- [x] **Probador** (`/armario`): maniquí con un carrusel con profundidad por zona (parte de arriba, pantalón, calzado), abrigo y accesorios; deslizar, tocar los lados o flechas; «Mezclar»; guardar el conjunto como outfit.
+- [x] **Estilista**: la IA propone 3 outfits según ocasión, tiempo de hoy (Open-Meteo, gratis y sin clave; la ciudad se guarda en `wardrobe_settings`), una prenda fijada y una petición libre. La app valida cada conjunto (`resolveOutfits`).
+- [x] **Outfits** (`/armario/outfits`): guardados, abrir en el probador, borrar.
+- [x] Menú: «Armario» añadido; en móvil la barra inferior (8 secciones) solo muestra el nombre de la sección activa.
+- [ ] Verificar con fotos reales: el recorte del fondo (descarga ~45 MB la primera vez), la propuesta de etiquetas, el tiempo y el estilista no se han podido probar desde el entorno de desarrollo (sin acceso a esos servicios).
+- [ ] **«Probar en mí»** (imagen realista sobre una foto de Raúl): sin hacer. Gemini no da cuota gratuita para generar imágenes; la opción a coste 0 es un Space de Hugging Face de prueba virtual con un token gratuito (límite diario). Pendiente de que Raúl lo confirme.
+- [ ] Ideas: ajustar a mano tamaño/posición de una prenda en el maniquí; registrar qué se pone cada día.
 
 ## Decisiones
 

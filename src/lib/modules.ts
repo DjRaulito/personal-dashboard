@@ -1,4 +1,4 @@
-export type ModuleKey = "finanzas" | "calendario" | "contenido" | "gimnasio" | "nutricion" | "agentes";
+export type ModuleKey = "finanzas" | "calendario" | "contenido" | "gimnasio" | "nutricion" | "armario" | "agentes";
 
 export interface AppModule {
   key: ModuleKey;
@@ -38,6 +38,13 @@ export const MODULES: readonly AppModule[] = [
     phase: 5,
     description: "Kcal, macros, comidas y peso",
     color: "bg-nutrition",
+  },
+  {
+    key: "armario",
+    label: "Armario",
+    phase: 10,
+    description: "Tu ropa, outfits y probador",
+    color: "bg-wardrobe",
   },
   {
     key: "agentes",

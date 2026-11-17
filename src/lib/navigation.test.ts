@@ -10,13 +10,14 @@ describe("navegación", () => {
       "Contenido",
       "Gimnasio",
       "Nutrición",
+      "Armario",
       "IA",
       "Ajustes",
     ]);
   });
 
-  it("en móvil caben siete", () => {
-    expect(NAV_ITEMS.filter((i) => !i.desktopOnly)).toHaveLength(7);
+  it("en móvil caben ocho", () => {
+    expect(NAV_ITEMS.filter((i) => !i.desktopOnly)).toHaveLength(8);
   });
 
   it("marca la sección activa", () => {

@@ -19,6 +19,7 @@
   --content: #93a3d4;
   --nutrition: #86b8c4;
   --attention: #d6c48e;
+  --wardrobe: #c9a3b6;
   /* Gastos en gráficas (pareja validada con --finance para daltonismo) */
   --expense: #c0745a;
 
@@ -40,6 +41,7 @@
   --color-content: var(--content);
   --color-nutrition: var(--nutrition);
   --color-attention: var(--attention);
+  --color-wardrobe: var(--wardrobe);
   --color-expense: var(--expense);
   --radius-tile: var(--radius-tile);
   --radius-inner: var(--radius-inner);
@@ -66,4 +68,20 @@ body {
   color: var(--text);
   font-family: "Onest Variable", system-ui, sans-serif;
   font-feature-settings: "tnum" 1;
+}
+
+/* Armario: la prenda que entra en el maniquí aparece con un leve zoom */
+@keyframes wardrobe-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+.wardrobe-pop {
+  animation: wardrobe-pop 280ms cubic-bezier(0.22, 0.8, 0.26, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wardrobe-pop {
+    animation: none;
+  }
 }

@@ -9,6 +9,7 @@ import {
   Dumbbell,
   House,
   Settings,
+  Shirt,
   Sparkles,
   Wallet,
   type LucideIcon,
@@ -24,6 +25,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   content: Clapperboard,
   gym: Dumbbell,
   nutrition: Apple,
+  wardrobe: Shirt,
   ai: Sparkles,
   settings: Settings,
 };
@@ -40,7 +42,7 @@ export function AppNav() {
       <Link href="/" className="font-display hidden px-6 pt-7 pb-8 text-xl font-extrabold tracking-tight md:block">
         Personal<span className="text-finance">·</span>Dashboard
       </Link>
-      <ul className="grid grid-cols-7 md:flex md:flex-col md:gap-1 md:px-3">
+      <ul className="grid grid-cols-8 md:flex md:flex-col md:gap-1 md:px-3">
         {NAV_ITEMS.map((item) => {
           const Icon = ICONS[item.icon];
           const active = isActive(item.href, pathname);
@@ -55,7 +57,12 @@ export function AppNav() {
                 )}
               >
                 <Icon aria-hidden="true" className={clsx("h-5 w-5", active && "text-finance")} strokeWidth={1.75} />
-                <span className="max-w-full truncate">{item.label}</span>
+                {/* En móvil solo cabe el nombre de la sección activa */}
+                <span
+                  className={clsx(active ? "whitespace-nowrap" : "sr-only md:not-sr-only", "md:max-w-full md:truncate")}
+                >
+                  {item.label}
+                </span>
                 <LinkPending className="absolute top-1.5 right-1/4 md:static md:ml-auto" />
               </Link>
             </li>

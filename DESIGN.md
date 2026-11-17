@@ -27,6 +27,7 @@ Dirección elegida: **Bento nocturno** (mezcla de "Bento vivo" + "Nocturno con a
 | `--content`       | `#93A3D4` | Contenido, calendario, ahorro (azul grisáceo) |
 | `--nutrition`     | `#86B8C4` | Nutrición (azul verdoso)                      |
 | `--attention`     | `#D6C48E` | Algo espera tu acción (arena)                 |
+| `--wardrobe`      | `#C9A3B6` | Armario (malva apagado)                       |
 | `--expense`       | `#C0745A` | Gastos en gráficas (pareja de `--finance`)    |
 
 Radios: bloques `28px`, elementos internos `16px`, píldoras `999px`.
