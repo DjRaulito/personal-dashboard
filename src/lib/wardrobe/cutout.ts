@@ -2,7 +2,7 @@
 // que corre en el propio dispositivo (la foto no sale de aquí) y la recorta a la prenda.
 // Si el modelo no se puede cargar, se guarda la foto tal cual, sin recortar.
 import type { ImageInput } from "@/lib/ai/image";
-import { alphaBounds, alphaCoverage } from "./alpha";
+import { alphaBounds, alphaCoverage, keepMainPieces } from "./alpha";
 
 const MODEL = "briaai/RMBG-1.4";
 const MAX_SIDE = 1024;
@@ -18,6 +18,17 @@ export interface PreparedPhoto {
   cutout: boolean;
   /** Versión pequeña en JPEG para que la IA la etiquete. */
   forAi: ImageInput;
+  /** Foto y máscara para retocar el recorte a mano. */
+  source: CutoutSource;
+}
+
+export interface CutoutSource {
+  /** Foto sin recortar (no se modifica). */
+  original: HTMLCanvasElement;
+  /** Un valor 0–255 por píxel: lo que se ve de la foto. */
+  mask: Uint8ClampedArray;
+  /** false si la foto ya venía recortada: lo borrado no se puede recuperar. */
+  restorable: boolean;
 }
 
 function draw(source: CanvasImageSource, sw: number, sh: number, maxSide: number): HTMLCanvasElement {
@@ -88,8 +99,8 @@ async function loadSegmenter(onProgress: (p: number) => void): Promise<Segmenter
   };
 }
 
-/** Quita el fondo y recorta a la prenda; null si el resultado no sirve. */
-async function cutOut(canvas: HTMLCanvasElement, onStage: (s: CutoutStage) => void): Promise<HTMLCanvasElement | null> {
+/** Máscara de la prenda (sin fondo ni trozos sueltos); null si el resultado no sirve. */
+async function cutOut(canvas: HTMLCanvasElement, onStage: (s: CutoutStage) => void): Promise<Uint8ClampedArray | null> {
   onStage({ step: "model", progress: 0 });
   segmenter ??= loadSegmenter((progress) => onStage({ step: "model", progress }));
   let run: Segmenter;
@@ -100,20 +111,51 @@ async function cutOut(canvas: HTMLCanvasElement, onStage: (s: CutoutStage) => vo
     throw e;
   }
   onStage({ step: "cutting" });
-  const mask = await run(canvas);
-  const ctx = canvas.getContext("2d")!;
-  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  for (let i = 0; i < mask.length; i++) pixels.data[i * 4 + 3] = mask[i];
+  const mask = keepMainPieces(await run(canvas), canvas.width, canvas.height);
   // Si no ha separado nada (todo visible o todo borrado), mejor la foto original
-  const coverage = alphaCoverage(pixels.data);
-  const bounds = alphaBounds(pixels.data, canvas.width, canvas.height);
-  if (!bounds || coverage > 0.97) return null;
+  const rgba = withMask(canvas, mask).getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height).data;
+  if (alphaCoverage(rgba) > 0.97 || !alphaBounds(rgba, canvas.width, canvas.height)) return null;
+  return mask;
+}
+
+/** Copia de la foto con la máscara como transparencia. */
+function withMask(original: HTMLCanvasElement, mask: Uint8ClampedArray): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = original.width;
+  canvas.height = original.height;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(original, 0, 0);
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < mask.length; i++) pixels.data[i * 4 + 3] = Math.min(pixels.data[i * 4 + 3], mask[i]);
   ctx.putImageData(pixels, 0, 0);
+  return canvas;
+}
+
+/** Aplica la máscara, recorta a la prenda y la deja lista para subir. */
+export async function composeCutout(
+  source: CutoutSource,
+  mask: Uint8ClampedArray,
+): Promise<Pick<PreparedPhoto, "blob" | "extension" | "cutout">> {
+  const canvas = withMask(source.original, mask);
+  const data = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height).data;
+  const bounds = alphaBounds(data, canvas.width, canvas.height);
+  if (!bounds) throw new Error("Has borrado toda la prenda.");
   const trimmed = document.createElement("canvas");
   trimmed.width = bounds.width;
   trimmed.height = bounds.height;
   trimmed.getContext("2d")!.drawImage(canvas, -bounds.x, -bounds.y);
-  return trimmed;
+  return { ...(await encode(trimmed, true)), cutout: true };
+}
+
+/** Fuente para retocar una prenda ya guardada (su foto recortada). */
+export async function sourceFromImage(blob: Blob, cutout: boolean): Promise<CutoutSource> {
+  const bitmap = await createImageBitmap(blob);
+  const original = draw(bitmap, bitmap.width, bitmap.height, MAX_SIDE);
+  bitmap.close();
+  const data = original.getContext("2d")!.getImageData(0, 0, original.width, original.height).data;
+  const mask = new Uint8ClampedArray(original.width * original.height);
+  for (let i = 0; i < mask.length; i++) mask[i] = data[i * 4 + 3];
+  return { original, mask, restorable: !cutout };
 }
 
 async function encode(
@@ -136,19 +178,22 @@ export async function prepareGarmentPhoto(
   onStage: (s: CutoutStage) => void = () => {},
 ): Promise<PreparedPhoto> {
   const bitmap = await createImageBitmap(file);
-  const canvas = draw(bitmap, bitmap.width, bitmap.height, MAX_SIDE);
+  const original = draw(bitmap, bitmap.width, bitmap.height, MAX_SIDE);
   bitmap.close();
-  const forAi = jpegForAi(canvas);
-  let cut: HTMLCanvasElement | null = null;
+  const forAi = jpegForAi(original);
+  let mask: Uint8ClampedArray | null = null;
   try {
-    cut = await cutOut(canvas, onStage);
+    mask = await cutOut(original, onStage);
   } catch (e) {
     console.warn("[armario] no se pudo quitar el fondo", e);
-    // cutOut puede haber dejado el lienzo a medias: se vuelve a dibujar la foto
-    const again = await createImageBitmap(file);
-    canvas.getContext("2d")!.drawImage(again, 0, 0, canvas.width, canvas.height);
-    again.close();
   }
   onStage({ step: "saving" });
-  return { ...(await encode(cut ?? canvas, cut !== null)), cutout: cut !== null, forAi };
+  // Sin recorte la máscara deja ver toda la foto, y se puede borrar el fondo a mano
+  const source: CutoutSource = {
+    original,
+    mask: mask ?? new Uint8ClampedArray(original.width * original.height).fill(255),
+    restorable: true,
+  };
+  if (mask) return { ...(await composeCutout(source, mask)), forAi, source };
+  return { ...(await encode(original, false)), cutout: false, forAi, source };
 }

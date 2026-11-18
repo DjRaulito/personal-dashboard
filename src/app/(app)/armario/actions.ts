@@ -112,6 +112,33 @@ export async function updateGarment(_: FormState, formData: FormData): Promise<F
   return { ok: true, message: "Guardado." };
 }
 
+/** Cambia la foto de una prenda (p. ej. tras retocar el recorte) y borra la anterior. */
+export async function replaceGarmentImage(id: string, path: string): Promise<{ ok: boolean; message?: string }> {
+  const garmentId = uuid.safeParse(id);
+  if (!garmentId.success) return { ok: false, message: "Prenda no válida." };
+  const { supabase, user } = await session();
+  if (!new RegExp(`^${user.id}/[a-f0-9-]{36}\\.(webp|png|jpg)$`).test(path)) {
+    return { ok: false, message: "Foto no válida." };
+  }
+  const { data: before } = await supabase
+    .from("wardrobe_garments")
+    .select("image_path")
+    .eq("id", garmentId.data)
+    .maybeSingle();
+  if (!before) return { ok: false, message: "Prenda no encontrada." };
+  const { error } = await supabase
+    .from("wardrobe_garments")
+    .update({ image_path: path, cutout: true })
+    .eq("id", garmentId.data);
+  if (error) {
+    await supabase.storage.from(WARDROBE_BUCKET).remove([path]);
+    return { ok: false, message: "No se pudo guardar la foto." };
+  }
+  if (before.image_path !== path) await supabase.storage.from(WARDROBE_BUCKET).remove([before.image_path]);
+  refresh();
+  return { ok: true };
+}
+
 export async function deleteGarment(id: string): Promise<{ ok: boolean }> {
   const garmentId = uuid.parse(id);
   const { supabase } = await session();

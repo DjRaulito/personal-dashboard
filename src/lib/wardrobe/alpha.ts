@@ -50,3 +50,62 @@ export function alphaCoverage(data: Uint8ClampedArray, threshold = 24): number {
   for (let i = 3; i < data.length; i += 4) if (data[i] > threshold) visible += 1;
   return data.length ? visible / (data.length / 4) : 0;
 }
+
+/**
+ * Se queda con las piezas principales de una máscara (un valor 0–255 por píxel): borra los
+ * trozos sueltos que el recortador deja a veces (un objeto de la cama, un cable…). Se conserva
+ * la pieza más grande y las que miden al menos `minShare` de ella (p. ej. el otro zapato).
+ */
+export function keepMainPieces(
+  mask: Uint8ClampedArray,
+  width: number,
+  height: number,
+  { threshold = 128, minShare = 0.25 } = {},
+): Uint8ClampedArray {
+  const labels = new Int32Array(width * height);
+  const sizes: number[] = [0];
+  const stack: number[] = [];
+  for (let start = 0; start < mask.length; start++) {
+    if (labels[start] || mask[start] < threshold) continue;
+    const label = sizes.length;
+    let size = 0;
+    labels[start] = label;
+    stack.push(start);
+    while (stack.length) {
+      const i = stack.pop()!;
+      size += 1;
+      const x = i % width;
+      const neighbours = [x > 0 ? i - 1 : -1, x < width - 1 ? i + 1 : -1, i - width, i + width];
+      for (const n of neighbours) {
+        if (n < 0 || n >= mask.length || labels[n] || mask[n] < threshold) continue;
+        labels[n] = label;
+        stack.push(n);
+      }
+    }
+    sizes.push(size);
+  }
+  if (sizes.length <= 2) return mask;
+  const largest = Math.max(...sizes);
+  const keep = sizes.map((s) => s >= largest * minShare);
+  const out = new Uint8ClampedArray(mask.length);
+  for (let i = 0; i < mask.length; i++) {
+    if (!mask[i]) continue;
+    if (labels[i]) {
+      if (keep[labels[i]]) out[i] = mask[i];
+      continue;
+    }
+    // Borde suave: se queda si toca una pieza que se conserva
+    const x = i % width;
+    for (let dy = -2; dy <= 2 && !out[i]; dy++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        if (x + dx < 0 || x + dx >= width) continue;
+        const n = i + dy * width + dx;
+        if (n >= 0 && n < mask.length && labels[n] && keep[labels[n]]) {
+          out[i] = mask[i];
+          break;
+        }
+      }
+    }
+  }
+  return out;
+}
