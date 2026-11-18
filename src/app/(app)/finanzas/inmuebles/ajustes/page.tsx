@@ -38,7 +38,7 @@ export default async function PropertySettingsPage() {
           <li>
             <span className="font-medium">Si ya tienes el conector del cerebro en Claude</span>, no hace falta nada más:
             ese mismo conector incluye las herramientas de inmuebles. Si no lo tienes, crea un token en{" "}
-            <Link href="/ia/cerebro" className="text-content hover:underline">
+            <Link href="/cerebro" className="text-content hover:underline">
               IA → Cerebro
             </Link>{" "}
             y añade en Claude un conector personalizado con esta dirección, cambiando{" "}

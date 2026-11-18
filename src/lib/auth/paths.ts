@@ -5,7 +5,6 @@ const PUBLIC_PREFIXES = [
   "/api/health/",
   "/api/brain/mcp",
   "/api/inmuebles/mcp",
-  "/api/studio/autopilot",
   "/manifest.webmanifest",
 ];
 

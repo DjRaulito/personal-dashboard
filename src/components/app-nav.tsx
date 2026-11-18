@@ -2,18 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Apple,
-  CalendarDays,
-  Clapperboard,
-  Dumbbell,
-  House,
-  Settings,
-  Shirt,
-  Sparkles,
-  Wallet,
-  type LucideIcon,
-} from "lucide-react";
+import { Apple, Brain, House, Settings, Shirt, Wallet, type LucideIcon } from "lucide-react";
 import { clsx } from "clsx";
 import { isActive, NAV_ITEMS, type NavIcon } from "@/lib/navigation";
 import { LinkPending } from "./link-pending";
@@ -21,12 +10,9 @@ import { LinkPending } from "./link-pending";
 const ICONS: Record<NavIcon, LucideIcon> = {
   home: House,
   finance: Wallet,
-  calendar: CalendarDays,
-  content: Clapperboard,
-  gym: Dumbbell,
   nutrition: Apple,
   wardrobe: Shirt,
-  ai: Sparkles,
+  brain: Brain,
   settings: Settings,
 };
 
@@ -42,7 +28,7 @@ export function AppNav() {
       <Link href="/" className="font-display hidden px-6 pt-7 pb-8 text-xl font-extrabold tracking-tight md:block">
         Personal<span className="text-finance">·</span>Dashboard
       </Link>
-      <ul className="grid grid-cols-8 md:flex md:flex-col md:gap-1 md:px-3">
+      <ul className="grid grid-cols-6 md:flex md:flex-col md:gap-1 md:px-3">
         {NAV_ITEMS.map((item) => {
           const Icon = ICONS[item.icon];
           const active = isActive(item.href, pathname);
