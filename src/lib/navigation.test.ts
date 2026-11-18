@@ -2,29 +2,19 @@ import { describe, expect, it } from "vitest";
 import { isActive, NAV_ITEMS } from "./navigation";
 
 describe("navegación", () => {
-  it("incluye las secciones del plan", () => {
-    expect(NAV_ITEMS.map((i) => i.label)).toEqual([
-      "Inicio",
-      "Finanzas",
-      "Calendario",
-      "Contenido",
-      "Gimnasio",
-      "Nutrición",
-      "Armario",
-      "IA",
-      "Ajustes",
-    ]);
+  it("incluye las secciones tras la limpieza", () => {
+    expect(NAV_ITEMS.map((i) => i.label)).toEqual(["Hoy", "Finanzas", "Nutrición", "Armario", "Cerebro", "Ajustes"]);
   });
 
-  it("en móvil caben ocho", () => {
-    expect(NAV_ITEMS.filter((i) => !i.desktopOnly)).toHaveLength(8);
+  it("en móvil caben todas", () => {
+    expect(NAV_ITEMS.filter((i) => !i.desktopOnly)).toHaveLength(6);
   });
 
   it("marca la sección activa", () => {
     expect(isActive("/", "/")).toBe(true);
-    expect(isActive("/", "/calendario")).toBe(false);
-    expect(isActive("/calendario", "/calendario")).toBe(true);
-    expect(isActive("/calendario", "/calendario/x")).toBe(true);
+    expect(isActive("/", "/cerebro")).toBe(false);
+    expect(isActive("/cerebro", "/cerebro")).toBe(true);
+    expect(isActive("/nutricion", "/nutricion/plan")).toBe(true);
     expect(isActive("/finanzas", "/finanzasx")).toBe(false);
   });
 });

@@ -1,9 +1,6 @@
-import { Suspense } from "react";
 import Link from "next/link";
 import { CalendarEvents } from "@/components/calendar-events";
-import { WeeklySummaryAsync } from "@/components/home/weekly-summary";
 import { PageHeader, PageShell } from "@/components/page-header";
-import { Skeleton } from "@/components/ui";
 import { daysFromToday } from "@/lib/calendar/range";
 import { getCalendarEvents } from "@/lib/calendar/server";
 import { dayKey, formatLongDate } from "@/lib/datetime";
@@ -21,32 +18,17 @@ export default async function Home() {
   const supabase = await createClient();
   const p = financePeriods(now);
   const today = dayKey(now);
-  const [
-    { data: profile },
-    agenda,
-    accounts,
-    { data: cashflow },
-    portfolio,
-    payments,
-    { data: lastWorkout },
-    plan,
-    nutritionDay,
-  ] = await Promise.all([
-    supabase.from("profiles").select("display_name").maybeSingle(),
-    getCalendarEvents(range),
-    getAccounts(),
-    supabase.rpc("monthly_cashflow", { p_from: p.monthStart, p_to: p.nextMonthStart }),
-    getPortfolio(),
-    getUpcomingPayments(today, 14),
-    supabase
-      .from("gym_workouts")
-      .select("id, title, started_at, ended_at")
-      .order("started_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    getActivePlan(),
-    getDay(today),
-  ]);
+  const [{ data: profile }, agenda, accounts, { data: cashflow }, portfolio, payments, plan, nutritionDay] =
+    await Promise.all([
+      supabase.from("profiles").select("display_name").maybeSingle(),
+      getCalendarEvents(range),
+      getAccounts(),
+      supabase.rpc("monthly_cashflow", { p_from: p.monthStart, p_to: p.nextMonthStart }),
+      getPortfolio(),
+      getUpcomingPayments(today, 14),
+      getActivePlan(),
+      getDay(today),
+    ]);
   const mealsOnPlan = plan ? plan.meals.filter((m) => nutritionDay.checks.get(m.id)?.status === "done").length : 0;
   const mealsMarked = plan ? plan.meals.filter((m) => nutritionDay.checks.has(m.id)).length : 0;
   const portfolioValue = [...portfolio.positions.values()].reduce((s, x) => s + x.valueEur, 0);
@@ -73,9 +55,6 @@ export default async function Home() {
           <div className="mb-4 flex items-center gap-3">
             <span aria-hidden="true" className="bg-content h-2.5 w-2.5 rounded-full" />
             <h2 className="font-semibold">Hoy y mañana</h2>
-            <Link href="/calendario?vista=semana" className="text-muted hover:text-text ml-auto text-sm">
-              Ver semana
-            </Link>
           </div>
           <CalendarEvents result={agenda} range={range} emptyText="Hoy y mañana tienes la agenda libre." compact />
         </article>
@@ -97,7 +76,7 @@ export default async function Home() {
 
         <Link
           href="/finanzas/plan"
-          className="rounded-tile border-border bg-surface hover:border-border-strong flex flex-col border p-6 transition-[border-color,transform] duration-150 active:scale-[0.98] motion-reduce:active:scale-100 md:col-span-2"
+          className="rounded-tile border-border bg-surface hover:border-border-strong flex flex-col border p-6 transition-[border-color,transform] duration-150 active:scale-[0.98] motion-reduce:active:scale-100 md:col-span-3"
         >
           <span className="flex items-center gap-3">
             <span aria-hidden="true" className="bg-attention h-2.5 w-2.5 rounded-full" />
@@ -125,35 +104,6 @@ export default async function Home() {
         </Link>
 
         <Link
-          href={lastWorkout ? `/gimnasio/entreno/${lastWorkout.id}` : "/gimnasio/importar"}
-          className="rounded-tile border-border bg-surface hover:border-border-strong flex flex-col border p-6 transition-[border-color,transform] duration-150 active:scale-[0.98] motion-reduce:active:scale-100 md:col-span-3"
-        >
-          <span className="flex items-center gap-3">
-            <span aria-hidden="true" className="bg-gym h-2.5 w-2.5 rounded-full" />
-            <span className="font-semibold">Último entreno</span>
-          </span>
-          {lastWorkout ? (
-            <>
-              <span className="font-display mt-4 block truncate text-3xl font-extrabold tracking-tight">
-                {lastWorkout.title}
-              </span>
-              <span className="text-muted mt-1 block text-sm first-letter:uppercase">
-                {new Intl.DateTimeFormat("es-ES", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                  timeZone: "Europe/Madrid",
-                }).format(new Date(lastWorkout.started_at))}
-                {lastWorkout.ended_at &&
-                  ` · ${Math.round((Date.parse(lastWorkout.ended_at) - Date.parse(lastWorkout.started_at)) / 60000)} min`}
-              </span>
-            </>
-          ) : (
-            <span className="text-muted mt-4 block text-sm">Importa tus entrenos de Hevy</span>
-          )}
-        </Link>
-
-        <Link
           href="/nutricion"
           className="rounded-tile border-border bg-surface hover:border-border-strong flex flex-col border p-6 transition-[border-color,transform] duration-150 active:scale-[0.98] motion-reduce:active:scale-100 md:col-span-3"
         >
@@ -174,10 +124,6 @@ export default async function Home() {
             <span className="text-muted mt-4 block text-sm">Configura tu plan nutricional</span>
           )}
         </Link>
-
-        <Suspense fallback={<Skeleton className="rounded-tile h-56 md:col-span-6" />}>
-          <WeeklySummaryAsync today={today} />
-        </Suspense>
       </section>
     </PageShell>
   );

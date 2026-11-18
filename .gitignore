@@ -63,8 +63,3 @@ backups/
 *.pdf
 __pycache__/
 
-# estudio local (Python del PC)
-studio/.venv/
-__pycache__/
-studio/remotion/node_modules/
-studio/remotion/out/

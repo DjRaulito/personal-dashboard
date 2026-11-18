@@ -3,18 +3,14 @@ import { APP_TIMEZONE, dayKey, zonedMidnight } from "@/lib/datetime";
 import type { DateRange } from "@/lib/calendar/range";
 
 /**
- * Permisos que pedimos a Google al iniciar sesión: leer y crear eventos (calendario editorial),
- * archivos de Drive creados por la app (vídeos del estudio; no ve el resto de tu Drive) y leer
- * hojas de cálculo (la hoja de control de la nutricionista).
+ * Permisos que pedimos a Google al iniciar sesión: leer tu calendario (bloque «Hoy» y Armario)
+ * y leer hojas de cálculo (la hoja de control de la nutricionista).
  */
 export const GOOGLE_SCOPES = [
-  "https://www.googleapis.com/auth/calendar.events",
-  "https://www.googleapis.com/auth/drive.file",
+  "https://www.googleapis.com/auth/calendar.readonly",
   "https://www.googleapis.com/auth/spreadsheets.readonly",
 ] as const;
 
-export const CALENDAR_WRITE_SCOPE = "https://www.googleapis.com/auth/calendar.events";
-export const DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 export const SHEETS_READ_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly";
 
 export interface CalendarEvent {

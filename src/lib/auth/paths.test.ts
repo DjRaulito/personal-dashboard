@@ -9,8 +9,7 @@ describe("rutas públicas", () => {
     expect(isPublicPath("/api/brain/mcp")).toBe(true);
     expect(isPublicPath("/api/inmuebles/mcp")).toBe(true);
     expect(isPublicPath("/api/brain/mcpx")).toBe(false);
-    expect(isPublicPath("/api/studio/autopilot")).toBe(true);
-    expect(isPublicPath("/ia/cerebro")).toBe(false);
+    expect(isPublicPath("/cerebro")).toBe(false);
     expect(isPublicPath("/")).toBe(false);
     expect(isPublicPath("/loginx")).toBe(false);
     expect(isPublicPath("/authors")).toBe(false);
