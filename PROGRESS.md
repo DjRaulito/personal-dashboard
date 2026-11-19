@@ -9,7 +9,7 @@ Orden del refactor: 1 Limpieza · 2 Diseño C «Contraste claro» · 3 Ajustes �
 - [x] **Limpieza (rama `limpieza-modulos`):** fuera Calendario (la agenda queda en Hoy), Contenido, Estudio de vídeo, Gimnasio, IA (asistente, agentes, cruces, resúmenes semanales) y sus workflows. Cerebro pasa a `/cerebro`. Medidas corporales (`body_measurements`) pasan a Nutrición. Permisos de Google reducidos a calendario (lectura) y hojas (lectura).
 - [x] Datos exportados a JSON fuera del repo antes de borrar.
 - [x] `studio/` y la skill `editar-video` movidas a la carpeta `estudio-video` (al lado de este repo), para la futura app de escritorio.
-- [ ] Aplicar la migración `drop_removed_modules` en Supabase (pendiente del «sí» de Raúl) y regenerar `database.types.ts`.
+- [x] Migración `drop_removed_modules` aplicada en Supabase (18 nov 2026) y `database.types.ts` actualizado.
 - [ ] Borrar a mano el bucket vacío `studio` en Supabase → Storage.
 
 Lo de abajo es el histórico anterior al refactor; las secciones de Contenido, Gimnasio, IA y agentes ya no aplican.
