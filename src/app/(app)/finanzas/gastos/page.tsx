@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { clsx } from "clsx";
 import { CategoryBars } from "@/components/finance/charts";
+import { SyncStatementsButton } from "@/components/finance/sync-statements";
 import { TransactionForm } from "@/components/finance/transaction-form";
 import { TransactionsTable } from "@/components/finance/transactions-table";
 import { buttonClass, EmptyState, Tile, TileTitle } from "@/components/ui";
@@ -10,7 +11,8 @@ import { categoryLabels, categoryOptions } from "@/lib/finance/categories";
 import { filtersHref, monthBounds, PAGE_SIZE } from "@/lib/finance/filters";
 import { formatCents } from "@/lib/finance/money";
 import { financePeriods } from "@/lib/finance/periods";
-import { getAccounts, getCategories, listTransactions } from "@/lib/finance/server";
+import { salaryFor, sumByMonth } from "@/lib/finance/income";
+import { getAccounts, getCategories, getIncomeData, listTransactions } from "@/lib/finance/server";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Gastos · Finanzas" };
@@ -33,12 +35,13 @@ export default async function ExpensesPage({
   const { from, to } = monthBounds(month);
   const supabase = await createClient();
 
-  const [accounts, categories, cashflow, spending, list] = await Promise.all([
+  const [accounts, categories, cashflow, spending, list, incomeData] = await Promise.all([
     getAccounts(),
     getCategories(),
     supabase.rpc("monthly_cashflow", { p_from: from, p_to: to }),
     supabase.rpc("category_spending", { p_from: from, p_to: to }),
     listTransactions({ mes: month, pagina: page }),
+    getIncomeData(from),
   ]);
 
   const monthName = new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric", timeZone: "UTC" }).format(
@@ -47,6 +50,8 @@ export default async function ExpensesPage({
   const income = cashflow.data?.[0]?.income_cents ?? 0;
   const expense = cashflow.data?.[0]?.expense_cents ?? 0;
   const saving = income - expense;
+  const salary = salaryFor(month, sumByMonth(incomeData.salary), incomeData.fallbackSalaryCents, current);
+  const left = salary.cents - expense;
   const labels = categoryLabels(categories);
   const groups = categoryOptions(categories);
   const accountById = new Map(accounts.map((a) => [a.id, a]));
@@ -80,34 +85,47 @@ export default async function ExpensesPage({
             </span>
           )}
         </nav>
-        <div className="ml-auto flex flex-wrap gap-2">
-          <Link href="/ajustes/finanzas/importar" className={buttonClass.secondary}>
-            Importar extracto
-          </Link>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           <Link href="/finanzas/movimientos" className={buttonClass.secondary}>
             Buscar en todos
           </Link>
+          <SyncStatementsButton />
         </div>
       </div>
 
-      <section aria-label="Resumen del mes" className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-        <Tile>
-          <p className="text-muted text-sm">Gastos</p>
-          <p className="font-display mt-3 text-3xl font-extrabold">{formatCents(expense)}</p>
-        </Tile>
-        <Tile>
-          <p className="text-muted text-sm">Ingresos</p>
-          <p className="font-display mt-3 text-3xl font-extrabold">{formatCents(income)}</p>
-        </Tile>
-        <Tile>
-          <p className="text-muted text-sm">Ahorro</p>
-          <p className={clsx("font-display mt-3 text-3xl font-extrabold", saving < 0 && "text-expense")}>
-            {formatCents(saving, "EUR", { signed: true })}
+      <section aria-label="Salario frente a gastos" className="grid gap-3.5 sm:grid-cols-3">
+        <Tile className="flex flex-col items-center justify-center p-5 text-center">
+          <p className="text-muted text-sm">Salario del mes</p>
+          <p className="font-display mt-1 text-3xl font-extrabold tabular-nums">
+            {salary.source === "none" ? "—" : formatCents(salary.cents)}
+          </p>
+          <p className="text-muted mt-1 text-xs">
+            {salary.source === "detected"
+              ? "Nóminas de los extractos"
+              : salary.source === "fallback"
+                ? "Aún sin nómina: tu salario de Ajustes"
+                : "Sin nómina este mes"}
           </p>
         </Tile>
-        <Tile>
-          <p className="text-muted text-sm">Tasa de ahorro</p>
-          <p className="font-display mt-3 text-3xl font-extrabold">
+        <Tile className="flex flex-col items-center justify-center p-5 text-center">
+          <p className="text-muted text-sm">Gastado</p>
+          <p className="font-display text-expense mt-1 text-3xl font-extrabold tabular-nums">{formatCents(expense)}</p>
+          <p className="text-muted mt-1 text-xs tabular-nums">
+            {salary.cents > 0 ? `${Math.round((expense / salary.cents) * 100)} % del salario` : "—"}
+          </p>
+        </Tile>
+        <Tile className="flex flex-col items-center justify-center p-5 text-center">
+          <p className="text-muted text-sm">Te queda</p>
+          <p
+            className={clsx(
+              "font-display mt-1 text-3xl font-extrabold tabular-nums",
+              salary.cents > 0 && (left >= 0 ? "text-finance" : "text-expense"),
+            )}
+          >
+            {salary.cents > 0 ? formatCents(left, "EUR", { signed: true }) : "—"}
+          </p>
+          <p className="text-muted mt-1 text-xs tabular-nums">
+            Ingresos totales {formatCents(income)} · ahorro{" "}
             {income > 0 ? `${Math.round((saving / income) * 100)} %` : "—"}
           </p>
         </Tile>

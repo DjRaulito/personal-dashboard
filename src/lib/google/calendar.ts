@@ -3,13 +3,17 @@ import { APP_TIMEZONE, dayKey, zonedMidnight } from "@/lib/datetime";
 import type { DateRange } from "@/lib/calendar/range";
 
 /**
- * Permisos que pedimos a Google al iniciar sesión: leer tu calendario (bloque «Hoy» y Armario)
- * y leer hojas de cálculo (la hoja de control de la nutricionista).
+ * Permisos que pedimos a Google al iniciar sesión: leer tu calendario (bloque «Hoy» y Armario),
+ * leer hojas de cálculo (la hoja de control de la nutricionista) y leer Drive (los extractos del
+ * banco de la carpeta «Extractos»).
  */
 export const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/calendar.readonly",
   "https://www.googleapis.com/auth/spreadsheets.readonly",
+  "https://www.googleapis.com/auth/drive.readonly",
 ] as const;
+
+export const DRIVE_READ_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 
 export const SHEETS_READ_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly";
 

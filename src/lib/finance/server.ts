@@ -9,7 +9,10 @@ export const getAccounts = cache(
   async (client?: Awaited<ReturnType<typeof createClient>>): Promise<AccountWithBalance[]> => {
     const supabase = client ?? (await createClient());
     const [{ data: accounts, error }, { data: balances }] = await Promise.all([
-      supabase.from("accounts").select("id, name, type, currency, initial_balance_cents, archived").order("name"),
+      supabase
+        .from("accounts")
+        .select("id, name, type, currency, initial_balance_cents, archived, manual_balance_cents, manual_balance_on")
+        .order("name"),
       supabase.rpc("account_balances"),
     ]);
     if (error) throw error;
@@ -68,4 +71,32 @@ export async function listTransactions(filters: TransactionFilters) {
   const { data, count, error } = await query;
   if (error) throw error;
   return { rows: (data ?? []) as TransactionRow[], total: count ?? 0, page };
+}
+
+/** Nóminas y movimientos con casas de apuestas desde una fecha, y el salario de respaldo. */
+export async function getIncomeData(from: string) {
+  const supabase = await createClient();
+  const [{ data: cats }, { data: profile }] = await Promise.all([
+    supabase.from("categories").select("id, name, kind, parent_id"),
+    supabase.from("profiles").select("monthly_salary_cents").maybeSingle(),
+  ]);
+  const idsUnder = (name: string, kind: string) => {
+    const root = (cats ?? []).find((c) => c.name === name && c.kind === kind && !c.parent_id);
+    return root ? [root.id, ...(cats ?? []).filter((c) => c.parent_id === root.id).map((c) => c.id)] : [];
+  };
+  const salaryIds = idsUnder("Nómina", "income");
+  const bettingIds = idsUnder("Apuestas", "transfer");
+  const fetchRows = async (ids: string[]) => {
+    if (ids.length === 0) return [];
+    const { data } = await supabase
+      .from("transactions")
+      .select("booked_on, amount_cents")
+      .in("category_id", ids)
+      .gte("booked_on", from)
+      .order("booked_on")
+      .limit(5000);
+    return data ?? [];
+  };
+  const [salary, betting] = await Promise.all([fetchRows(salaryIds), fetchRows(bettingIds)]);
+  return { salary, betting, fallbackSalaryCents: profile?.monthly_salary_cents ?? null };
 }

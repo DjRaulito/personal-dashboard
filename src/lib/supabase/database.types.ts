@@ -15,6 +15,8 @@ export type Database = {
           currency: string;
           id: string;
           initial_balance_cents: number;
+          manual_balance_cents: number | null;
+          manual_balance_on: string | null;
           name: string;
           type: string;
           updated_at: string;
@@ -26,6 +28,8 @@ export type Database = {
           currency?: string;
           id?: string;
           initial_balance_cents?: number;
+          manual_balance_cents?: number | null;
+          manual_balance_on?: string | null;
           name: string;
           type: string;
           updated_at?: string;
@@ -37,6 +41,8 @@ export type Database = {
           currency?: string;
           id?: string;
           initial_balance_cents?: number;
+          manual_balance_cents?: number | null;
+          manual_balance_on?: string | null;
           name?: string;
           type?: string;
           updated_at?: string;
@@ -980,6 +986,7 @@ export type Database = {
           created_at: string;
           currency: string;
           display_name: string | null;
+          monthly_salary_cents: number | null;
           timezone: string;
           updated_at: string;
           user_id: string;
@@ -989,6 +996,7 @@ export type Database = {
           created_at?: string;
           currency?: string;
           display_name?: string | null;
+          monthly_salary_cents?: number | null;
           timezone?: string;
           updated_at?: string;
           user_id: string;
@@ -998,6 +1006,7 @@ export type Database = {
           created_at?: string;
           currency?: string;
           display_name?: string | null;
+          monthly_salary_cents?: number | null;
           timezone?: string;
           updated_at?: string;
           user_id?: string;
@@ -1354,6 +1363,45 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      statement_files: {
+        Row: {
+          account_id: string;
+          balance_ok: boolean | null;
+          drive_file_id: string;
+          id: string;
+          inserted: number;
+          name: string;
+          period: string | null;
+          processed_at: string;
+          rows_found: number;
+          user_id: string;
+        };
+        Insert: {
+          account_id: string;
+          balance_ok?: boolean | null;
+          drive_file_id: string;
+          id?: string;
+          inserted?: number;
+          name: string;
+          period?: string | null;
+          processed_at?: string;
+          rows_found?: number;
+          user_id?: string;
+        };
+        Update: {
+          account_id?: string;
+          balance_ok?: boolean | null;
+          drive_file_id?: string;
+          id?: string;
+          inserted?: number;
+          name?: string;
+          period?: string | null;
+          processed_at?: string;
+          rows_found?: number;
+          user_id?: string;
+        };
+        Relationships: [];
       };
       task_items: {
         Row: {

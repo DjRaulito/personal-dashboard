@@ -20,6 +20,10 @@ import {
   type FormState,
   type ImportInput,
 } from "@/lib/finance/schemas";
+import { z } from "zod";
+import { DRIVE_READ_SCOPE, GoogleAuthError } from "@/lib/google/calendar";
+import { getGoogleAccess } from "@/lib/google/server";
+import { STATEMENTS_FOLDER, syncStatements } from "@/lib/finance/statements-sync";
 import { createClient } from "@/lib/supabase/server";
 
 async function session() {
@@ -286,4 +290,90 @@ export async function importTransactions(input: ImportInput): Promise<ImportResu
 
   refresh();
   return { ok: true, inserted, duplicates: records.length - inserted, categorized };
+}
+
+// ---------------------------------------------------------------------------
+// Extractos de Drive, casas de apuestas y salario
+// ---------------------------------------------------------------------------
+
+export interface StatementsSyncResult {
+  ok: boolean;
+  message: string;
+}
+
+/** «Sincronizar extractos»: lee los PDF nuevos de la carpeta «Extractos» de Drive. */
+export async function syncBankStatements(): Promise<StatementsSyncResult> {
+  const { supabase } = await session();
+  const { data: accounts } = await supabase
+    .from("accounts")
+    .select("id, name, type")
+    .eq("archived", false)
+    .order("created_at");
+  // Los extractos son del BBVA: su cuenta, o la primera cuenta corriente
+  const account = (accounts ?? []).find((a) => /bbva/i.test(a.name)) ?? (accounts ?? []).find((a) => a.type === "bank");
+  if (!account) return { ok: false, message: "Crea antes la cuenta del BBVA en Ajustes → Finanzas → Cuentas." };
+
+  try {
+    const access = await getGoogleAccess();
+    if (access.status === "not_configured") return { ok: false, message: "Google no está configurado en la app." };
+    if (access.status !== "ok" || !access.scopes.includes(DRIVE_READ_SCOPE)) {
+      return {
+        ok: false,
+        message: "Falta el permiso para leer Drive: cierra sesión y vuelve a entrar con Google (una sola vez).",
+      };
+    }
+    const r = await syncStatements(supabase, access.accessToken, account.id);
+    refresh();
+    if (r.files === 0) {
+      return { ok: false, message: `No hay PDF en la carpeta «${STATEMENTS_FOLDER}» de tu Drive.` };
+    }
+    const parts = [
+      r.read === 0 ? "No había extractos nuevos." : `${r.read} extractos nuevos, ${r.inserted} movimientos añadidos.`,
+    ];
+    if (r.failed.length) parts.push(`! No se pudieron leer: ${r.failed.slice(0, 3).join(", ")}.`);
+    return { ok: r.failed.length === 0, message: parts.join(" ") };
+  } catch (e) {
+    if (e instanceof GoogleAuthError) {
+      return { ok: false, message: "Google ha rechazado el acceso: cierra sesión y vuelve a entrar." };
+    }
+    console.error("[extractos]", e instanceof Error ? e.message : e);
+    return { ok: false, message: "No se pudo leer Drive. Inténtalo de nuevo." };
+  }
+}
+
+const centsInput = z.preprocess(
+  (v) => (typeof v === "string" ? Math.round(Number(v.replace(/\./g, "").replace(",", ".").trim()) * 100) : v),
+  z.number().int().min(0, "No puede ser negativo").max(100_000_000),
+);
+
+/** Saldo apuntado a mano de una casa de apuestas (hoy). */
+export async function setManualBalance(_: FormState, formData: FormData): Promise<FormState> {
+  const parsed = z
+    .object({ id: z.uuid(), balance: centsInput })
+    .safeParse({ id: formData.get("id"), balance: formData.get("balance") });
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Importe no válido" };
+  const { supabase } = await session();
+  const { error } = await supabase
+    .from("accounts")
+    .update({ manual_balance_cents: parsed.data.balance, manual_balance_on: dayKey(new Date()) })
+    .eq("id", parsed.data.id)
+    .eq("type", "betting");
+  if (error) return { ok: false, message: "No se pudo guardar el saldo." };
+  refresh();
+  return { ok: true, message: "Saldo actualizado." };
+}
+
+/** Salario neto de respaldo (vacío para quitarlo). */
+export async function saveMonthlySalary(_: FormState, formData: FormData): Promise<FormState> {
+  const raw = String(formData.get("salary") ?? "").trim();
+  const parsed = raw === "" ? { success: true as const, data: null } : centsInput.safeParse(raw);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Importe no válido" };
+  const { supabase, user } = await session();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ monthly_salary_cents: parsed.data })
+    .eq("user_id", user.id);
+  if (error) return { ok: false, message: "No se pudo guardar." };
+  refresh();
+  return { ok: true, message: parsed.data == null ? "Salario de respaldo quitado." : "Salario guardado." };
 }

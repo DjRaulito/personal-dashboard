@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { NetWorthChart } from "@/components/finance/charts";
+import { ManualBalanceForm } from "@/components/finance/manual-balance-form";
 import { AllocationBar } from "@/components/investments/charts";
 import { PriceRefresher } from "@/components/investments/price-refresher";
 import { buttonClass, EmptyState, Tile, TileTitle } from "@/components/ui";
@@ -46,6 +47,7 @@ export default async function NetWorthPage({ searchParams }: { searchParams: Pro
   }
 
   const cash = accounts.reduce((s, a) => s + a.balance_cents, 0);
+  const betting = accounts.filter((a) => a.type === "betting").reduce((s, a) => s + a.balance_cents, 0);
   const rows = positionRows(pf.input, pf.positions, pf.assets);
   const invested = Math.round(rows.reduce((s, r) => s + r.valueEur, 0) * 100);
   const total = cash + invested;
@@ -58,8 +60,15 @@ export default async function NetWorthPage({ searchParams }: { searchParams: Pro
   const lastMove = new Map((lastMoves.data ?? []).map((r) => [r.account_id, r.last_booked_on]));
   const prices = freshness(pf.lastPriceDate, pf.today);
   const activeAccounts = accounts.filter((a) => !a.archived);
+  // Las casas de apuestas no tienen movimientos propios: cuenta la fecha del saldo apuntado (aviso a los 30 días)
   const staleAccounts = activeAccounts
-    .map((a) => ({ a, f: freshness(lastMove.get(a.id) ?? null, pf.today) }))
+    .map((a) => ({
+      a,
+      f:
+        a.type === "betting"
+          ? freshness(a.manual_balance_on ?? null, pf.today, 30)
+          : freshness(lastMove.get(a.id) ?? null, pf.today),
+    }))
     .filter((x) => x.f.stale);
 
   // Evolución: saldo de cuentas al cierre de mes + valor de la cartera ese día
@@ -98,11 +107,17 @@ export default async function NetWorthPage({ searchParams }: { searchParams: Pro
           {staleAccounts.map(({ a, f }) => (
             <div key={a.id} className="flex flex-wrap items-center gap-3 text-sm">
               <span className="min-w-0 flex-1">
-                {a.name}: último movimiento {f.label === "sin datos" ? "— ninguno todavía" : f.label}.
+                {a.type === "betting"
+                  ? `${a.name}: saldo ${f.label === "sin datos" ? "sin apuntar todavía" : f.label}.`
+                  : `${a.name}: último movimiento ${f.label === "sin datos" ? "— ninguno todavía" : f.label}.`}
               </span>
-              <Link href="/ajustes/finanzas/importar" className={buttonClass.secondary}>
-                Importar extracto
-              </Link>
+              {a.type === "betting" ? (
+                <ManualBalanceForm accountId={a.id} label={a.name} />
+              ) : (
+                <Link href="/finanzas/gastos" className={buttonClass.secondary}>
+                  Sincronizar extractos
+                </Link>
+              )}
             </div>
           ))}
         </section>
@@ -183,7 +198,8 @@ export default async function NetWorthPage({ searchParams }: { searchParams: Pro
           <div className="mt-4">
             <AllocationBar
               parts={[
-                { label: "Liquidez", value: cash / 100, className: "bg-content" },
+                { label: "Liquidez", value: (cash - betting) / 100, className: "bg-content" },
+                { label: "Casas de apuestas", value: betting / 100, className: "bg-expense" },
                 { label: "Fondos", value: byKind("fund") + byKind("etf"), className: "bg-finance" },
                 { label: "Acciones", value: byKind("stock"), className: "bg-nutrition" },
                 { label: "Planes y otros", value: byKind("pension") + byKind("other"), className: "bg-attention" },
@@ -198,7 +214,11 @@ export default async function NetWorthPage({ searchParams }: { searchParams: Pro
               >
                 <span className="min-w-0">
                   <span className="block truncate font-medium">{a.name}</span>
-                  <span className="text-muted block text-xs">{ACCOUNT_TYPE_LABELS[a.type]}</span>
+                  <span className="text-muted block text-xs">
+                    {ACCOUNT_TYPE_LABELS[a.type]}
+                    {a.type === "betting" &&
+                      ` · saldo ${freshness(a.manual_balance_on ?? null, pf.today, 30).label.replace("sin datos", "sin apuntar")}`}
+                  </span>
                 </span>
                 <span className="font-semibold tabular-nums">{formatCents(a.balance_cents, a.currency)}</span>
               </li>

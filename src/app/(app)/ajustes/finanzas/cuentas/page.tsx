@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AccountForm } from "@/components/finance/account-form";
 import { AccountRowActions } from "@/components/finance/account-row-actions";
+import { ManualBalanceForm } from "@/components/finance/manual-balance-form";
 import { BackLink, EmptyState, Tile, TileTitle } from "@/components/ui";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/finance/accounts";
 import { formatCents } from "@/lib/finance/money";
@@ -38,6 +39,11 @@ export default async function AccountsPage() {
                   <p className="font-display text-xl font-extrabold tabular-nums">
                     {formatCents(a.balance_cents, a.currency)}
                   </p>
+                  {a.type === "betting" && !a.archived && (
+                    <div className="basis-full">
+                      <ManualBalanceForm accountId={a.id} label={a.name} />
+                    </div>
+                  )}
                   <div className="basis-full">
                     <AccountRowActions account={a} />
                   </div>

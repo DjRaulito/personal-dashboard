@@ -9,7 +9,7 @@ export interface SettingsSection {
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   { slug: "cuenta", title: "Cuenta", description: "Nombre, moneda, zona horaria y cerrar sesión" },
   { slug: "conexiones", title: "Conexiones", description: "Google, tokens del Cerebro e IA" },
-  { slug: "finanzas", title: "Finanzas", description: "Cuentas, categorías y reglas" },
+  { slug: "finanzas", title: "Finanzas", description: "Cuentas, categorías, extractos y salario" },
   { slug: "nutricion", title: "Nutrición", description: "Hoja de control de tu nutricionista" },
   { slug: "armario", title: "Armario", description: "Ciudad para el tiempo" },
   { slug: "datos", title: "Datos", description: "Exportar todo y borrar datos de un módulo" },
