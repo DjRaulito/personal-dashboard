@@ -1,12 +1,24 @@
 # PROGRESS.md
 
-Plan completo: informe "Plan: Dashboard personal" (Claude Docs). Este archivo es el punto de reanudación.
+Plan vigente: informe "Plan: refactor del Dashboard personal" (Claude Docs, 18 nov 2026). El plan original ("Plan: Dashboard personal") queda como histórico. Este archivo es el punto de reanudación.
 
-## Estado actual
+## Estado actual (refactor, 18 nov 2026)
+
+Orden del refactor: 1 Limpieza · 2 Diseño C «Contraste claro» · 3 Ajustes único · 4 Inversiones · 5 Bancos (Enable Banking) · 6 Patrimonio al día + Análisis · 7 Armario v3 · 8 Tareas (una sección automática por tarea) · 9 Repaso y APK.
+
+- [x] **Limpieza (rama `limpieza-modulos`):** fuera Calendario (la agenda queda en Hoy), Contenido, Estudio de vídeo, Gimnasio, IA (asistente, agentes, cruces, resúmenes semanales) y sus workflows. Cerebro pasa a `/cerebro`. Medidas corporales (`body_measurements`) pasan a Nutrición. Permisos de Google reducidos a calendario (lectura) y hojas (lectura).
+- [x] Datos exportados a JSON fuera del repo antes de borrar.
+- [x] `studio/` y la skill `editar-video` movidas a la carpeta `estudio-video` (al lado de este repo), para la futura app de escritorio.
+- [x] Migración `drop_removed_modules` aplicada en Supabase (18 nov 2026) y `database.types.ts` actualizado.
+- [ ] Borrar a mano el bucket vacío `studio` en Supabase → Storage.
+
+Lo de abajo es el histórico anterior al refactor; las secciones de Contenido, Gimnasio, IA y agentes ya no aplican.
+
+## Histórico anterior al refactor
 
 - **Fase:** 8 — Contenido
 - **Última tarea hecha:** centro de agentes (`/ia/agentes`): fichas, tareas a varios agentes a la vez, tablero en directo, motores Gemini y Claude Code, aprobaciones
-- **Cerebro (12 nov 2026):** hecho, ver «Cerebro» al final. Falta crear un token en `/ia/cerebro` y conectar la primera IA.
+- **Cerebro (12 nov 2026):** hecho, ver «Cerebro» al final. Falta crear un token en `/cerebro` y conectar la primera IA.
 - **Radar (16 nov 2026):** Inmuebles hecho (PR abierto), falta conectar la tarea de Cowork; después Trabajo. Ver «Radar» abajo.
 - **Armario (17 nov 2026):** módulo mergeado: prendas con foto, probador con maniquí y carrusel 3D, outfits y estilista con IA. «Probar en mí» (imagen realista con Hugging Face) en PR abierto; falta `HF_TOKEN` en Vercel y probarlo todo con fotos reales. Ver «Armario» abajo.
 - **Plataforma de agentes (16 nov 2026):** plan completo escrito (6 fases, 47 pasos), pendiente del «adelante» de Raúl para empezar la fase 1. Ver «Plataforma de agentes» abajo.

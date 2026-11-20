@@ -4,7 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import { clsx } from "clsx";
 import { RefreshCw } from "lucide-react";
 import { saveReviewSheet, syncReviews } from "@/app/(app)/nutricion/actions";
-import { TrendChart } from "@/components/gym/charts";
+import { TrendChart } from "@/components/nutrition/trend-chart";
 import { buttonClass, EmptyState, Field, FormMessage, inputClass } from "@/components/ui";
 import { MEASURE_LABELS, MEASURES, type Measure } from "@/lib/nutrition/sheet";
 

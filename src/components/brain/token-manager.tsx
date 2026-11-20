@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { createToken, forgetAll, revokeToken } from "@/app/(app)/ia/cerebro/actions";
+import { createToken, forgetAll, revokeToken } from "@/app/(app)/cerebro/actions";
 import { buttonClass, Field, FormMessage, inputClass } from "@/components/ui";
 
 export interface TokenInfo {

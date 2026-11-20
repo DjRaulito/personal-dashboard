@@ -499,7 +499,7 @@ export async function estimatePrices(foodIds: string[]): Promise<AiResult<number
 
 // ---------------------------------------------------------------------------
 // Revisiones: se leen de la hoja de control de la nutricionista (Google Sheets).
-// Las medidas se guardan en body_measurements, compartidas con Gimnasio.
+// Las medidas se guardan en body_measurements.
 // ---------------------------------------------------------------------------
 
 export async function saveReviewSheet(_: FormState, formData: FormData): Promise<FormState> {
@@ -598,6 +598,5 @@ export async function syncReviews(): Promise<SyncResult> {
     .update({ reviews_synced_at: new Date().toISOString() })
     .not("review_sheet_id", "is", null);
   refresh();
-  revalidatePath("/gimnasio/cuerpo");
   return { ok: true, added, updated };
 }

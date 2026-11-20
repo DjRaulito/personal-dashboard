@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState, useTransition } from "react";
-import { deleteMemory, saveMemory, setLink } from "@/app/(app)/ia/cerebro/actions";
+import { deleteMemory, saveMemory, setLink } from "@/app/(app)/cerebro/actions";
 import { BrainGraph } from "@/components/brain/brain-graph";
 import { buttonClass, EmptyState, Field, FormMessage, inputClass } from "@/components/ui";
 import { buildEdges, matchesQuery, neighbors, nodeColor, type BrainNode } from "@/lib/brain/graph";

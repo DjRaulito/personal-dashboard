@@ -3,7 +3,7 @@ import { clsx } from "clsx";
 import { MeasureChart, ReviewSheetForm, SyncReviewsButton, type MeasureSeries } from "@/components/nutrition/reviews";
 import { EmptyState, Tile, TileTitle } from "@/components/ui";
 import { APP_LOCALE, dayKey } from "@/lib/datetime";
-import { getMeasurements } from "@/lib/gym/server";
+import { getMeasurements } from "@/lib/nutrition/measurements";
 import { getCheats, getChecks, getNutritionSettings, getReviews } from "@/lib/nutrition/server";
 import { MEASURE_LABELS, MEASURES } from "@/lib/nutrition/sheet";
 
