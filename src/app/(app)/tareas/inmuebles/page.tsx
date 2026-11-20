@@ -18,7 +18,7 @@ import {
 export const metadata: Metadata = { title: "Inmuebles · Finanzas" };
 export const dynamic = "force-dynamic";
 
-const PAGE = "/finanzas/inmuebles";
+const PAGE = "/tareas/inmuebles";
 
 type SearchParams = { estado?: string; municipio?: string; cumple?: string; vista?: string };
 

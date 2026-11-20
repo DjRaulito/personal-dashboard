@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { deleteListing, saveNotes, setStatus } from "@/app/(app)/finanzas/inmuebles/actions";
+import { deleteListing, saveNotes, setStatus } from "@/app/(app)/tareas/inmuebles/actions";
 import { buttonClass, Field, FormMessage, inputClass } from "@/components/ui";
 import { STATUS_LABELS, STATUSES, type Status } from "@/lib/realestate/schemas";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { saveSettings } from "@/app/(app)/finanzas/inmuebles/actions";
+import { saveSettings } from "@/app/(app)/tareas/inmuebles/actions";
 import { buttonClass, Field, FormMessage, inputClass, Tile, TileTitle } from "@/components/ui";
 import type { PropertySettings } from "@/lib/realestate/schemas";
 

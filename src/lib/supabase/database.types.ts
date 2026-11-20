@@ -1263,6 +1263,51 @@ export type Database = {
           },
         ];
       };
+      scheduled_tasks: {
+        Row: {
+          archived: boolean;
+          created_at: string;
+          criteria: Json;
+          description: string;
+          fields: Json;
+          id: string;
+          name: string;
+          schedule: string;
+          slug: string;
+          special_view: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          archived?: boolean;
+          created_at?: string;
+          criteria?: Json;
+          description?: string;
+          fields?: Json;
+          id?: string;
+          name: string;
+          schedule?: string;
+          slug: string;
+          special_view?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          archived?: boolean;
+          created_at?: string;
+          criteria?: Json;
+          description?: string;
+          fields?: Json;
+          id?: string;
+          name?: string;
+          schedule?: string;
+          slug?: string;
+          special_view?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       savings_goals: {
         Row: {
           account_id: string | null;
@@ -1306,6 +1351,91 @@ export type Database = {
             columns: ["account_id"];
             isOneToOne: false;
             referencedRelation: "accounts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      task_items: {
+        Row: {
+          data: Json;
+          first_seen_at: string;
+          id: string;
+          item_key: string;
+          last_seen_at: string;
+          removed_at: string | null;
+          status: string;
+          task_id: string;
+          user_id: string;
+        };
+        Insert: {
+          data?: Json;
+          first_seen_at?: string;
+          id?: string;
+          item_key: string;
+          last_seen_at?: string;
+          removed_at?: string | null;
+          status?: string;
+          task_id: string;
+          user_id?: string;
+        };
+        Update: {
+          data?: Json;
+          first_seen_at?: string;
+          id?: string;
+          item_key?: string;
+          last_seen_at?: string;
+          removed_at?: string | null;
+          status?: string;
+          task_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "task_items_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "scheduled_tasks";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      task_runs: {
+        Row: {
+          found: number;
+          id: string;
+          ok: boolean;
+          ran_at: string;
+          removed: number;
+          summary: string;
+          task_id: string;
+          user_id: string;
+        };
+        Insert: {
+          found?: number;
+          id?: string;
+          ok?: boolean;
+          ran_at?: string;
+          removed?: number;
+          summary?: string;
+          task_id: string;
+          user_id?: string;
+        };
+        Update: {
+          found?: number;
+          id?: string;
+          ok?: boolean;
+          ran_at?: string;
+          removed?: number;
+          summary?: string;
+          task_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "task_runs_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "scheduled_tasks";
             referencedColumns: ["id"];
           },
         ];
@@ -1589,6 +1719,10 @@ export type Database = {
         }[];
       };
       property_call: {
+        Args: { p_action: string; p_args?: Json; p_token: string };
+        Returns: Json;
+      };
+      task_call: {
         Args: { p_action: string; p_args?: Json; p_token: string };
         Returns: Json;
       };

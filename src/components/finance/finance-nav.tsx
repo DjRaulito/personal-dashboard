@@ -8,7 +8,6 @@ import { LinkPending } from "@/components/link-pending";
 const TABS = [
   { href: "/finanzas", label: "Patrimonio", match: (p: string) => p === "/finanzas" },
   { href: "/finanzas/inversiones", label: "Inversiones", match: (p: string) => p.startsWith("/finanzas/inversiones") },
-  { href: "/finanzas/inmuebles", label: "Inmuebles", match: (p: string) => p.startsWith("/finanzas/inmuebles") },
   {
     href: "/finanzas/gastos",
     label: "Gastos",

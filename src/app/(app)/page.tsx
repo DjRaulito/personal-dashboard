@@ -11,6 +11,7 @@ import { getAccounts } from "@/lib/finance/server";
 import { getPortfolio } from "@/lib/investments/server";
 import { getActivePlan, getDay } from "@/lib/nutrition/server";
 import { createClient } from "@/lib/supabase/server";
+import { getTasks } from "@/lib/tasks/server";
 
 export default async function Home() {
   const now = new Date();
@@ -18,7 +19,7 @@ export default async function Home() {
   const supabase = await createClient();
   const p = financePeriods(now);
   const today = dayKey(now);
-  const [{ data: profile }, agenda, accounts, { data: cashflow }, portfolio, payments, plan, nutritionDay] =
+  const [{ data: profile }, agenda, accounts, { data: cashflow }, portfolio, payments, plan, nutritionDay, tasks] =
     await Promise.all([
       supabase.from("profiles").select("display_name").maybeSingle(),
       getCalendarEvents(range),
@@ -28,7 +29,9 @@ export default async function Home() {
       getUpcomingPayments(today, 14),
       getActivePlan(),
       getDay(today),
+      getTasks(),
     ]);
+  const taskNews = tasks.filter((t) => !t.archived && t.newItems > 0);
   const mealsOnPlan = plan ? plan.meals.filter((m) => nutritionDay.checks.get(m.id)?.status === "done").length : 0;
   const mealsMarked = plan ? plan.meals.filter((m) => nutritionDay.checks.has(m.id)).length : 0;
   const portfolioValue = [...portfolio.positions.values()].reduce((s, x) => s + x.valueEur, 0);
@@ -49,6 +52,20 @@ export default async function Home() {
   return (
     <PageShell>
       <PageHeader title={firstName ? `Hola, ${firstName}` : "Hola"} subtitle={formatLongDate(now)} />
+      {taskNews.length > 0 && (
+        <section aria-label="Avisos de tareas" className="flex flex-wrap gap-2">
+          {taskNews.map((t) => (
+            <Link
+              key={t.id}
+              href={`/tareas/${t.slug}`}
+              className="border-attention bg-surface hover:bg-surface-2 rounded-full border px-4 py-2 text-sm"
+            >
+              <span className="text-attention font-bold">!</span> {t.name}:{" "}
+              <span className="font-semibold tabular-nums">{t.newItems}</span> {t.newItems === 1 ? "nuevo" : "nuevos"}
+            </Link>
+          ))}
+        </section>
+      )}
 
       <section aria-label="Resumen" className="grid gap-3.5 md:grid-cols-6">
         <article className="rounded-tile border-border bg-surface flex flex-col border p-6 md:col-span-4 md:row-span-2">

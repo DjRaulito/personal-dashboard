@@ -20,5 +20,5 @@ Usa el conector de mi dashboard (el mismo del cerebro).
    No calcules rentabilidades, cuotas, cash flow, capital ni puntuaciones totales: los calcula el dashboard con mis supuestos.
 5. No guardes los que tengan problemas jurídicos, de ocupación, de habitabilidad o de estructura sin solución verificable, ni los que dependan de usos potencialmente ilegales.
 6. Termina con save_run_summary: anuncios examinados, guardados y 2 o 3 frases sobre la búsqueda de hoy.
-7. En el chat responde solo con tres líneas: anuncios nuevos, rebajas o retirados, y el enlace ${dashboardUrl}/finanzas/inmuebles. Si no tienes acceso a internet o no hay fuentes suficientes, dilo y no simules la búsqueda.`;
+7. En el chat responde solo con tres líneas: anuncios nuevos, rebajas o retirados, y el enlace ${dashboardUrl}/tareas/inmuebles. Si no tienes acceso a internet o no hay fuentes suficientes, dilo y no simules la búsqueda.`;
 }

@@ -14,7 +14,7 @@ async function session() {
   return supabase;
 }
 
-const PAGE = "/finanzas/inmuebles";
+const PAGE = "/tareas/inmuebles";
 const id = z.uuid();
 
 export async function setStatus(listingId: string, status: string) {
