@@ -11,6 +11,11 @@ const LINKS = [
     title: "Categorías y reglas",
     text: "Cómo se clasifican solos tus gastos e ingresos.",
   },
+  {
+    href: "/ajustes/finanzas/importar",
+    title: "Importar extracto",
+    text: "CSV o Excel de tu banco, con plantilla por banco y sin duplicados.",
+  },
 ];
 
 export default function FinanceSettingsPage() {

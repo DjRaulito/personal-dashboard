@@ -81,7 +81,7 @@ export default async function ExpensesPage({
           )}
         </nav>
         <div className="ml-auto flex flex-wrap gap-2">
-          <Link href="/finanzas/importar" className={buttonClass.secondary}>
+          <Link href="/ajustes/finanzas/importar" className={buttonClass.secondary}>
             Importar extracto
           </Link>
           <Link href="/finanzas/movimientos" className={buttonClass.secondary}>

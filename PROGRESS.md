@@ -23,6 +23,13 @@ Orden del refactor: 1 Limpieza · 2 Diseño C «Contraste claro» · 3 Ajustes �
 - [x] **Rediseño «Cristal tipo visionOS» (20 nov 2026):** elegido por Raúl entre varias direcciones (quería un cambio de diseño de la app, no solo de colores). Fondo con luces de color difuminadas, bloques de cristal esmerilado, menú lateral flotante de cristal en escritorio y cápsula flotante abajo en móvil, botones y pestañas activas en cápsula blanca, menús y diálogos en cristal denso, letra Inter. Se mantienen la paleta Okabe-Ito y las reglas para daltonismo (▲▼, «!», texto).
 - [x] Desde el 20 nov Raúl autoriza a completar fases y mergear sin pedir permiso (con la CI en verde).
 
+### Nueva estructura (propuesta aprobada el 20 nov 2026, artifact «Nueva estructura del Dashboard»)
+
+- [x] **1 · Estructura e Inversiones propia:** barra superior flotante en escritorio (secciones en el centro, Ajustes como icono) y barra inferior en móvil con Hoy, Finanzas, Inversiones, Nutrición y «Más» (Armario, Tareas, Cerebro, Ajustes). Cada sección tiene cabecera con título y subsecciones en control segmentado (`SectionHead`, `SectionTabs`). Inversiones sale de Finanzas a `/inversiones` con Resumen (valor y evolución 1S–Todo, plusvalía abierta, ganancia total, YTD y pesos de todas las posiciones), Posiciones (la lista de siempre y reparto por tipo) y Rentabilidad (por periodos con anualizada, por meses con barras y pestañas de año + «Todos» en cuadrícula, por años y ganancia diaria). Finanzas queda en Patrimonio · Gastos · Análisis; Importar extracto pasa a Ajustes → Finanzas. Redirecciones desde las rutas viejas.
+- [ ] **2 · Ficha de posición** con su evolución 1D, 1S, 1M, YTD, 1A, 3A y 5A (histórico largo de Yahoo) y comparación con el MSCI World.
+- [ ] **3 · Finanzas:** salario detectado en los extractos («ABONO DE NOMINA») frente a gastos, casas de apuestas (cuenta tipo Apuestas + resultado neto), importar los Excel de 2024 y 2025 y botón «Sincronizar extractos» (PDF del BBVA en Drive con cuenta de servicio).
+- [ ] **4 · Tareas:** pantalla completa por tarea con detalle al lado, vista según el tipo de datos y registrar Fondo value, Portátiles, Zapatillas y Planes.
+
 Lo de abajo es el histórico anterior al refactor; las secciones de Contenido, Gimnasio, IA y agentes ya no aplican.
 
 ## Histórico anterior al refactor

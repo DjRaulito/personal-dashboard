@@ -1,22 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { isActive, NAV_ITEMS } from "./navigation";
+import { isActive, NAV_ITEMS, SETTINGS_ITEM } from "./navigation";
 
 describe("navegación", () => {
-  it("incluye las secciones tras la limpieza", () => {
+  it("Inversiones es una sección propia, separada de Finanzas", () => {
     expect(NAV_ITEMS.map((i) => i.label)).toEqual([
       "Hoy",
       "Finanzas",
+      "Inversiones",
       "Nutrición",
       "Armario",
-      "Cerebro",
       "Tareas",
-      "Ajustes",
+      "Cerebro",
     ]);
+    expect(SETTINGS_ITEM.href).toBe("/ajustes");
   });
 
   it("en móvil la barra tiene 4 secciones y «Más» (5 huecos)", () => {
-    expect(NAV_ITEMS.filter((i) => !i.more).map((i) => i.label)).toEqual(["Hoy", "Finanzas", "Nutrición", "Armario"]);
-    expect(NAV_ITEMS.filter((i) => i.more).map((i) => i.label)).toEqual(["Cerebro", "Tareas", "Ajustes"]);
+    expect(NAV_ITEMS.filter((i) => !i.more).map((i) => i.label)).toEqual([
+      "Hoy",
+      "Finanzas",
+      "Inversiones",
+      "Nutrición",
+    ]);
+    expect(NAV_ITEMS.filter((i) => i.more).map((i) => i.label)).toEqual(["Armario", "Tareas", "Cerebro"]);
   });
 
   it("marca la sección activa", () => {
@@ -25,5 +31,6 @@ describe("navegación", () => {
     expect(isActive("/cerebro", "/cerebro")).toBe(true);
     expect(isActive("/nutricion", "/nutricion/plan")).toBe(true);
     expect(isActive("/finanzas", "/finanzasx")).toBe(false);
+    expect(isActive("/inversiones", "/inversiones/posiciones")).toBe(true);
   });
 });

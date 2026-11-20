@@ -44,7 +44,8 @@ Radios: bloques `26px`, elementos internos `16px`, botones y pestañas en cápsu
 
 - **Bloque:** `rounded-tile border border-border bg-surface p-6` (cristal).
 - **Botón principal / pestaña activa:** cápsula `bg-selected text-on-selected`. Secundario: cápsula de cristal.
-- **Navegación:** panel lateral de cristal flotante (escritorio) y cápsula flotante abajo (móvil).
+- **Navegación:** barra superior de cristal flotante (escritorio) con las secciones en el centro y Ajustes como icono a la derecha; cápsula flotante abajo (móvil) con Hoy, Finanzas, Inversiones, Nutrición y «Más».
+- **Estructura de cada sección:** cabecera con el título grande, las subsecciones como control segmentado (`SectionHead` + `SectionTabs`) y la acción principal a la derecha; debajo, mosaico (bento) con bloques de distinto tamaño: la cifra importante en un bloque grande y los datos de apoyo en bloques pequeños con el contenido centrado.
 - **Píldora:** `rounded-full bg-surface-2 px-3 py-1 text-sm`.
 - **Subida / bajada:** `className={trendClass(valor)}` y el número con signo.
 - **Gráficas:** línea de 3 px con extremo redondeado y punto en el último valor; barras ≤ 24 px; rejilla de 1 px recesiva; leyenda si hay ≥ 2 series; textos en tokens de texto (nunca del color de la serie); tooltip y tabla de datos accesible. Ingresos = `--finance`, gastos = `--expense`. Validar las parejas nuevas con la skill `dataviz`.

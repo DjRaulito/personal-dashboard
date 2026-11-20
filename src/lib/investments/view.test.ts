@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Position } from "./engine";
-import { averageCostEur, closedRows, priceOrigin } from "./view";
+import { averageCostEur, closedRows, monthlyReturns, parseRange, priceOrigin } from "./view";
 
 const pos = (assetId: string, extra: Partial<Position> = {}): Position => ({
   assetId,
@@ -50,5 +50,29 @@ describe("inversiones · origen del precio", () => {
       "Yahoo Finance · buscando por ISIN IE00B4L5Y983 · EUR · sin precio todavía",
     );
     expect(priceOrigin({ ...asset, price_source: "manual" }, "2026-09-30")).toBe("A mano · precio del 30 sept");
+  });
+});
+
+describe("rangos y rentabilidad mensual", () => {
+  it("por defecto el gráfico enseña el año en curso", () => {
+    expect(parseRange(undefined)).toBe("YTD");
+    expect(parseRange("5A")).toBe("5A");
+    expect(parseRange("x")).toBe("YTD");
+  });
+
+  it("encadena la rentabilidad diaria de cada mes", () => {
+    const day = (date: string, returnPct: number, pnlEur: number) => ({
+      date,
+      valueEur: 0,
+      flowEur: 0,
+      investedEur: 0,
+      returnPct,
+      pnlEur,
+    });
+    const out = monthlyReturns([day("2026-01-30", 0.1, 10), day("2026-01-31", 0.1, 11), day("2026-02-01", -0.05, -6)]);
+    expect(out.map((m) => m.month)).toEqual(["2026-01", "2026-02"]);
+    expect(out[0].returnPct).toBeCloseTo(0.21);
+    expect(out[0].pnlEur).toBe(21);
+    expect(out[1].returnPct).toBeCloseTo(-0.05);
   });
 });

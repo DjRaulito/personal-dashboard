@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { clsx } from "clsx";
 import { Check, MoreHorizontal, Pencil, Plus, Trash2, X } from "lucide-react";
-import { deleteAsset, deleteOperation, updateOperation } from "@/app/(app)/finanzas/inversiones/actions";
+import { deleteAsset, deleteOperation, updateOperation } from "@/app/(app)/inversiones/actions";
 import { closeSheet, Sheet } from "@/components/sheet";
 import { buttonClass, EmptyState, inputClass } from "@/components/ui";
 import { OPERATION_LABELS, type BoardAsset, type BoardOperation } from "@/lib/investments/board";
