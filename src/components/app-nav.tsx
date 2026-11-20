@@ -25,7 +25,7 @@ export function AppNav() {
       aria-label="Principal"
       className="border-border bg-bg/95 fixed inset-x-0 bottom-0 z-20 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur md:sticky md:inset-x-auto md:top-0 md:bottom-auto md:h-dvh md:w-56 md:shrink-0 md:border-t-0 md:border-r md:pb-0 md:backdrop-blur-none"
     >
-      <Link href="/" className="font-display hidden px-6 pt-7 pb-8 text-xl font-extrabold tracking-tight md:block">
+      <Link href="/" className="font-display hidden px-6 pt-7 pb-8 text-xl font-extrabold md:block">
         Personal<span className="text-finance">·</span>Dashboard
       </Link>
       <ul className="grid grid-cols-6 md:flex md:flex-col md:gap-1 md:px-3">

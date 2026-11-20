@@ -35,7 +35,7 @@ export default async function AccountsPage() {
                       {a.archived && " · archivada"}
                     </p>
                   </div>
-                  <p className="font-display text-xl font-extrabold tracking-tight tabular-nums">
+                  <p className="font-display text-xl font-extrabold tabular-nums">
                     {formatCents(a.balance_cents, a.currency)}
                   </p>
                   <div className="basis-full">

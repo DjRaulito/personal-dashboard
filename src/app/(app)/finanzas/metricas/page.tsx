@@ -10,6 +10,7 @@ import { computePositions } from "@/lib/investments/engine";
 import { getPortfolio } from "@/lib/investments/server";
 import { yearlyStats } from "@/lib/investments/view";
 import { createClient } from "@/lib/supabase/server";
+import { trendClass } from "@/lib/trend";
 
 export const metadata: Metadata = { title: "Métricas · Finanzas" };
 
@@ -18,7 +19,7 @@ const pct = (v: number | null) =>
   v == null
     ? "—"
     : `${v > 0 ? "+" : ""}${(v * 100).toLocaleString("es-ES", { maximumFractionDigits: 2, minimumFractionDigits: 2 })} %`;
-const tone = (v: number | null) => (v == null || Math.abs(v) < 1e-9 ? "" : v > 0 ? "text-finance" : "text-expense");
+const tone = trendClass;
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (

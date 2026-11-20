@@ -476,7 +476,7 @@ function EditDialog({ garment, userId, onClose }: { garment: Garment; userId: st
           });
         }}
       >
-        <h2 className="font-display text-xl font-bold tracking-tight">Editar prenda</h2>
+        <h2 className="font-display text-xl font-bold">Editar prenda</h2>
         <GarmentFields value={fields} onChange={setFields} disabled={pending} />
         {error && (
           <p role="alert" className="text-attention text-sm">

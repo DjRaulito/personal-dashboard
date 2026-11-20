@@ -72,18 +72,16 @@ export default async function ReviewsPage() {
       <section aria-label="Periodo actual" className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
         <Tile>
           <p className="text-muted text-sm">Última revisión</p>
-          <p className="font-display mt-2 text-2xl font-extrabold tracking-tight">{last ? date(last) : "—"}</p>
+          <p className="font-display mt-2 text-2xl font-extrabold">{last ? date(last) : "—"}</p>
           {reviews[0]?.phase && <p className="text-muted mt-1 text-xs">{reviews[0].phase}</p>}
         </Tile>
         <Tile>
           <p className="text-muted text-sm">Peso actual</p>
-          <p className="font-display mt-2 text-2xl font-extrabold tracking-tight tabular-nums">
-            {num(lastWeight, " kg")}
-          </p>
+          <p className="font-display mt-2 text-2xl font-extrabold tabular-nums">{num(lastWeight, " kg")}</p>
         </Tile>
         <Tile>
           <p className="text-muted text-sm">Comidas según el plan</p>
-          <p className="font-display mt-2 text-2xl font-extrabold tracking-tight tabular-nums">
+          <p className="font-display mt-2 text-2xl font-extrabold tabular-nums">
             {currentChecks.length
               ? `${Math.round((currentChecks.filter((c) => c.status === "done").length / currentChecks.length) * 100)} %`
               : "—"}
@@ -92,7 +90,7 @@ export default async function ReviewsPage() {
         </Tile>
         <Tile>
           <p className="text-muted text-sm">Cheat meals</p>
-          <p className="font-display mt-2 text-2xl font-extrabold tracking-tight tabular-nums">{currentCheats}</p>
+          <p className="font-display mt-2 text-2xl font-extrabold tabular-nums">{currentCheats}</p>
           <p className="text-muted mt-1 text-xs">desde la última revisión</p>
         </Tile>
       </section>

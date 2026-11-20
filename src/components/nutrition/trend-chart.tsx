@@ -25,16 +25,16 @@ export function TrendChart({
   unit,
   label,
   secondary,
-  tone = "gym",
+  tone = "extra",
 }: {
   points: { date: string; value: number; secondary?: number }[];
   unit: string;
   label: string;
   secondary?: string;
-  tone?: "gym" | "nutrition";
+  tone?: "extra" | "nutrition";
 }) {
   const color =
-    tone === "gym" ? { bg: "bg-gym", stroke: "var(--gym)" } : { bg: "bg-nutrition", stroke: "var(--nutrition)" };
+    tone === "extra" ? { bg: "bg-extra", stroke: "var(--extra)" } : { bg: "bg-nutrition", stroke: "var(--nutrition)" };
   if (points.length < 2) return null;
   const step = Math.ceil(points.length / 150);
   const data = points.filter((_, i) => i % step === 0 || i === points.length - 1);

@@ -107,7 +107,7 @@ export function MeasureChart({ series }: { series: MeasureSeries }) {
       </div>
       {last && (
         <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="font-display text-3xl font-extrabold tracking-tight tabular-nums">
+          <span className="font-display text-3xl font-extrabold tabular-nums">
             {fmt(last.value)} {unit}
           </span>
           {diff !== null && points.length > 1 && (

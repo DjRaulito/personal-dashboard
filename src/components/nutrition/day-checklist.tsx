@@ -13,7 +13,7 @@ const STATUS_OPTIONS: { value: MealStatus; label: string; className: string }[] 
   { value: "less", label: "Comí menos", className: "bg-attention text-ink" },
   { value: "more", label: "Comí más", className: "bg-attention text-ink" },
   { value: "skipped", label: "Saltada", className: "bg-expense text-ink" },
-  { value: "cheat", label: "Cheat", className: "bg-gym text-ink" },
+  { value: "cheat", label: "Cheat", className: "bg-extra text-ink" },
 ];
 
 /** Checklist del día: cómo ha ido cada comida del plan, sin apuntar gramos. */

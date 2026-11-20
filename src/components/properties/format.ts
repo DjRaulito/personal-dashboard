@@ -1,5 +1,6 @@
 import { formatCents } from "@/lib/finance/money";
 import type { Verdict } from "@/lib/realestate/engine";
+import { trendClass } from "@/lib/trend";
 
 // Formatos de Inmuebles: céntimos sin decimales (son cifras grandes) y porcentajes con un decimal.
 
@@ -16,8 +17,7 @@ export const pct = (ratio: number | null | undefined, digits = 1) =>
 export const num = (v: number | null | undefined, digits = 0) =>
   v == null ? "—" : v.toLocaleString("es-ES", { maximumFractionDigits: digits });
 
-export const tone = (v: number | null | undefined) =>
-  v == null || Math.abs(v) < 1e-9 ? "text-muted" : v > 0 ? "text-finance" : "text-expense";
+export const tone = trendClass;
 
 /** Color de cada veredicto (tokens de DESIGN.md). */
 export const VERDICT_TONE: Record<Verdict, { bg: string; text: string }> = {

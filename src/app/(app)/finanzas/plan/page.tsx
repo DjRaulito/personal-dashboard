@@ -127,7 +127,7 @@ export default async function PlanPage() {
       <section aria-label="Resumen del plan" className="grid gap-3.5 sm:grid-cols-3">
         <Tile>
           <p className="text-muted text-sm">Presupuesto del mes</p>
-          <p className="font-display mt-3 text-3xl font-extrabold tracking-tight tabular-nums">
+          <p className="font-display mt-3 text-3xl font-extrabold tabular-nums">
             {totalBudget ? formatCents(totalBudget - totalBudgetSpent) : "—"}
           </p>
           <p className="text-muted mt-1 text-sm">
@@ -138,7 +138,7 @@ export default async function PlanPage() {
         </Tile>
         <Tile>
           <p className="text-muted text-sm">Gastos fijos al mes</p>
-          <p className="font-display mt-3 text-3xl font-extrabold tracking-tight tabular-nums">
+          <p className="font-display mt-3 text-3xl font-extrabold tabular-nums">
             {active.length ? formatCents(fixedOut) : "—"}
           </p>
           <p className="text-muted mt-1 text-sm">
@@ -147,7 +147,7 @@ export default async function PlanPage() {
         </Tile>
         <Tile>
           <p className="text-muted text-sm">En huchas</p>
-          <p className="font-display mt-3 text-3xl font-extrabold tracking-tight tabular-nums">
+          <p className="font-display mt-3 text-3xl font-extrabold tabular-nums">
             {openGoals.length ? formatCents(totalSaved) : "—"}
           </p>
           <p className="text-muted mt-1 text-sm">{openGoals.length ? `${openGoals.length} objetivos` : "Sin huchas"}</p>
@@ -332,7 +332,7 @@ export default async function PlanPage() {
                     {Math.round(g.progress.ratio * 100)} %
                   </span>
                 </p>
-                <p className="font-display mt-2 text-2xl font-extrabold tracking-tight tabular-nums">
+                <p className="font-display mt-2 text-2xl font-extrabold tabular-nums">
                   {formatCents(g.saved)}
                   <span className="text-muted text-base font-medium"> de {formatCents(g.target_cents)}</span>
                 </p>

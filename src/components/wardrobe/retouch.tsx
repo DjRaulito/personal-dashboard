@@ -172,7 +172,7 @@ export function RetouchDialog({
       aria-label="Retocar recorte"
       className="bg-surface text-text border-border rounded-tile m-auto w-[min(40rem,calc(100vw-1rem))] border p-4 backdrop:bg-black/70 sm:p-6"
     >
-      <h2 className="font-display text-xl font-bold tracking-tight">Retocar recorte</h2>
+      <h2 className="font-display text-xl font-bold">Retocar recorte</h2>
       <p className="text-muted mt-1 text-sm">
         Pasa el dedo por lo que sobra para borrarlo.
         {source.restorable && " Con «Recuperar» vuelves a pintar partes de la prenda que se hayan borrado."}

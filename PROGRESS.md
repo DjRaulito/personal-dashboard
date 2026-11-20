@@ -11,6 +11,8 @@ Orden del refactor: 1 Limpieza · 2 Diseño C «Contraste claro» · 3 Ajustes �
 - [x] `studio/` y la skill `editar-video` movidas a la carpeta `estudio-video` (al lado de este repo), para la futura app de escritorio.
 - [x] Migración `drop_removed_modules` aplicada en Supabase (18 nov 2026) y `database.types.ts` actualizado.
 - [ ] Borrar a mano el bucket vacío `studio` en Supabase → Storage.
+- [x] **Diseño C «Contraste claro» (20 nov 2026):** `DESIGN.md` reescrito; tokens Okabe-Ito en `globals.css` (celeste Finanzas, verde azulado Nutrición, púrpura Armario, hueso Cerebro/Tareas, amarillo atención, naranja gastos y bajadas, bermellón `--extra` en lugar de `--gym`); Atkinson Hyperlegible Next en toda la app; subidas y bajadas con ▲▼ además del color (`trendClass` en `src/lib/trend.ts`); sin tracking negativo. Skill `impeccable` copiada (solo instrucciones, sin su binario).
+- [x] Desde el 20 nov Raúl autoriza a completar fases y mergear sin pedir permiso (con la CI en verde).
 
 Lo de abajo es el histórico anterior al refactor; las secciones de Contenido, Gimnasio, IA y agentes ya no aplican.
 

@@ -179,7 +179,7 @@ export function settleLayout(l: Layout, iterations = 280): void {
   for (let k = 0; k < iterations; k++) tickLayout(l, Math.max(0.05, 1 - k / iterations));
 }
 
-const NODE_COLORS = ["var(--finance)", "var(--gym)", "var(--content)", "var(--nutrition)", "var(--attention)"];
+const NODE_COLORS = ["var(--finance)", "var(--extra)", "var(--content)", "var(--nutrition)", "var(--attention)"];
 
 /** Color de un nodo según su primera etiqueta (siempre el mismo para la misma etiqueta). */
 export function nodeColor(tags: string[]): string {

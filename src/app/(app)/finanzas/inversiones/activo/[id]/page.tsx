@@ -7,6 +7,7 @@ import { BackLink, Tile, TileTitle } from "@/components/ui";
 import { formatCents } from "@/lib/finance/money";
 import { getPortfolio } from "@/lib/investments/server";
 import { KIND_LABELS } from "@/lib/investments/view";
+import { trendClass } from "@/lib/trend";
 
 export const metadata: Metadata = { title: "Activo · Inversiones" };
 
@@ -35,7 +36,7 @@ export default async function AssetPage({ params }: { params: Promise<{ id: stri
     <>
       <BackLink href="/finanzas/inversiones">Inversiones</BackLink>
       <Tile>
-        <h1 className="font-display mt-3 text-3xl font-extrabold tracking-tight">{asset.name}</h1>
+        <h1 className="font-display mt-3 text-3xl font-extrabold">{asset.name}</h1>
         <p className="text-muted mt-1 text-sm">
           {KIND_LABELS[asset.kind]} · {asset.isin ?? asset.symbol ?? "sin ISIN"} · {asset.currency}
           {prices.length > 0 &&
@@ -48,7 +49,7 @@ export default async function AssetPage({ params }: { params: Promise<{ id: stri
               <dd
                 className={clsx(
                   "mt-1 font-semibold tabular-nums",
-                  s.tone == null ? "" : s.tone > 0 ? "text-finance" : s.tone < 0 ? "text-expense" : "",
+                  s.tone != null && s.tone !== 0 && trendClass(s.tone),
                 )}
               >
                 {s.value}

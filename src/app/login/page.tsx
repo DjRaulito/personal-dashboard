@@ -10,11 +10,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 px-4 py-10">
-      <span className="font-display text-2xl font-extrabold tracking-tight">
+      <span className="font-display text-2xl font-extrabold">
         Personal<span className="text-finance">·</span>Dashboard
       </span>
       <section className="rounded-tile border-border bg-surface border p-7">
-        <h1 className="font-display text-4xl leading-none font-extrabold tracking-tight">Entrar</h1>
+        <h1 className="font-display text-4xl leading-none font-extrabold">Entrar</h1>
         <p className="text-muted mt-3">
           Solo con tu cuenta de Google. Se pedirá permiso para leer tu calendario y la hoja de control de tu
           nutricionista.

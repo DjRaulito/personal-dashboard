@@ -64,7 +64,7 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
             className="rounded-tile bg-finance text-ink focus-visible:outline-text p-6 transition-transform duration-200 hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:hover:translate-y-0 sm:col-span-2"
           >
             <p className="text-sm font-semibold">Mejor oportunidad</p>
-            <p className="font-display mt-3 text-4xl leading-none font-extrabold tracking-tight">
+            <p className="font-display mt-3 text-4xl leading-none font-extrabold">
               {best.ev.score.total}
               <span className="text-lg font-bold"> / 100</span>
             </p>
@@ -81,7 +81,7 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
         )}
         <Tile>
           <p className="text-muted text-sm">Cumplen tus criterios</p>
-          <p className="font-display mt-3 text-4xl font-extrabold tracking-tight tabular-nums">
+          <p className="font-display mt-3 text-4xl font-extrabold tabular-nums">
             {summary.meeting}
             <span className="text-muted text-lg font-bold"> de {summary.active}</span>
           </p>
@@ -93,9 +93,7 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
           <p className="text-muted text-sm">Última búsqueda</p>
           {summary.lastRun ? (
             <>
-              <p className="font-display mt-3 text-2xl font-extrabold tracking-tight">
-                {dateTime(summary.lastRun.ran_at)}
-              </p>
+              <p className="font-display mt-3 text-2xl font-extrabold">{dateTime(summary.lastRun.ran_at)}</p>
               <p className="text-muted mt-1 text-sm tabular-nums">
                 {summary.lastRun.examined} examinados · {summary.lastRun.saved} guardados
               </p>
@@ -280,7 +278,7 @@ function ListingCard({ l, rank, grossMin }: { l: EvaluatedListing; rank: number;
           </p>
         </div>
         <div className="text-right">
-          <p className="font-display text-xl font-extrabold tracking-tight tabular-nums">{eur(l.price)}</p>
+          <p className="font-display text-xl font-extrabold tabular-nums">{eur(l.price)}</p>
           {target && <p className="text-muted text-xs tabular-nums">objetivo {eur(target)}</p>}
           {l.sqm && <p className="text-muted text-xs tabular-nums">{eur(l.price / l.sqm)}/m²</p>}
         </div>

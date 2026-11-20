@@ -29,19 +29,19 @@ export default async function CheatsPage() {
       <section aria-label="Resumen" className="grid grid-cols-2 gap-3.5">
         <Tile>
           <p className="text-muted text-sm">{lastReview ? `Desde la revisión del ${date(lastReview)}` : "En total"}</p>
-          <p className="font-display mt-2 text-3xl font-extrabold tracking-tight tabular-nums">{current.length}</p>
+          <p className="font-display mt-2 text-3xl font-extrabold tabular-nums">{current.length}</p>
           <p className="text-muted mt-1 text-xs">cheat meals</p>
         </Tile>
         <Tile>
           <p className="text-muted text-sm">Kcal estimadas</p>
-          <p className="font-display mt-2 text-3xl font-extrabold tracking-tight tabular-nums">
+          <p className="font-display mt-2 text-3xl font-extrabold tabular-nums">
             {currentKcal ? currentKcal.toLocaleString(APP_LOCALE) : "—"}
           </p>
           <p className="text-muted mt-1 text-xs">en ese periodo</p>
         </Tile>
       </section>
       <Tile>
-        <TileTitle dot="bg-gym">Apuntar cheat meal</TileTitle>
+        <TileTitle dot="bg-extra">Apuntar cheat meal</TileTitle>
         <div className="mt-4">
           <CheatForm today={today} />
         </div>
@@ -53,7 +53,7 @@ export default async function CheatsPage() {
       ) : (
         [...periods].map(([since, list]) => (
           <Tile key={since ?? "inicio"}>
-            <TileTitle dot="bg-gym">
+            <TileTitle dot="bg-extra">
               {since ? `Tras la revisión del ${date(since)}` : "Antes de la primera revisión"} · {list.length}
             </TileTitle>
             <ul className="mt-3 flex flex-col">
