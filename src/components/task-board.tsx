@@ -1,15 +1,17 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
 import { clsx } from "clsx";
-import { Archive, Check, ExternalLink, Star, X } from "lucide-react";
+import { Archive, X } from "lucide-react";
 import { saveCriteria, setArchived, setItemStatus } from "@/app/(app)/tareas/actions";
+import { ItemCards, ItemDays, ItemDetail, ItemTable } from "@/components/tasks/task-items";
 import { buttonClass, EmptyState, FormMessage, inputClass, Tile, TileTitle } from "@/components/ui";
-import { formatValue, ITEM_STATUSES, STATUS_LABELS, type ItemStatus } from "@/lib/tasks/fields";
-import type { TaskDetail } from "@/lib/tasks/server";
+import { fieldRoles, groupByDay, type ItemStatus } from "@/lib/tasks/fields";
+import type { TaskDetail, TaskItem } from "@/lib/tasks/server";
 
 const when = (iso: string) =>
   new Intl.DateTimeFormat("es-ES", {
+    weekday: "short",
     day: "numeric",
     month: "short",
     hour: "2-digit",
@@ -17,72 +19,158 @@ const when = (iso: string) =>
     timeZone: "Europe/Madrid",
   }).format(new Date(iso));
 
-type View = ItemStatus | "runs" | "config";
+const todayMadrid = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date());
 
-/** Vista genérica de una tarea: se construye con los campos que declaró la propia tarea. */
+type Filter = "new" | "favorite" | "all" | "discarded";
+type View = Filter | "runs" | "config";
+
+const FILTERS: [Filter, string][] = [
+  ["new", "Nuevos"],
+  ["favorite", "Favoritos"],
+  ["all", "Todos"],
+  ["discarded", "Descartados"],
+];
+
+const matches = (filter: Filter, i: TaskItem) => (filter === "all" ? i.status !== "discarded" : i.status === filter);
+
+/**
+ * Pantalla completa de una tarea: resumen de la última ejecución, resultados a todo el ancho
+ * (tarjetas, tabla o por día según sus datos) y, al tocar uno, su detalle al lado.
+ */
 export function TaskBoard({ task }: { task: TaskDetail }) {
-  const [view, setView] = useState<View>("new");
-  const [sortKey, setSortKey] = useState<string>("");
-  const [desc, setDesc] = useState(true);
-  const [query, setQuery] = useState("");
   const [pending, start] = useTransition();
+  const [items, setOptimistic] = useOptimistic(
+    task.items,
+    (list: TaskItem[], change: { id: string; status: ItemStatus }) =>
+      list.map((i) => (i.id === change.id ? { ...i, status: change.status } : i)),
+  );
+  const counts = {
+    new: items.filter((i) => matches("new", i)).length,
+    favorite: items.filter((i) => matches("favorite", i)).length,
+    all: items.filter((i) => matches("all", i)).length,
+    discarded: items.filter((i) => matches("discarded", i)).length,
+  };
+  const [view, setView] = useState<View>(counts.new > 0 ? "new" : "all");
+  const [selected, setSelected] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [sortKey, setSortKey] = useState("");
+  const flags = fieldRoles(task.fields).flags;
+  // Por defecto, solo los que cumplen los sí/no de la tarea (p. ej. «talla 42 confirmada»)
+  const [onlyFlags, setOnlyFlags] = useState(flags.length > 0);
   const [criteria, setCriteria] = useState(JSON.stringify(task.criteria, null, 2));
   const [saved, setSaved] = useState<{ ok: boolean; message?: string }>({ ok: true });
-  const urlField = task.fields.find((f) => f.type === "url");
-  const titleField = task.fields.find((f) => f.type === "text");
-  const counts = Object.fromEntries(
-    ITEM_STATUSES.map((s) => [s, task.items.filter((i) => i.status === s).length]),
-  ) as Record<ItemStatus, number>;
+  const [now] = useState(() => Date.now());
 
-  const items = useMemo(() => {
+  const onStatus = (id: string, status: ItemStatus) =>
+    start(async () => {
+      setOptimistic({ id, status });
+      await setItemStatus(id, status);
+    });
+
+  const visible = useMemo(() => {
     if (view === "runs" || view === "config") return [];
     const q = query.trim().toLowerCase();
-    const list = task.items.filter(
-      (i) => i.status === view && (!q || Object.values(i.data).some((v) => String(v).toLowerCase().includes(q))),
+    const list = items.filter(
+      (i) =>
+        matches(view, i) &&
+        (!onlyFlags || flags.every((f) => i.data[f.key] === true)) &&
+        (!q || Object.values(i.data).some((v) => String(v).toLowerCase().includes(q))),
     );
     if (!sortKey) return list;
     return [...list].sort((a, b) => {
       const x = a.data[sortKey];
       const y = b.data[sortKey];
-      const c = typeof x === "number" && typeof y === "number" ? x - y : String(x ?? "").localeCompare(String(y ?? ""));
-      return desc ? -c : c;
+      return typeof x === "number" && typeof y === "number" ? x - y : String(x ?? "").localeCompare(String(y ?? ""));
     });
-  }, [task.items, view, query, sortKey, desc]);
+  }, [items, view, query, sortKey, onlyFlags, flags]);
 
-  const tabs: [View, string][] = [
-    ...ITEM_STATUSES.map((s) => [s, `${STATUS_LABELS[s]} (${counts[s]})`] as [View, string]),
-    ["runs", "Ejecuciones"],
-    ["config", "Configuración"],
-  ];
+  const current = items.find((i) => i.id === selected) ?? null;
+
+  // Escape cierra el detalle (en el móvil ocupa toda la pantalla)
+  useEffect(() => {
+    if (!current) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setSelected(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [current]);
+
+  const stale = !task.archived && (!task.lastRun || now - Date.parse(task.lastRun.ranAt) > 3 * 86_400_000);
+  const listProps = { fields: task.fields, selected, onSelect: setSelected, onStatus, pending, now };
+  const grouped =
+    task.view === "days"
+      ? groupByDay(
+          visible,
+          (i) => {
+            const d = fieldRoles(task.fields).date;
+            const v = d && i.data[d.key];
+            return typeof v === "string" ? v : null;
+          },
+          todayMadrid(),
+        )
+      : null;
 
   return (
     <div className="flex flex-col gap-3.5">
       <div>
         <h2 className="text-2xl font-bold">{task.name}</h2>
-        {task.description && <p className="text-muted mt-1 text-sm">{task.description}</p>}
-        <p className="text-muted mt-1 text-xs">
-          {task.schedule ? `Corre ${task.schedule}. ` : ""}
-          {task.lastRun ? `Última ejecución: ${when(task.lastRun.ranAt)}.` : "Aún no ha corrido."}
-        </p>
+        {task.description && task.lastRun && <p className="text-muted mt-1 text-sm">{task.description}</p>}
       </div>
+      <section aria-label="Resumen" className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
+        <Tile className="col-span-2">
+          <p className="text-muted text-sm">
+            {task.lastRun ? `Última ejecución · ${when(task.lastRun.ranAt)}` : "Aún no ha corrido"}
+            {task.schedule ? ` · corre ${task.schedule}` : ""}
+          </p>
+          <p className="mt-2 text-lg font-semibold text-pretty">
+            {task.lastRun
+              ? task.lastRun.summary || (task.lastRun.ok ? "Fue bien." : "Falló.")
+              : task.description || "Cuando corra por primera vez, sus resultados aparecerán aquí."}
+          </p>
+          {task.lastRun && !task.lastRun.ok && <p className="text-attention mt-2 text-sm font-semibold">✕ Falló</p>}
+          {stale && (
+            <p className="text-attention mt-2 text-sm font-semibold">! Sin ejecutar desde hace más de 3 días</p>
+          )}
+        </Tile>
+        <Tile>
+          <p className="text-muted text-sm">Nuevos</p>
+          <p className="font-display mt-2 text-4xl font-extrabold tabular-nums">{counts.new}</p>
+          {task.lastRun && (
+            <p className="text-muted mt-1 text-sm">
+              {task.lastRun.found} en la última, {task.lastRun.removed} retirados
+            </p>
+          )}
+        </Tile>
+        <Tile>
+          <p className="text-muted text-sm">Siguiendo</p>
+          <p className="font-display mt-2 text-4xl font-extrabold tabular-nums">{counts.all}</p>
+          <p className="text-muted mt-1 text-sm">
+            {counts.favorite === 1 ? "1 favorito" : `${counts.favorite} favoritos`}
+          </p>
+        </Tile>
+      </section>
 
-      <div role="tablist" aria-label="Vista" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <div className="bg-surface-2 flex w-max rounded-full p-1">
-          {tabs.map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={view === id}
-              onClick={() => setView(id)}
-              className={clsx(
-                "rounded-full px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap",
-                view === id ? "bg-selected text-on-selected" : "text-muted hover:text-text",
-              )}
-            >
-              {label}
-            </button>
-          ))}
+      <div className="flex flex-wrap items-center gap-2">
+        <div role="tablist" aria-label="Resultados" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <div className="bg-surface-2 flex w-max rounded-full p-1">
+            {([...FILTERS, ["runs", "Ejecuciones"], ["config", "Configuración"]] as [View, string][]).map(
+              ([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={view === id}
+                  onClick={() => setView(id)}
+                  className={clsx(
+                    "rounded-full px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap",
+                    view === id ? "bg-selected text-on-selected" : "text-muted hover:text-text",
+                  )}
+                >
+                  {label}
+                  {id in counts && <span className="ml-1.5 tabular-nums opacity-70">{counts[id as Filter]}</span>}
+                </button>
+              ),
+            )}
+          </div>
         </div>
       </div>
 
@@ -144,96 +232,76 @@ export function TaskBoard({ task }: { task: TaskDetail }) {
           </div>
         </Tile>
       ) : (
-        <Tile>
-          <div className="flex flex-wrap gap-2">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Filtrar…"
-              aria-label="Filtrar resultados"
-              className={clsx(inputClass, "max-w-xs")}
-            />
-            {task.fields.length > 0 && (
-              <select
-                value={sortKey}
-                onChange={(e) => setSortKey(e.target.value)}
-                aria-label="Ordenar por"
-                className={clsx(inputClass, "w-auto")}
-              >
-                <option value="">Más recientes</option>
-                {task.fields.map((f) => (
-                  <option key={f.key} value={f.key}>
-                    Ordenar por {f.label.toLowerCase()}
-                  </option>
-                ))}
-              </select>
+        <div className={clsx("grid items-start gap-3.5", current && "lg:grid-cols-[minmax(0,1fr)_24rem]")}>
+          <Tile className="@container">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar…"
+                aria-label="Buscar en los resultados"
+                className={clsx(inputClass, "sm:w-64")}
+              />
+              {task.fields.length > 0 && task.view !== "days" && (
+                <select
+                  value={sortKey}
+                  onChange={(e) => setSortKey(e.target.value)}
+                  aria-label="Ordenar por"
+                  className={clsx(inputClass, "sm:w-56")}
+                >
+                  <option value="">Más recientes</option>
+                  {task.fields
+                    .filter((f) => f.type !== "url")
+                    .map((f) => (
+                      <option key={f.key} value={f.key}>
+                        Por {f.label.toLowerCase()}
+                      </option>
+                    ))}
+                </select>
+              )}
+              {flags.length > 0 && (
+                <label className="text-muted inline-flex min-h-11 items-center gap-2 text-sm">
+                  <input type="checkbox" checked={onlyFlags} onChange={(e) => setOnlyFlags(e.target.checked)} />
+                  Solo «{flags.map((f) => f.label).join("» y «")}»
+                </label>
+              )}
+            </div>
+            {visible.length === 0 ? (
+              <EmptyState>
+                {items.length === 0
+                  ? "Aún no ha guardado resultados."
+                  : view === "new"
+                    ? "No hay nada nuevo: ya lo has mirado todo."
+                    : "Nada por aquí con estos filtros."}
+              </EmptyState>
+            ) : grouped ? (
+              <ItemDays {...listProps} {...grouped} />
+            ) : task.view === "table" ? (
+              <ItemTable {...listProps} items={visible} />
+            ) : (
+              <ItemCards {...listProps} items={visible} />
             )}
-            {sortKey && (
-              <button type="button" onClick={() => setDesc(!desc)} className={buttonClass.secondary}>
-                {desc ? "Mayor primero" : "Menor primero"}
-              </button>
-            )}
-          </div>
-          {items.length === 0 ? (
-            <EmptyState>Nada en {STATUS_LABELS[view as ItemStatus].toLowerCase()}.</EmptyState>
-          ) : (
-            <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-              {items.map((item) => {
-                const url = urlField ? String(item.data[urlField.key] ?? "") : "";
-                const title = titleField ? String(item.data[titleField.key] ?? item.key) : item.key;
-                return (
-                  <li key={item.id} className="bg-surface-2 rounded-inner flex flex-col gap-2 p-4">
-                    <div className="flex items-start gap-2">
-                      <p className="min-w-0 flex-1 font-semibold">{title}</p>
-                      {item.removedAt && <span className="text-attention text-xs">! retirado</span>}
-                    </div>
-                    <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
-                      {task.fields
-                        .filter((f) => f !== titleField && f.type !== "url")
-                        .map((f) => (
-                          <div key={f.key} className="min-w-0">
-                            <dt className="text-muted text-xs">{f.label}</dt>
-                            <dd className="truncate tabular-nums">{formatValue(f.type, item.data[f.key])}</dd>
-                          </div>
-                        ))}
-                    </dl>
-                    <div className="mt-1 flex flex-wrap items-center gap-1">
-                      {url && (
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-finance mr-auto inline-flex items-center gap-1 text-sm"
-                        >
-                          Abrir <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
-                        </a>
-                      )}
-                      {(
-                        [
-                          ["favorite", "Favorito", Star],
-                          ["seen", "Visto", Check],
-                          ["discarded", "Descartar", X],
-                        ] as const
-                      )
-                        .filter(([s]) => s !== item.status)
-                        .map(([s, label, Icon]) => (
-                          <button
-                            key={s}
-                            type="button"
-                            disabled={pending}
-                            onClick={() => start(() => setItemStatus(item.id, s))}
-                            className="hover:bg-surface text-muted hover:text-text inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs"
-                          >
-                            <Icon aria-hidden="true" className="h-3.5 w-3.5" /> {label}
-                          </button>
-                        ))}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+          </Tile>
+          {current && (
+            <aside
+              aria-label="Detalle"
+              className="bg-bg fixed inset-0 z-50 overflow-y-auto p-5 lg:static lg:inset-auto lg:z-auto lg:bg-transparent lg:p-0"
+            >
+              <Tile className="lg:sticky lg:top-24">
+                <button
+                  type="button"
+                  onClick={() => setSelected(null)}
+                  aria-label="Cerrar detalle"
+                  className="text-muted hover:text-text hover:bg-surface-2 float-right -mt-2 -mr-2 inline-flex h-11 w-11 items-center justify-center rounded-full"
+                >
+                  <X aria-hidden="true" className="h-5 w-5" />
+                </button>
+                <ItemDetail fields={task.fields} item={current} pending={pending} onStatus={onStatus} />
+              </Tile>
+            </aside>
           )}
-        </Tile>
+        </div>
       )}
     </div>
   );

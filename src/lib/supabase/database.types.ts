@@ -1286,6 +1286,7 @@ export type Database = {
           special_view: string | null;
           updated_at: string;
           user_id: string;
+          view: string | null;
         };
         Insert: {
           archived?: boolean;
@@ -1300,6 +1301,7 @@ export type Database = {
           special_view?: string | null;
           updated_at?: string;
           user_id?: string;
+          view?: string | null;
         };
         Update: {
           archived?: boolean;
@@ -1314,6 +1316,7 @@ export type Database = {
           special_view?: string | null;
           updated_at?: string;
           user_id?: string;
+          view?: string | null;
         };
         Relationships: [];
       };
@@ -1405,8 +1408,10 @@ export type Database = {
       };
       task_items: {
         Row: {
+          changed_at: string | null;
           data: Json;
           first_seen_at: string;
+          history: Json;
           id: string;
           item_key: string;
           last_seen_at: string;
@@ -1416,8 +1421,10 @@ export type Database = {
           user_id: string;
         };
         Insert: {
+          changed_at?: string | null;
           data?: Json;
           first_seen_at?: string;
+          history?: Json;
           id?: string;
           item_key: string;
           last_seen_at?: string;
@@ -1427,8 +1434,10 @@ export type Database = {
           user_id?: string;
         };
         Update: {
+          changed_at?: string | null;
           data?: Json;
           first_seen_at?: string;
+          history?: Json;
           id?: string;
           item_key?: string;
           last_seen_at?: string;
