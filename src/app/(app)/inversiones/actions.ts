@@ -18,6 +18,7 @@ async function session() {
 
 function refresh() {
   revalidatePath("/finanzas", "layout");
+  revalidatePath("/inversiones", "layout");
   revalidatePath("/");
 }
 

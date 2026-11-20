@@ -15,10 +15,17 @@ const nextConfig: NextConfig = {
       { source: "/finanzas/inmuebles/:path*", destination: "/tareas/inmuebles/:path*", permanent: false },
       // Armario v3: sin probador virtual
       { source: "/armario/probar", destination: "/armario", permanent: false },
-      // Inversiones: todo se hace desde la lista de posiciones y su panel
-      { source: "/finanzas/inversiones/activo/:id", destination: "/finanzas/inversiones?activo=:id", permanent: false },
-      { source: "/finanzas/inversiones/activos", destination: "/finanzas/inversiones", permanent: false },
-      { source: "/finanzas/inversiones/operaciones", destination: "/finanzas/inversiones", permanent: false },
+      // Inversiones es una sección propia (estructura de noviembre de 2026)
+      {
+        source: "/finanzas/inversiones/activo/:id",
+        destination: "/inversiones/posiciones?activo=:id",
+        permanent: false,
+      },
+      { source: "/finanzas/inversiones/importar", destination: "/inversiones/importar", permanent: false },
+      { source: "/finanzas/inversiones/:path*", destination: "/inversiones", permanent: false },
+      { source: "/finanzas/inversiones", destination: "/inversiones", permanent: false },
+      // Importar extractos pasa a Ajustes → Finanzas
+      { source: "/finanzas/importar", destination: "/ajustes/finanzas/importar", permanent: false },
     ];
   },
   experimental: {

@@ -15,7 +15,7 @@ export default async function ImportPage() {
 
   return (
     <>
-      <BackLink href="/finanzas/gastos">Gastos</BackLink>
+      <BackLink href="/ajustes/finanzas">Finanzas</BackLink>
       <Tile>
         <TileTitle>Importar extracto</TileTitle>
         <p className="text-muted mt-2 max-w-2xl text-sm">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { addManualPrice, updateAsset } from "@/app/(app)/finanzas/inversiones/actions";
+import { addManualPrice, updateAsset } from "@/app/(app)/inversiones/actions";
 import { buttonClass, Field, FormMessage, inputClass } from "@/components/ui";
 import { KIND_LABELS } from "@/lib/investments/view";
 

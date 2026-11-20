@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Importar cartera · Inversiones" };
 export default function ImportPortfolioPage() {
   return (
     <>
-      <BackLink href="/finanzas/inversiones">Inversiones</BackLink>
+      <BackLink href="/inversiones/posiciones">Posiciones</BackLink>
       <Tile>
         <div className="mt-3">
           <TileTitle>Importar cartera</TileTitle>

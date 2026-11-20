@@ -9,11 +9,44 @@ export const KIND_LABELS: Record<AssetKind, string> = {
   other: "Otros",
 };
 
-export const CHART_RANGES = ["1M", "3M", "YTD", "1A", "TOTAL"] as const;
+export const CHART_RANGES = ["1S", "1M", "YTD", "1A", "3A", "5A", "TOTAL"] as const;
 export type ChartRange = (typeof CHART_RANGES)[number];
 
+export const RANGE_LABELS: Record<ChartRange, string> = {
+  "1S": "1S",
+  "1M": "1M",
+  YTD: "YTD",
+  "1A": "1A",
+  "3A": "3A",
+  "5A": "5A",
+  TOTAL: "Todo",
+};
+
 export function parseRange(v: string | undefined): ChartRange {
-  return (CHART_RANGES as readonly string[]).includes(v ?? "") ? (v as ChartRange) : "1A";
+  return (CHART_RANGES as readonly string[]).includes(v ?? "") ? (v as ChartRange) : "YTD";
+}
+
+export interface MonthReturn {
+  /** YYYY-MM */
+  month: string;
+  returnPct: number;
+  pnlEur: number;
+}
+
+/** Rentabilidad de cada mes (encadenando la diaria, sin que la inflen las aportaciones). */
+export function monthlyReturns(series: DailyPoint[]): MonthReturn[] {
+  const out: MonthReturn[] = [];
+  for (const p of series) {
+    const month = p.date.slice(0, 7);
+    let cur = out.at(-1);
+    if (!cur || cur.month !== month) {
+      cur = { month, returnPct: 0, pnlEur: 0 };
+      out.push(cur);
+    }
+    cur.returnPct = (1 + cur.returnPct) * (1 + p.returnPct) - 1;
+    cur.pnlEur += p.pnlEur;
+  }
+  return out;
 }
 
 /** Puntos de la gráfica de valor para un rango. */

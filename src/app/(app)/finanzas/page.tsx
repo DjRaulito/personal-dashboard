@@ -37,7 +37,7 @@ export default async function NetWorthPage({ searchParams }: { searchParams: Pro
           <Link href="/ajustes/finanzas/cuentas" className={buttonClass.secondary}>
             Crear cuentas
           </Link>
-          <Link href="/finanzas/inversiones/importar" className={buttonClass.primary}>
+          <Link href="/inversiones/importar" className={buttonClass.primary}>
             Importar cartera
           </Link>
         </div>
@@ -100,7 +100,7 @@ export default async function NetWorthPage({ searchParams }: { searchParams: Pro
               <span className="min-w-0 flex-1">
                 {a.name}: último movimiento {f.label === "sin datos" ? "— ninguno todavía" : f.label}.
               </span>
-              <Link href="/finanzas/importar" className={buttonClass.secondary}>
+              <Link href="/ajustes/finanzas/importar" className={buttonClass.secondary}>
                 Importar extracto
               </Link>
             </div>
@@ -118,7 +118,7 @@ export default async function NetWorthPage({ searchParams }: { searchParams: Pro
           )}
         </div>
         <Link
-          href="/finanzas/inversiones"
+          href="/inversiones"
           className="rounded-tile border-border bg-surface hover:border-border-strong border p-6 transition-[border-color,transform] duration-150 active:scale-[0.98] motion-reduce:active:scale-100"
         >
           <span className="text-muted block text-sm">Inversiones</span>

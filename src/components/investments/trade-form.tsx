@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { clsx } from "clsx";
 import { Plus } from "lucide-react";
-import { recordTrade } from "@/app/(app)/finanzas/inversiones/actions";
+import { recordTrade } from "@/app/(app)/inversiones/actions";
 import { closeSheet } from "@/components/sheet";
 import { buttonClass, Field, inputClass } from "@/components/ui";
 import { matchAsset, OPERATION_LABELS, type BoardAsset, type BoardOperation } from "@/lib/investments/board";

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
-import { importPortfolio, type PortfolioImportResult } from "@/app/(app)/finanzas/inversiones/actions";
+import { importPortfolio, type PortfolioImportResult } from "@/app/(app)/inversiones/actions";
 import { buttonClass, Field, inputClass } from "@/components/ui";
 import { parseInvestingCsv, type InvestingExport } from "@/lib/investments/investing-csv";
 import {
@@ -299,7 +299,7 @@ export function PortfolioImporter() {
                 {result.newAssets} activos nuevos · {result.newOperations} operaciones nuevas (las que ya estaban no se
                 duplican)
               </p>
-              <Link href="/finanzas/inversiones" className="underline">
+              <Link href="/inversiones/posiciones" className="underline">
                 Ver la cartera
               </Link>
             </>
