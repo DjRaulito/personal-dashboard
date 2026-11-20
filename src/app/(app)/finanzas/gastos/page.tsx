@@ -4,11 +4,12 @@ import { clsx } from "clsx";
 import { CategoryBars } from "@/components/finance/charts";
 import { SyncStatementsButton } from "@/components/finance/sync-statements";
 import { TransactionForm } from "@/components/finance/transaction-form";
+import { TransactionFilters } from "@/components/finance/transaction-filters";
 import { TransactionsTable } from "@/components/finance/transactions-table";
 import { buttonClass, EmptyState, Tile, TileTitle } from "@/components/ui";
 import { dayKey } from "@/lib/datetime";
 import { categoryLabels, categoryOptions } from "@/lib/finance/categories";
-import { filtersHref, monthBounds, PAGE_SIZE } from "@/lib/finance/filters";
+import { filtersHref, monthBounds, PAGE_SIZE, parseFilters } from "@/lib/finance/filters";
 import { formatCents } from "@/lib/finance/money";
 import { financePeriods } from "@/lib/finance/periods";
 import { salaryFor, sumByMonth } from "@/lib/finance/income";
@@ -26,12 +27,15 @@ const shiftMonth = (month: string, delta: number) => {
 export default async function ExpensesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mes?: string; pagina?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const sp = await searchParams;
+  const parsed = parseFilters(await searchParams);
   const current = financePeriods(new Date()).monthKey;
-  const month = sp.mes && /^\d{4}-\d{2}$/.test(sp.mes) ? sp.mes : current;
-  const page = Math.max(1, Number(sp.pagina) || 1);
+  const month = parsed.mes ?? current;
+  const page = parsed.pagina ?? 1;
+  // Filtros de la tabla; el mes y la página van aparte
+  const filters = { ...parsed, mes: month, pagina: undefined };
+  const filtered = Boolean(filters.q || filters.categoria || filters.cuenta || filters.tipo);
   const { from, to } = monthBounds(month);
   const supabase = await createClient();
 
@@ -40,7 +44,7 @@ export default async function ExpensesPage({
     getCategories(),
     supabase.rpc("monthly_cashflow", { p_from: from, p_to: to }),
     supabase.rpc("category_spending", { p_from: from, p_to: to }),
-    listTransactions({ mes: month, pagina: page }),
+    listTransactions({ ...filters, pagina: page }),
     getIncomeData(from),
   ]);
 
@@ -64,7 +68,7 @@ export default async function ExpensesPage({
       <div className="flex flex-wrap items-center gap-3">
         <nav aria-label="Mes" className="bg-surface border-border flex items-center gap-1 rounded-full border p-1">
           <Link
-            href={`${base}?mes=${shiftMonth(month, -1)}`}
+            href={filtersHref(base, filters, { mes: shiftMonth(month, -1) })}
             className="text-muted hover:text-text rounded-full px-3 py-1.5 text-sm"
             aria-label="Mes anterior"
           >
@@ -73,7 +77,7 @@ export default async function ExpensesPage({
           <span className="px-2 text-sm font-semibold first-letter:uppercase">{monthName}</span>
           {month < current ? (
             <Link
-              href={`${base}?mes=${shiftMonth(month, 1)}`}
+              href={filtersHref(base, filters, { mes: shiftMonth(month, 1) })}
               className="text-muted hover:text-text rounded-full px-3 py-1.5 text-sm"
               aria-label="Mes siguiente"
             >
@@ -142,7 +146,7 @@ export default async function ExpensesPage({
                   id: s.category_id ?? "sin",
                   label: s.category_id ? (labels.get(s.category_id) ?? "—") : "Sin categoría",
                   cents: s.spent_cents,
-                  href: `/finanzas/movimientos?mes=${month}&tipo=gastos&categoria=${s.category_id ?? "sin"}`,
+                  href: `/finanzas/gastos?mes=${month}&tipo=gastos&categoria=${s.category_id ?? "sin"}`,
                 }))}
               />
             ) : (
@@ -161,12 +165,15 @@ export default async function ExpensesPage({
           )}
           <div className="mt-4 flex items-center gap-3">
             <TileTitle>Movimientos del mes</TileTitle>
-            <span className="text-muted text-sm">{list.total}</span>
+            <span className="text-muted text-sm tabular-nums">{list.total}</span>
           </div>
           <div className="mt-4">
+            <TransactionFilters filters={filters} accounts={activeAccounts} categoryGroups={groups} />
+          </div>
+          <div className="mt-3">
             {list.rows.length ? (
               <TransactionsTable
-                key={`${month}-${page}`}
+                key={JSON.stringify({ ...filters, page })}
                 accounts={activeAccounts}
                 categoryGroups={groups}
                 today={dayKey(new Date())}
@@ -179,14 +186,18 @@ export default async function ExpensesPage({
               />
             ) : (
               <EmptyState>
-                {accounts.length ? "No hay movimientos este mes." : "Crea una cuenta en Ajustes para empezar."}
+                {!accounts.length
+                  ? "Crea una cuenta en Ajustes para empezar."
+                  : filtered
+                    ? "Ningún movimiento con estos filtros."
+                    : "No hay movimientos este mes."}
               </EmptyState>
             )}
           </div>
           {pages > 1 && (
             <nav aria-label="Páginas" className="mt-4 flex items-center justify-between text-sm">
               {page > 1 ? (
-                <Link href={filtersHref(base, { mes: month }, { pagina: page - 1 })} className={buttonClass.secondary}>
+                <Link href={filtersHref(base, filters, { pagina: page - 1 })} className={buttonClass.secondary}>
                   Anteriores
                 </Link>
               ) : (
@@ -196,7 +207,7 @@ export default async function ExpensesPage({
                 Página {page} de {pages}
               </span>
               {page < pages ? (
-                <Link href={filtersHref(base, { mes: month }, { pagina: page + 1 })} className={buttonClass.secondary}>
+                <Link href={filtersHref(base, filters, { pagina: page + 1 })} className={buttonClass.secondary}>
                   Siguientes
                 </Link>
               ) : (
