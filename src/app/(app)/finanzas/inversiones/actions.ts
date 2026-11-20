@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { getPortfolio } from "@/lib/investments/server";
+import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 
 async function session() {
@@ -18,6 +20,21 @@ function refresh() {
   revalidatePath("/finanzas", "layout");
   revalidatePath("/");
 }
+
+const decimal = z.preprocess((v) => (typeof v === "string" ? Number(v.replace(",", ".").trim()) : v), z.number());
+
+const isinField = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .optional()
+  .transform((v) => v || null)
+  .pipe(
+    z
+      .string()
+      .regex(/^[A-Z]{2}[A-Z0-9]{9}\d$/, "ISIN no válido")
+      .nullable(),
+  );
 
 const draftAsset = z.object({
   key: z.string().min(1).max(60),
@@ -153,41 +170,6 @@ export async function importPortfolio(input: z.input<typeof importSchema>): Prom
   };
 }
 
-const operationForm = z.object({
-  asset_id: z.uuid(),
-  type: z.enum(["buy", "sell", "dividend", "fee"]),
-  trade_date: z.iso.date(),
-  quantity: z.coerce.number().min(0),
-  price: z.coerce.number().min(0).optional(),
-  cash_eur: z.coerce.number(),
-  notes: z.string().trim().max(500).optional(),
-});
-
-export async function addOperation(_: unknown, formData: FormData): Promise<{ ok: boolean; message: string }> {
-  const raw = Object.fromEntries(
-    [...formData.entries()].map(([k, v]) => [k, typeof v === "string" ? v.replace(",", ".").trim() : v]),
-  );
-  const parsed = operationForm.safeParse(raw);
-  if (!parsed.success) return { ok: false, message: "Revisa los campos." };
-  const { cash_eur, ...op } = parsed.data;
-  if ((op.type === "buy" || op.type === "sell") && op.quantity <= 0) {
-    return { ok: false, message: "La cantidad debe ser mayor que cero." };
-  }
-  const { supabase } = await session();
-  // Compra/comisión = sale dinero (+); venta/dividendo = entra (−)
-  const sign = op.type === "buy" || op.type === "fee" ? 1 : -1;
-  const { error } = await supabase.from("investment_operations").insert({
-    ...op,
-    quantity: op.type === "buy" || op.type === "sell" ? op.quantity : 0,
-    price: op.price ?? null,
-    cash_eur_cents: Math.round(Math.abs(cash_eur) * 100) * sign,
-    source: "manual",
-  });
-  if (error) return { ok: false, message: "No se pudo guardar la operación." };
-  refresh();
-  return { ok: true, message: "Operación añadida." };
-}
-
 export async function deleteOperation(id: string) {
   const { supabase } = await session();
   await supabase.from("investment_operations").delete().eq("id", id);
@@ -197,6 +179,7 @@ export async function deleteOperation(id: string) {
 const assetForm = z.object({
   id: z.uuid(),
   name: z.string().trim().min(1).max(120),
+  isin: isinField,
   kind: z.enum(["fund", "stock", "etf", "pension", "other"]),
   price_source: z.enum(["yahoo", "manual"]),
   price_symbol: z
@@ -243,33 +226,186 @@ export async function addManualPrice(_: unknown, formData: FormData): Promise<{ 
   return { ok: true, message: "Precio guardado." };
 }
 
-const newAssetForm = z.object({
-  name: z.string().trim().min(1).max(120),
-  isin: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .optional()
-    .transform((v) => v || null)
-    .pipe(
-      z
-        .string()
-        .regex(/^[A-Z]{2}[A-Z0-9]{9}\d$/, "ISIN no válido")
-        .nullable(),
-    ),
-  kind: z.enum(["fund", "stock", "etf", "pension", "other"]),
-  currency: z.string().regex(/^[A-Z]{3}$/),
-  price_source: z.enum(["yahoo", "manual"]),
+// ---------------------------------------------------------------------------
+// Operaciones desde la lista de posiciones (Nueva compra, Comprar más, Vender, Cerrar…)
+// ---------------------------------------------------------------------------
+
+const tradeInput = z
+  .object({
+    assetId: z.uuid().nullable(),
+    newAsset: z
+      .object({
+        name: z.string().trim().min(1, "Ponle un nombre").max(120),
+        isin: isinField,
+        priceSymbol: z
+          .string()
+          .trim()
+          .max(40)
+          .optional()
+          .transform((v) => v || null),
+        kind: z.enum(["fund", "stock", "etf", "pension", "other"]),
+        currency: z.string().regex(/^[A-Z]{3}$/, "Moneda no válida"),
+        priceSource: z.enum(["yahoo", "manual"]),
+      })
+      .nullable(),
+    type: z.enum(["buy", "sell", "dividend", "fee"]),
+    /** Vender todas las participaciones (Cerrar posición). */
+    closeAll: z.boolean().default(false),
+    date: z.iso.date("Fecha no válida"),
+    quantity: decimal.pipe(z.number().min(0)).default(0),
+    /** Precio por participación, en la moneda del activo. */
+    price: decimal.pipe(z.number().min(0)).nullable().default(null),
+    /** Importe en euros (dividendos y comisiones sueltas). */
+    amount: decimal.pipe(z.number().min(0)).nullable().default(null),
+    /** Comisión de la compra o venta, en euros. */
+    fee: decimal.pipe(z.number().min(0)).default(0),
+    notes: z.string().trim().max(500).optional(),
+  })
+  .refine((v) => v.assetId || v.newAsset, "Elige el activo.");
+
+export type TradeResult = { ok: true; message: string; assetId: string } | { ok: false; message: string };
+
+/** Guarda una compra, venta, cierre, dividendo o comisión; crea el activo si es nuevo. */
+export async function recordTrade(input: unknown): Promise<TradeResult> {
+  const parsed = tradeInput.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Revisa los campos." };
+  const t = parsed.data;
+  const { supabase } = await session();
+
+  let assetId = t.assetId;
+  let currency = "EUR";
+  if (assetId) {
+    const { data: asset } = await supabase.from("assets").select("currency").eq("id", assetId).maybeSingle();
+    if (!asset) return { ok: false, message: "Ese activo no existe." };
+    currency = asset.currency;
+  } else if (t.newAsset) {
+    const { data: created, error } = await supabase
+      .from("assets")
+      .insert({
+        name: t.newAsset.name,
+        isin: t.newAsset.isin,
+        kind: t.newAsset.kind,
+        currency: t.newAsset.currency,
+        price_source: t.newAsset.priceSource,
+        price_symbol: t.newAsset.priceSymbol,
+        broker: "other",
+      })
+      .select("id")
+      .single();
+    if (error || !created) {
+      return {
+        ok: false,
+        message: error?.code === "23505" ? "Ese activo ya existe: búscalo en la lista." : "No se pudo crear el activo.",
+      };
+    }
+    assetId = created.id;
+    currency = t.newAsset.currency;
+  }
+  if (!assetId) return { ok: false, message: "Elige el activo." };
+
+  const rows: Database["public"]["Tables"]["investment_operations"]["Insert"][] = [];
+  const base = { asset_id: assetId, trade_date: t.date, source: "manual", notes: t.notes || null };
+  if (t.type === "buy" || t.type === "sell") {
+    let quantity = t.quantity;
+    if (t.type === "sell") {
+      const held = (await getPortfolio()).positions.get(assetId)?.quantity ?? 0;
+      if (t.closeAll) quantity = held;
+      if (quantity <= 0) return { ok: false, message: "No tienes participaciones que vender." };
+      if (quantity > held + 1e-6) return { ok: false, message: "Vendes más participaciones de las que tienes." };
+    }
+    if (quantity <= 0) return { ok: false, message: "Las participaciones deben ser más que cero." };
+    if (t.price == null || t.price <= 0) return { ok: false, message: "Indica el precio por participación." };
+    const gross = quantity * t.price;
+    const sign = t.type === "buy" ? 1 : -1;
+    rows.push({
+      ...base,
+      type: t.type,
+      quantity,
+      price: t.price,
+      // En euros se guarda el efectivo exacto; en otra moneda, el bruto (se convierte con el cambio del día)
+      cash_eur_cents: currency === "EUR" ? Math.round(gross * 100) * sign : null,
+      gross_local: currency === "EUR" ? null : gross * sign,
+    });
+    if (t.fee > 0) {
+      rows.push({
+        ...base,
+        type: "fee",
+        quantity: 0,
+        price: null,
+        cash_eur_cents: Math.round(t.fee * 100),
+        notes: "Comisión",
+      });
+    }
+  } else {
+    if (t.amount == null || t.amount <= 0) return { ok: false, message: "Indica el importe en euros." };
+    rows.push({
+      ...base,
+      type: t.type,
+      quantity: 0,
+      price: null,
+      cash_eur_cents: Math.round(t.amount * 100) * (t.type === "fee" ? 1 : -1),
+    });
+  }
+
+  const { error } = await supabase.from("investment_operations").insert(rows);
+  if (error) return { ok: false, message: "No se pudo guardar la operación." };
+  refresh();
+  const done = {
+    buy: "Compra guardada.",
+    sell: t.closeAll ? "Posición cerrada." : "Venta guardada.",
+    dividend: "Dividendo guardado.",
+    fee: "Comisión guardada.",
+  };
+  return { ok: true, message: done[t.type], assetId };
+}
+
+const operationEdit = z.object({
+  id: z.uuid(),
+  date: z.iso.date("Fecha no válida"),
+  quantity: decimal.pipe(z.number().min(0)),
+  price: decimal.pipe(z.number().min(0)).nullable(),
+  /** Importe en euros, sin signo (el signo lo pone el tipo). */
+  amount: decimal.pipe(z.number().min(0)).nullable(),
 });
 
-/** Alta manual de un activo (p. ej. un plan de pensiones). */
-export async function createAsset(_: unknown, formData: FormData): Promise<{ ok: boolean; message: string }> {
-  const parsed = newAssetForm.safeParse(Object.fromEntries(formData));
+/** Corrige una operación desde el panel de la posición. */
+export async function updateOperation(input: unknown): Promise<{ ok: boolean; message: string }> {
+  const parsed = operationEdit.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Revisa los campos." };
+  const e = parsed.data;
   const { supabase } = await session();
-  const { error } = await supabase.from("assets").insert({ ...parsed.data, broker: "other" });
-  if (error)
-    return { ok: false, message: error.code === "23505" ? "Ese activo ya existe." : "No se pudo crear el activo." };
+  const { data: op } = await supabase
+    .from("investment_operations")
+    .select("type, assets(currency)")
+    .eq("id", e.id)
+    .maybeSingle();
+  if (!op) return { ok: false, message: "Esa operación no existe." };
+  const currency = (op.assets as { currency: string } | null)?.currency ?? "EUR";
+  const sign = op.type === "buy" || op.type === "fee" ? 1 : -1;
+  const trade = op.type === "buy" || op.type === "sell";
+  if (trade && (e.quantity <= 0 || !e.price)) return { ok: false, message: "Pon participaciones y precio." };
+  const values: Database["public"]["Tables"]["investment_operations"]["Update"] = trade
+    ? {
+        trade_date: e.date,
+        quantity: e.quantity,
+        price: e.price,
+        cash_eur_cents: currency === "EUR" ? Math.round((e.amount ?? e.quantity * e.price!) * 100) * sign : null,
+        gross_local: currency === "EUR" ? null : e.quantity * e.price! * sign,
+      }
+    : { trade_date: e.date, cash_eur_cents: Math.round((e.amount ?? 0) * 100) * sign };
+  const { error } = await supabase.from("investment_operations").update(values).eq("id", e.id);
+  if (error) return { ok: false, message: "No se pudo guardar." };
   refresh();
-  return { ok: true, message: "Activo creado. Ahora añade sus aportaciones en Operaciones y su valor en la ficha." };
+  return { ok: true, message: "Operación corregida." };
+}
+
+/** Borra un activo con todas sus operaciones y precios. */
+export async function deleteAsset(id: string): Promise<{ ok: boolean; message: string }> {
+  const assetId = z.uuid().safeParse(id);
+  if (!assetId.success) return { ok: false, message: "Activo no válido." };
+  const { supabase } = await session();
+  const { error } = await supabase.from("assets").delete().eq("id", assetId.data);
+  if (error) return { ok: false, message: "No se pudo borrar." };
+  refresh();
+  return { ok: true, message: "Activo borrado." };
 }

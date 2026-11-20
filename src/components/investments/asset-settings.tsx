@@ -13,6 +13,7 @@ export function AssetSettings({
     id: string;
     name: string;
     kind: string;
+    isin: string | null;
     price_source: string;
     price_symbol: string | null;
     currency: string;
@@ -22,11 +23,20 @@ export function AssetSettings({
   const [state, action, pending] = useActionState(updateAsset, { ok: false, message: "" });
   const [priceState, priceAction, pricePending] = useActionState(addManualPrice, { ok: false, message: "" });
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="flex flex-col gap-8">
       <form autoComplete="off" action={action} className="flex flex-col gap-4">
         <input type="hidden" name="id" value={asset.id} />
         <Field label="Nombre">
           <input name="name" defaultValue={asset.name} maxLength={120} required className={inputClass} />
+        </Field>
+        <Field label="ISIN (opcional)">
+          <input
+            name="isin"
+            defaultValue={asset.isin ?? ""}
+            maxLength={12}
+            autoCapitalize="characters"
+            className={`${inputClass} uppercase`}
+          />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Tipo">
@@ -45,7 +55,7 @@ export function AssetSettings({
             </select>
           </Field>
         </div>
-        <Field label="Símbolo en Yahoo Finance (vacío = buscar por ISIN)">
+        <Field label="Ticker en Yahoo Finance (vacío = buscar por ISIN)">
           <input name="price_symbol" defaultValue={asset.price_symbol ?? ""} maxLength={40} className={inputClass} />
         </Field>
         <FormMessage state={state} />
@@ -58,7 +68,8 @@ export function AssetSettings({
       <form autoComplete="off" action={priceAction} className="flex flex-col gap-4">
         <input type="hidden" name="asset_id" value={asset.id} />
         <p className="text-muted text-sm">
-          Para planes de pensiones u otros activos sin cotización: añade el valor liquidativo de una fecha.
+          Precio a mano: para planes de pensiones u otros activos sin cotización, añade el valor liquidativo de una
+          fecha.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Fecha">

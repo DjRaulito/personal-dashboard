@@ -2,16 +2,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { clsx } from "clsx";
 import { AllocationBar, DailyPnlChart, ValueChart } from "@/components/investments/charts";
+import { PositionsBoard } from "@/components/investments/positions-board";
 import { PriceRefresher } from "@/components/investments/price-refresher";
 import { buttonClass, EmptyState, Tile, TileTitle } from "@/components/ui";
-import { PERIOD_LABELS } from "@/lib/investments/engine";
+import type { BoardAsset } from "@/lib/investments/board";
+import { operationCashEur, PERIOD_LABELS } from "@/lib/investments/engine";
 import { getPortfolio } from "@/lib/investments/server";
 import {
+  averageCostEur,
   CHART_RANGES,
   chartPoints,
+  closedRows,
   KIND_LABELS,
   parseRange,
   positionRows,
+  priceOrigin,
   recentDailyPnl,
 } from "@/lib/investments/view";
 import { formatCents } from "@/lib/finance/money";
@@ -28,21 +33,27 @@ const tone = trendClass;
 
 const RANGE_LABELS = { "1M": "1M", "3M": "3M", YTD: "Año", "1A": "1A", TOTAL: "Todo" } as const;
 
-export default async function InvestmentsPage({ searchParams }: { searchParams: Promise<{ rango?: string }> }) {
-  const range = parseRange((await searchParams).rango);
+export default async function InvestmentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ rango?: string; activo?: string }>;
+}) {
+  const params = await searchParams;
+  const range = parseRange(params.rango);
   const pf = await getPortfolio();
 
   if (pf.operations.length === 0) {
     return (
       <Tile>
         <EmptyState>
-          Aún no hay inversiones. Importa tu cartera de Investing y las operaciones de tus brokers.
+          Aún no hay inversiones. Apunta tu primera compra o importa tu cartera de Investing y tus brokers.
         </EmptyState>
         <div className="flex justify-center">
-          <Link href="/finanzas/inversiones/importar" className={buttonClass.primary}>
+          <Link href="/finanzas/inversiones/importar" className={buttonClass.secondary}>
             Importar cartera
           </Link>
         </div>
+        <PositionsBoard assets={[]} today={pf.today} initialAssetId={null} />
       </Tile>
     );
   }
@@ -57,6 +68,59 @@ export default async function InvestmentsPage({ searchParams }: { searchParams: 
   const total = pf.returns.find((r) => r.period === "TOTAL")!;
   const byKind = new Map<string, number>();
   for (const r of rows) byKind.set(r.kind, (byKind.get(r.kind) ?? 0) + r.valueEur);
+  // Datos de la lista de posiciones y de su panel
+  const rowById = new Map(rows.map((r) => [r.assetId, r]));
+  const closedById = new Map(closedRows(pf.positions, pf.assets, pf.operations).map((r) => [r.assetId, r]));
+  const engineAssets = new Map(pf.input.assets.map((a) => [a.id, a]));
+  const opsByAsset = new Map<string, BoardAsset["operations"]>();
+  for (const op of pf.operations) {
+    const list = opsByAsset.get(op.assetId) ?? [];
+    list.push({
+      id: op.id,
+      type: op.type,
+      date: op.date,
+      quantity: op.quantity,
+      price: op.price,
+      cashEur: operationCashEur(op, engineAssets.get(op.assetId)!, pf.input.fx),
+      isSplit: op.isSplit,
+      source: op.source,
+      notes: op.notes,
+    });
+    opsByAsset.set(op.assetId, list);
+  }
+  const board: BoardAsset[] = pf.assets.map((a) => {
+    const p = pf.positions.get(a.id);
+    const row = rowById.get(a.id);
+    const closed = closedById.get(a.id);
+    const lastPriceDate = pf.input.prices.get(a.id)?.at(-1)?.date ?? null;
+    return {
+      id: a.id,
+      name: a.name,
+      isin: a.isin,
+      kind: a.kind,
+      currency: a.currency,
+      priceSource: a.price_source,
+      priceSymbol: a.price_symbol,
+      priceOrigin: priceOrigin(a, lastPriceDate),
+      lastPrice: p?.lastPrice ?? null,
+      lastPriceDate,
+      quantity: p?.quantity ?? 0,
+      costEur: p?.costEur ?? 0,
+      valueEur: p?.valueEur ?? 0,
+      avgCostEur: p ? averageCostEur(p) : null,
+      dayChangePct: row?.dayChangePct ?? null,
+      realizedEur: p?.realizedEur ?? 0,
+      dividendsEur: p?.dividendsEur ?? 0,
+      feesEur: p?.feesEur ?? 0,
+      weight: row?.weight ?? 0,
+      open: Boolean(row),
+      resultEur: closed?.resultEur ?? 0,
+      closedOn: closed?.closedOn ?? null,
+      operations: opsByAsset.get(a.id) ?? [],
+    };
+  });
+  board.sort((x, y) => y.valueEur - x.valueEur);
+
   const kindColors: Record<string, string> = {
     fund: "bg-finance",
     stock: "bg-content",
@@ -69,20 +133,25 @@ export default async function InvestmentsPage({ searchParams }: { searchParams: 
     <>
       <div className="flex flex-wrap items-center gap-2">
         <PriceRefresher stale={!pf.lastPriceDate || pf.lastPriceDate < pf.today} />
-        <div className="ml-auto flex flex-wrap gap-2">
-          <Link href="/finanzas/inversiones/operaciones" className={buttonClass.secondary}>
-            Operaciones
-          </Link>
-          <Link href="/finanzas/inversiones/activos" className={buttonClass.secondary}>
-            Activos
-          </Link>
-          <Link href="/finanzas/inversiones/importar" className={buttonClass.secondary}>
-            Importar
-          </Link>
-          <a href="/api/investments/export" className={buttonClass.secondary}>
-            Exportar a Investing
-          </a>
-        </div>
+        <details className="relative ml-auto">
+          <summary
+            className={clsx(buttonClass.secondary, "cursor-pointer list-none [&::-webkit-details-marker]:hidden")}
+          >
+            Importar / exportar
+          </summary>
+          <ul className="bg-surface-2 border-border-strong rounded-inner absolute right-0 z-20 mt-1 w-64 overflow-hidden border py-1 shadow-xl">
+            <li>
+              <Link href="/finanzas/inversiones/importar" className="hover:bg-surface block px-4 py-2.5 text-sm">
+                Importar (Investing, MyInvestor, MEXEM)
+              </Link>
+            </li>
+            <li>
+              <a href="/api/investments/export" className="hover:bg-surface block px-4 py-2.5 text-sm">
+                Exportar a Investing (CSV)
+              </a>
+            </li>
+          </ul>
+        </details>
       </div>
 
       <section aria-label="Resumen" className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
@@ -110,6 +179,8 @@ export default async function InvestmentsPage({ searchParams }: { searchParams: 
           </p>
         </Tile>
       </section>
+
+      <PositionsBoard assets={board} today={pf.today} initialAssetId={params.activo ?? null} />
 
       <Tile>
         <TileTitle>Rentabilidad</TileTitle>
@@ -173,55 +244,6 @@ export default async function InvestmentsPage({ searchParams }: { searchParams: 
               className: kindColors[kind] ?? "bg-extra",
             }))}
           />
-        </div>
-      </Tile>
-
-      <Tile>
-        <TileTitle>Posiciones ({rows.length})</TileTitle>
-        <div className="relative mt-4 overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
-            <thead className="text-muted text-left">
-              <tr>
-                <th className="py-2 font-medium">Activo</th>
-                <th className="py-2 text-right font-medium">Valor</th>
-                <th className="py-2 text-right font-medium">Peso</th>
-                <th className="py-2 text-right font-medium">Hoy</th>
-                <th className="py-2 text-right font-medium">Coste</th>
-                <th className="py-2 text-right font-medium">Plusvalía</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => {
-                const gain = r.valueEur - r.costEur;
-                return (
-                  <tr key={r.assetId} className="border-border border-t">
-                    <td className="max-w-xs py-2.5">
-                      <Link
-                        href={`/finanzas/inversiones/activo/${r.assetId}`}
-                        className="block truncate font-medium hover:underline"
-                      >
-                        {r.name}
-                      </Link>
-                      <span className="text-muted text-xs tabular-nums">
-                        {r.quantity.toLocaleString("es-ES", { maximumFractionDigits: 4 })} ×{" "}
-                        {r.lastPrice?.toLocaleString("es-ES", { maximumFractionDigits: 4 }) ?? "—"} {r.currency}
-                      </span>
-                    </td>
-                    <td className="py-2.5 text-right font-semibold tabular-nums">{eur(r.valueEur)}</td>
-                    <td className="text-muted py-2.5 text-right tabular-nums">{(r.weight * 100).toFixed(1)} %</td>
-                    <td className={clsx("py-2.5 text-right tabular-nums", tone(r.dayChangePct))}>
-                      {pct(r.dayChangePct)}
-                    </td>
-                    <td className="text-muted py-2.5 text-right tabular-nums">{eur(r.costEur)}</td>
-                    <td className={clsx("py-2.5 text-right tabular-nums", tone(gain))}>
-                      {eur(gain, true)}
-                      <span className="block text-xs">{r.costEur ? pct(gain / r.costEur) : "—"}</span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
         </div>
       </Tile>
     </>

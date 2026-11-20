@@ -122,3 +122,70 @@ export function yearlyStats(
   void input;
   return out.reverse();
 }
+
+// ---------------------------------------------------------------------------
+// Lista de posiciones (abiertas y cerradas) y su panel
+// ---------------------------------------------------------------------------
+
+export interface ClosedRow {
+  assetId: string;
+  name: string;
+  kind: AssetKind;
+  /** Plusvalía realizada + dividendos − comisiones. */
+  resultEur: number;
+  realizedEur: number;
+  dividendsEur: number;
+  investedEur: number;
+  /** Fecha de la última operación. */
+  closedOn: string | null;
+}
+
+/** Activos con operaciones y sin participaciones: su resultado final, del cierre más reciente al más viejo. */
+export function closedRows(
+  positions: Map<string, Position>,
+  assets: { id: string; name: string; kind: AssetKind }[],
+  operations: { assetId: string; date: string }[],
+): ClosedRow[] {
+  const lastDate = new Map<string, string>();
+  for (const op of operations) {
+    if ((lastDate.get(op.assetId) ?? "") < op.date) lastDate.set(op.assetId, op.date);
+  }
+  return assets
+    .flatMap((a) => {
+      const p = positions.get(a.id);
+      if (!p || p.quantity > 1e-9 || !lastDate.has(a.id)) return [];
+      return [
+        {
+          assetId: a.id,
+          name: a.name,
+          kind: a.kind,
+          resultEur: p.realizedEur + p.dividendsEur - p.feesEur,
+          realizedEur: p.realizedEur,
+          dividendsEur: p.dividendsEur,
+          investedEur: p.investedEur,
+          closedOn: lastDate.get(a.id) ?? null,
+        },
+      ];
+    })
+    .sort((x, y) => (y.closedOn ?? "").localeCompare(x.closedOn ?? ""));
+}
+
+/** Coste medio por participación en euros (FIFO de lo que queda); null sin participaciones. */
+export const averageCostEur = (p: Pick<Position, "quantity" | "costEur">): number | null =>
+  p.quantity > 1e-9 ? p.costEur / p.quantity : null;
+
+const DAY_LABEL = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "UTC" });
+
+/**
+ * De dónde sale el precio, en una línea: «Yahoo Finance · VWCE.DE · EUR · precio del 17 nov»,
+ * «A mano · precio del 30 sep» o «Sin precio todavía».
+ */
+export function priceOrigin(
+  asset: { price_source: string; price_symbol: string | null; isin: string | null; currency: string },
+  lastPriceDate: string | null,
+): string {
+  const when = lastPriceDate ? `precio del ${DAY_LABEL.format(new Date(`${lastPriceDate}T00:00:00Z`))}` : null;
+  if (asset.price_source === "manual") return ["A mano", when ?? "sin precio todavía"].join(" · ");
+  const symbol = asset.price_symbol ?? (asset.isin ? `buscando por ISIN ${asset.isin}` : "sin símbolo");
+  return ["Yahoo Finance", symbol, asset.currency, when ?? "sin precio todavía"].join(" · ");
+}
