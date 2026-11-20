@@ -3,6 +3,7 @@
 // Si el modelo no se puede cargar, se guarda la foto tal cual, sin recortar.
 import type { ImageInput } from "@/lib/ai/image";
 import { alphaBounds, alphaCoverage, keepMainPieces } from "./alpha";
+import { dominantColor } from "./colors";
 
 const MODEL = "briaai/RMBG-1.4";
 const MAX_SIDE = 1024;
@@ -20,6 +21,8 @@ export interface PreparedPhoto {
   forAi: ImageInput;
   /** Foto y máscara para retocar el recorte a mano. */
   source: CutoutSource;
+  /** Color dominante medido en la prenda sin fondo (segunda opinión frente a la IA). */
+  measuredHex: string | null;
 }
 
 export interface CutoutSource {
@@ -194,6 +197,10 @@ export async function prepareGarmentPhoto(
     mask: mask ?? new Uint8ClampedArray(original.width * original.height).fill(255),
     restorable: true,
   };
-  if (mask) return { ...(await composeCutout(source, mask)), forAi, source };
-  return { ...(await encode(original, false)), cutout: false, forAi, source };
+  if (mask) {
+    const cut = withMask(original, mask);
+    const measuredHex = dominantColor(cut.getContext("2d")!.getImageData(0, 0, cut.width, cut.height).data);
+    return { ...(await composeCutout(source, mask)), forAi, source, measuredHex };
+  }
+  return { ...(await encode(original, false)), cutout: false, forAi, source, measuredHex: null };
 }

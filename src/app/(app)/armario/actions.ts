@@ -1,6 +1,5 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -10,28 +9,25 @@ import { runAi, type AiResult } from "@/lib/ai/result";
 import { fieldErrors, type FormState } from "@/lib/finance/schemas";
 import { createClient } from "@/lib/supabase/server";
 import {
+  colorDetailSchema,
+  combineGarmentsPrompt,
+  combinePhotoPrompt,
+  combineSchema,
   garmentTagSchema,
   outfitPrompt,
   outfitSuggestionSchema,
   resolveOutfits,
   SYSTEM_WARDROBE,
   TAG_PROMPT,
+  type CombineResult,
   type GarmentTags,
   type ResolvedOutfit,
 } from "@/lib/wardrobe/ai";
-import {
-  geocodeCity,
-  getGarments,
-  getTodayWeather,
-  getWardrobeSettings,
-  MAX_TRYONS,
-  personPhotoPath,
-  tryOnFolder,
-  WARDROBE_BUCKET,
-} from "@/lib/wardrobe/server";
-import { TRYON_PARTS } from "@/lib/wardrobe/types";
-import { tryOnConfigured, TryOnError, tryOnGarment, type Photo } from "@/lib/wardrobe/tryon";
-import { CATEGORIES, COLORS, MAX_ACCESSORIES, OCCASIONS, lookFrom, lookIds } from "@/lib/wardrobe/types";
+import { PATTERNS } from "@/lib/wardrobe/colors";
+import { geocodeCity, getGarments, getTodayWeather, getWardrobeSettings, WARDROBE_BUCKET } from "@/lib/wardrobe/server";
+import { CATEGORIES, MAX_ACCESSORIES, OCCASIONS, lookFrom, lookIds } from "@/lib/wardrobe/types";
+import { dayKey } from "@/lib/datetime";
+import { addDays } from "@/lib/investments/engine";
 
 async function session() {
   const supabase = await createClient();
@@ -52,19 +48,46 @@ const uuid = z.uuid();
 const garmentFields = z.object({
   name: z.string().trim().min(1, "Ponle un nombre").max(80, "Máximo 80 caracteres"),
   category: z.enum(CATEGORIES, "Elige una categoría"),
-  colors: z.array(z.enum(COLORS)).max(4, "Como mucho 4 colores"),
+  color_details: z.array(colorDetailSchema).max(4, "Como mucho 4 colores"),
+  pattern: z.enum(PATTERNS).catch("plain"),
+  fabric: z
+    .string()
+    .trim()
+    .max(40)
+    .transform((v) => v || null),
+  formality: z.coerce.number().int().min(1).max(5).catch(2),
   warmth: z.coerce.number().int().min(1).max(3),
   occasions: z.array(z.enum(OCCASIONS)),
+  needs_review: z.boolean(),
 });
 
-const readGarment = (formData: FormData) =>
-  garmentFields.safeParse({
+const jsonList = (v: FormDataEntryValue | null): unknown => {
+  try {
+    return JSON.parse(String(v ?? "[]"));
+  } catch {
+    return [];
+  }
+};
+
+/** Los colores llegan como JSON (nombre, familia, tono y hex); la familia también va en `colors`. */
+const readGarment = (formData: FormData) => {
+  const parsed = garmentFields.safeParse({
     name: formData.get("name") ?? "",
     category: formData.get("category") ?? "",
-    colors: formData.getAll("colors"),
+    color_details: jsonList(formData.get("color_details")),
+    pattern: formData.get("pattern") ?? "plain",
+    fabric: formData.get("fabric") ?? "",
+    formality: formData.get("formality") ?? "2",
     warmth: formData.get("warmth") ?? "2",
     occasions: formData.getAll("occasions"),
+    needs_review: formData.get("needs_review") === "1",
   });
+  if (!parsed.success) return parsed;
+  return {
+    ...parsed,
+    data: { ...parsed.data, colors: [...new Set(parsed.data.color_details.map((c) => c.family))] },
+  };
+};
 
 // ---------------------------------------------------------------------------
 // Prendas
@@ -196,13 +219,12 @@ export async function deleteOutfit(id: string): Promise<void> {
 }
 
 const suggestInput = z.object({
-  occasion: z.enum(OCCASIONS).nullable(),
+  plan: z.string().trim().max(200),
   pinId: uuid.nullable(),
-  wishes: z.string().max(200),
   useWeather: z.boolean(),
 });
 
-/** La IA propone hasta tres conjuntos con las prendas del armario. */
+/** ¿Qué me pongo? La IA propone hasta tres conjuntos y las reglas de color los filtran. */
 export async function suggestOutfits(input: unknown): Promise<AiResult<ResolvedOutfit[]>> {
   const parsed = suggestInput.safeParse(input);
   if (!parsed.success) return { ok: false, message: "Petición no válida." };
@@ -210,16 +232,61 @@ export async function suggestOutfits(input: unknown): Promise<AiResult<ResolvedO
   const garments = await getGarments();
   const needs = (["top", "bottom"] as const).filter((c) => !garments.some((g) => g.category === c));
   if (needs.length) {
-    return { ok: false, message: "Para generar outfits hace falta al menos una parte de arriba y un pantalón." };
+    return { ok: false, message: "Para proponer outfits hace falta al menos una parte de arriba y un pantalón." };
   }
   const weather = parsed.data.useWeather ? await getTodayWeather(await getWardrobeSettings()) : null;
+  const since = addDays(dayKey(new Date()), -5);
+  const recentIds = garments.filter((g) => g.lastWorn && g.lastWorn >= since).map((g) => g.id);
   return runAi(async () => {
-    const request = { ...parsed.data, weather };
+    const request = { ...parsed.data, weather, recentIds };
     const suggestion = await askJson(outfitSuggestionSchema, SYSTEM_WARDROBE, outfitPrompt(garments, request));
     const outfits = resolveOutfits(suggestion, garments, parsed.data.pinId);
-    if (outfits.length === 0) throw new Error("La IA no devolvió conjuntos válidos. Vuelve a intentarlo.");
+    if (outfits.length === 0)
+      throw new Error("La IA no propuso conjuntos que pasen las reglas de color. Vuelve a intentarlo.");
     return outfits;
   });
+}
+
+/** «Me lo pongo»: apunta las prendas de hoy (sirve para no repetir). */
+export async function wearToday(ids: unknown): Promise<{ ok: boolean; message: string }> {
+  const parsed = z.array(uuid).min(1).max(8).safeParse(ids);
+  if (!parsed.success) return { ok: false, message: "Elige alguna prenda." };
+  const { supabase } = await session();
+  const today = dayKey(new Date());
+  const { error } = await supabase.from("wardrobe_wears").upsert(
+    parsed.data.map((garment_id) => ({ garment_id, worn_on: today })),
+    { onConflict: "user_id,garment_id,worn_on", ignoreDuplicates: true },
+  );
+  if (error) return { ok: false, message: "No se pudo apuntar." };
+  refresh();
+  return { ok: true, message: "Apuntado: hoy llevas esto." };
+}
+
+export async function toggleFavorite(id: string, favorite: boolean): Promise<void> {
+  const outfitId = uuid.parse(id);
+  const { supabase } = await session();
+  await supabase.from("wardrobe_outfits").update({ favorite }).eq("id", outfitId);
+  refresh();
+}
+
+/** ¿Combina? con prendas del armario: reglas fijas + la IA nombra los colores y propone un arreglo. */
+export async function combineGarments(ids: unknown): Promise<AiResult<CombineResult>> {
+  const parsed = z.array(uuid).min(2, "Elige al menos dos prendas.").max(6).safeParse(ids);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Elige al menos dos prendas." };
+  await session();
+  const garments = await getGarments();
+  const selected = parsed.data.map((id) => garments.find((g) => g.id === id)).filter((g) => !!g);
+  if (selected.length < 2) return { ok: false, message: "Elige al menos dos prendas." };
+  return runAi(() => askJson(combineSchema, SYSTEM_WARDROBE, combineGarmentsPrompt(selected, garments)));
+}
+
+/** ¿Combina? con una foto de lo que llevas puesto. */
+export async function combinePhoto(image: unknown): Promise<AiResult<CombineResult>> {
+  const parsed = imageSchema.safeParse(image);
+  if (!parsed.success) return { ok: false, message: "Foto no válida." };
+  await session();
+  const garments = await getGarments();
+  return runAi(() => askJson(combineSchema, SYSTEM_WARDROBE, combinePhotoPrompt(garments), parsed.data));
 }
 
 // ---------------------------------------------------------------------------
@@ -241,107 +308,4 @@ export async function saveCity(_: FormState, formData: FormData): Promise<FormSt
   if (error) return { ok: false, message: "No se pudo guardar." };
   refresh();
   return { ok: true, message: `Ciudad guardada: ${place.city}.` };
-}
-
-// ---------------------------------------------------------------------------
-// «Probar en mí»
-// ---------------------------------------------------------------------------
-
-/** Guarda (o cambia) la foto de cuerpo entero. Ya viene reducida a JPEG desde el navegador. */
-export async function savePersonPhoto(image: unknown): Promise<FormState> {
-  const parsed = imageSchema.safeParse(image);
-  if (!parsed.success || parsed.data.mime !== "image/jpeg") return { ok: false, message: "Foto no válida." };
-  const { supabase, user } = await session();
-  const { error } = await supabase.storage
-    .from(WARDROBE_BUCKET)
-    .upload(personPhotoPath(user.id), Buffer.from(parsed.data.data, "base64"), {
-      contentType: "image/jpeg",
-      upsert: true,
-    });
-  if (error) return { ok: false, message: "No se pudo guardar la foto." };
-  revalidatePath("/armario/probar");
-  return { ok: true, message: "Foto guardada." };
-}
-
-export async function deletePersonPhoto(): Promise<void> {
-  const { supabase, user } = await session();
-  await supabase.storage.from(WARDROBE_BUCKET).remove([personPhotoPath(user.id)]);
-  revalidatePath("/armario/probar");
-}
-
-export async function deleteTryOn(path: string): Promise<void> {
-  const { supabase, user } = await session();
-  if (!new RegExp(`^${tryOnFolder(user.id)}/[a-f0-9-]{36}\\.webp$`).test(path)) return;
-  await supabase.storage.from(WARDROBE_BUCKET).remove([path]);
-  revalidatePath("/armario/probar");
-}
-
-const tryOnInput = z
-  .object({ upperId: uuid.nullable(), lowerId: uuid.nullable() })
-  .refine((v) => v.upperId || v.lowerId, "Elige al menos una prenda.");
-
-export type TryOnOutcome = { ok: true; url: string } | { ok: false; message: string };
-
-/**
- * Genera una imagen realista con las prendas elegidas puestas sobre la foto del usuario.
- * Con parte de arriba y pantalón se hacen dos pasadas: la segunda sobre el resultado de la primera.
- */
-export async function tryOn(input: unknown): Promise<TryOnOutcome> {
-  const parsed = tryOnInput.safeParse(input);
-  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Petición no válida." };
-  if (!tryOnConfigured()) {
-    return { ok: false, message: "Falta configurar el token de Hugging Face (HF_TOKEN) en Vercel." };
-  }
-  const { supabase, user } = await session();
-  const bucket = supabase.storage.from(WARDROBE_BUCKET);
-
-  const ids = [parsed.data.upperId, parsed.data.lowerId].filter((id): id is string => !!id);
-  const { data: rows } = await supabase.from("wardrobe_garments").select("id, category, image_path").in("id", ids);
-  const steps = (["upper_body", "lower_body"] as const).flatMap((part) => {
-    const id = part === "upper_body" ? parsed.data.upperId : parsed.data.lowerId;
-    const row = rows?.find((r) => r.id === id);
-    return row && TRYON_PARTS[row.category as keyof typeof TRYON_PARTS] === part
-      ? [{ part, path: row.image_path }]
-      : [];
-  });
-  if (steps.length !== ids.length) return { ok: false, message: "Esa prenda no se puede probar." };
-
-  const person = await bucket.download(personPhotoPath(user.id));
-  if (person.error || !person.data) return { ok: false, message: "Primero sube una foto tuya de cuerpo entero." };
-
-  const { default: sharp } = await import("sharp");
-  try {
-    let current: Photo = { bytes: new Uint8Array(await person.data.arrayBuffer()), mime: "image/jpeg" };
-    for (const step of steps) {
-      const file = await bucket.download(step.path);
-      if (file.error || !file.data) return { ok: false, message: "No se encontró la foto de la prenda." };
-      // El modelo espera la prenda sobre fondo blanco
-      const garment = await sharp(Buffer.from(await file.data.arrayBuffer()))
-        .flatten({ background: "#ffffff" })
-        .resize(768, 1024, { fit: "contain", background: "#ffffff" })
-        .jpeg({ quality: 90 })
-        .toBuffer();
-      current = await tryOnGarment(current, { bytes: new Uint8Array(garment), mime: "image/jpeg" }, step.part);
-    }
-    const result = await sharp(Buffer.from(current.bytes)).webp({ quality: 88 }).toBuffer();
-    const path = `${tryOnFolder(user.id)}/${randomUUID()}.webp`;
-    const { error } = await bucket.upload(path, result, { contentType: "image/webp" });
-    if (error) return { ok: false, message: "La imagen se generó pero no se pudo guardar." };
-
-    // Solo se guardan las últimas pruebas
-    const { data: old } = await bucket.list(tryOnFolder(user.id), {
-      limit: 100,
-      offset: MAX_TRYONS,
-      sortBy: { column: "created_at", order: "desc" },
-    });
-    if (old?.length) await bucket.remove(old.map((f) => `${tryOnFolder(user.id)}/${f.name}`));
-
-    const { data: signed } = await bucket.createSignedUrl(path, 2 * 3600);
-    revalidatePath("/armario/probar");
-    return signed ? { ok: true, url: signed.signedUrl } : { ok: false, message: "No se pudo abrir la imagen." };
-  } catch (e) {
-    if (e instanceof TryOnError) return { ok: false, message: e.message };
-    console.error("tryOn", e);
-    return { ok: false, message: "No se pudo generar la imagen. Inténtalo de nuevo." };
-  }
 }

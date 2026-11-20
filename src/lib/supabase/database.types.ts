@@ -1372,6 +1372,11 @@ export type Database = {
       };
       wardrobe_garments: {
         Row: {
+          color_details: Json;
+          fabric: string | null;
+          formality: number;
+          needs_review: boolean;
+          pattern: string;
           category: string;
           colors: string[];
           created_at: string;
@@ -1385,6 +1390,11 @@ export type Database = {
           warmth: number;
         };
         Insert: {
+          color_details?: Json;
+          fabric?: string | null;
+          formality?: number;
+          needs_review?: boolean;
+          pattern?: string;
           category: string;
           colors?: string[];
           created_at?: string;
@@ -1398,6 +1408,11 @@ export type Database = {
           warmth?: number;
         };
         Update: {
+          color_details?: Json;
+          fabric?: string | null;
+          formality?: number;
+          needs_review?: boolean;
+          pattern?: string;
           category?: string;
           colors?: string[];
           created_at?: string;
@@ -1447,6 +1462,7 @@ export type Database = {
       };
       wardrobe_outfits: {
         Row: {
+          favorite: boolean;
           created_at: string;
           id: string;
           name: string;
@@ -1455,6 +1471,7 @@ export type Database = {
           user_id: string;
         };
         Insert: {
+          favorite?: boolean;
           created_at?: string;
           id?: string;
           name: string;
@@ -1463,6 +1480,7 @@ export type Database = {
           user_id?: string;
         };
         Update: {
+          favorite?: boolean;
           created_at?: string;
           id?: string;
           name?: string;
@@ -1495,6 +1513,35 @@ export type Database = {
           user_id?: string;
         };
         Relationships: [];
+      };
+      wardrobe_wears: {
+        Row: {
+          created_at: string;
+          garment_id: string;
+          user_id: string;
+          worn_on: string;
+        };
+        Insert: {
+          created_at?: string;
+          garment_id: string;
+          user_id?: string;
+          worn_on: string;
+        };
+        Update: {
+          created_at?: string;
+          garment_id?: string;
+          user_id?: string;
+          worn_on?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "wardrobe_wears_garment_id_fkey";
+            columns: ["garment_id"];
+            isOneToOne: false;
+            referencedRelation: "wardrobe_garments";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Views: {

@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
-import { Trash2 } from "lucide-react";
-import { deleteOutfit } from "@/app/(app)/armario/actions";
+import { clsx } from "clsx";
+import { Check, Star, Trash2 } from "lucide-react";
+import { deleteOutfit, toggleFavorite, wearToday } from "@/app/(app)/armario/actions";
 import { buttonClass } from "@/components/ui";
 import { OCCASION_LABELS, type Garment, type Outfit } from "@/lib/wardrobe/types";
-import { GarmentThumb } from "./garment-thumb";
+import { OutfitCollage } from "./outfit-collage";
 
 function OutfitCard({ outfit, byId }: { outfit: Outfit; byId: Map<string, Garment> }) {
   const [confirm, setConfirm] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const garments = outfit.garmentIds.map((id) => byId.get(id)).filter((g): g is Garment => !!g);
   return (
@@ -19,18 +20,41 @@ function OutfitCard({ outfit, byId }: { outfit: Outfit; byId: Map<string, Garmen
           <h2 className="truncate font-semibold">{outfit.name}</h2>
           {outfit.occasion && <p className="text-muted text-xs">{OCCASION_LABELS[outfit.occasion]}</p>}
         </div>
+        <button
+          type="button"
+          aria-pressed={outfit.favorite}
+          aria-label={outfit.favorite ? "Quitar de favoritos" : "Marcar como favorito"}
+          disabled={pending}
+          onClick={() => start(() => toggleFavorite(outfit.id, !outfit.favorite))}
+          className="hover:bg-surface-2 rounded-full p-2"
+        >
+          <Star
+            aria-hidden="true"
+            className={clsx("h-5 w-5", outfit.favorite ? "fill-attention text-attention" : "text-muted")}
+          />
+        </button>
       </div>
-      <div className="flex flex-wrap gap-2">
-        {garments.map((g) => (
-          <GarmentThumb key={g.id} garment={g} className="h-16 w-16" />
-        ))}
-      </div>
-      <p className="text-muted text-xs">{garments.map((g) => g.name).join(" · ")}</p>
+      <OutfitCollage garments={garments} size="sm" />
       {outfit.note && <p className="text-muted text-sm">{outfit.note}</p>}
+      {message && (
+        <p role="status" className="text-finance text-sm">
+          ✓ {message}
+        </p>
+      )}
       <div className="mt-auto flex flex-wrap gap-2 pt-1">
-        <Link href={`/armario?outfit=${outfit.id}`} className={buttonClass.secondary}>
-          Ver en el probador
-        </Link>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              const r = await wearToday(outfit.garmentIds);
+              setMessage(r.message);
+            })
+          }
+          className={buttonClass.secondary}
+        >
+          <Check aria-hidden="true" className="h-4 w-4" /> Me lo pongo
+        </button>
         <button
           type="button"
           disabled={pending}
@@ -48,6 +72,7 @@ function OutfitCard({ outfit, byId }: { outfit: Outfit; byId: Map<string, Garmen
   );
 }
 
+/** Outfits guardados; los favoritos primero (los ordena el servidor). */
 export function OutfitList({ outfits, garments }: { outfits: Outfit[]; garments: Garment[] }) {
   const byId = new Map(garments.map((g) => [g.id, g]));
   return (

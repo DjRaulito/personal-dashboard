@@ -12,11 +12,11 @@ export default async function OutfitsPage() {
     return (
       <Tile>
         <EmptyState>
-          Aún no has guardado ningún outfit. Monta uno en el{" "}
+          Aún no has guardado ningún outfit. Pide ideas en{" "}
           <Link href="/armario" className="text-text underline underline-offset-4">
-            Probador
+            Hoy
           </Link>{" "}
-          o pide ideas al estilista.
+          y guarda los que te gusten.
         </EmptyState>
       </Tile>
     );

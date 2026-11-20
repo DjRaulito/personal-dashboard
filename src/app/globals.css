@@ -77,22 +77,6 @@ body {
   font-feature-settings: "tnum" 1;
 }
 
-/* Armario: la prenda que entra en el maniquí aparece con un leve zoom */
-@keyframes wardrobe-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.92);
-  }
-}
-.wardrobe-pop {
-  animation: wardrobe-pop 280ms cubic-bezier(0.22, 0.8, 0.26, 1);
-}
-@media (prefers-reduced-motion: reduce) {
-  .wardrobe-pop {
-    animation: none;
-  }
-}
-
 /* Subidas y bajadas: la flecha dice el sentido, el color solo lo refuerza */
 .trend-up,
 .trend-down {
