@@ -5,6 +5,8 @@ import { ValueChart } from "@/components/investments/charts";
 import { PriceRefresher } from "@/components/investments/price-refresher";
 import { WeightsList } from "@/components/investments/weights";
 import { buttonClass, EmptyState, Tile, TileTitle } from "@/components/ui";
+import { BENCHMARK, benchmarkCloses } from "@/lib/investments/benchmark";
+import { benchmarkReturnsFrom } from "@/lib/investments/history";
 import { getPortfolio } from "@/lib/investments/server";
 import { CHART_RANGES, chartPoints, parseRange, positionRows, RANGE_LABELS } from "@/lib/investments/view";
 import { formatCents } from "@/lib/finance/money";
@@ -50,6 +52,7 @@ export default async function InvestmentsSummaryPage({ searchParams }: { searchP
   const total = ret("TOTAL");
   const ytd = ret("YTD");
   const open = value - cost;
+  const benchYtd = benchmarkReturnsFrom(await benchmarkCloses(pf.today), ["YTD"], pf.today, null).get("YTD") ?? null;
 
   return (
     <>
@@ -111,7 +114,8 @@ export default async function InvestmentsSummaryPage({ searchParams }: { searchP
             {pct(ytd.returnPct)}
           </p>
           <p className="text-muted mt-1 text-sm tabular-nums">
-            {eur(ytd.pnlEur, true)} desde el 1 de enero ·{" "}
+            {eur(ytd.pnlEur, true)} desde el 1 de enero
+            {benchYtd != null && ` · ${BENCHMARK.name} ${pct(benchYtd)}`} ·{" "}
             <Link href="/inversiones/rentabilidad" className="text-text underline">
               ver por periodos
             </Link>

@@ -3,7 +3,9 @@ import { clsx } from "clsx";
 import { DailyPnlChart } from "@/components/investments/charts";
 import { MonthlyReturns } from "@/components/investments/monthly-returns";
 import { EmptyState, Tile, TileTitle } from "@/components/ui";
-import { computePositions, PERIOD_LABELS } from "@/lib/investments/engine";
+import { BENCHMARK, benchmarkCloses } from "@/lib/investments/benchmark";
+import { computePositions, PERIOD_LABELS, PERIODS } from "@/lib/investments/engine";
+import { benchmarkReturnsFrom } from "@/lib/investments/history";
 import { getPortfolio } from "@/lib/investments/server";
 import { monthlyReturns, recentDailyPnl, yearlyStats } from "@/lib/investments/view";
 import { formatCents } from "@/lib/finance/money";
@@ -30,6 +32,7 @@ export default async function ReturnsPage() {
   const days = (Date.parse(`${pf.today}T00:00:00Z`) - Date.parse(`${pf.series[0].date}T00:00:00Z`)) / 86_400_000 + 1;
   // Anualizada solo con más de un año de historia (antes exagera)
   const annualized = total.returnPct != null && days >= 365 ? (1 + total.returnPct) ** (365 / days) - 1 : null;
+  const bench = benchmarkReturnsFrom(await benchmarkCloses(pf.today), PERIODS, pf.today, pf.series[0].date);
   const years = yearlyStats(pf.input, pf.series, (upTo) => computePositions(pf.input, upTo));
 
   return (
@@ -49,6 +52,9 @@ export default async function ReturnsPage() {
                 <th scope="col" className="py-2 text-right font-medium">
                   Ganancia
                 </th>
+                <th scope="col" className="py-2 text-right font-medium">
+                  {BENCHMARK.name}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -64,6 +70,9 @@ export default async function ReturnsPage() {
                     {pct(r.returnPct)}
                   </td>
                   <td className="text-muted py-2.5 text-right">{eur(r.pnlEur, true)}</td>
+                  <td className={clsx("py-2.5 text-right", trendClass(bench.get(r.period)))}>
+                    {pct(bench.get(r.period) ?? null)}
+                  </td>
                 </tr>
               ))}
               <tr className="border-border border-t">
@@ -74,12 +83,14 @@ export default async function ReturnsPage() {
                 <td className="text-muted py-2.5 text-right text-xs">
                   {annualized == null ? "con más de un año de historia" : "media por año desde el inicio"}
                 </td>
+                <td />
               </tr>
             </tbody>
           </table>
         </div>
         <p className="text-muted mt-3 text-xs">
-          Rentabilidad ponderada por tiempo: no la cambian las aportaciones ni las retiradas.
+          Rentabilidad ponderada por tiempo: no la cambian las aportaciones ni las retiradas. {BENCHMARK.name}: ETF
+          iShares Core MSCI World en euros ({BENCHMARK.symbol}), solo variación de precio.
         </p>
       </Tile>
 

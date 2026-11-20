@@ -10,6 +10,7 @@ import { buttonClass, EmptyState, inputClass } from "@/components/ui";
 import { OPERATION_LABELS, type BoardAsset, type BoardOperation } from "@/lib/investments/board";
 import { trendClass } from "@/lib/trend";
 import { AssetSettings } from "./asset-settings";
+import { PositionHistory } from "./position-history";
 import { TradeForm, tradeTitle, type TradeMode } from "./trade-form";
 
 const eur = (v: number, signed = false) =>
@@ -274,6 +275,7 @@ function PositionPanel({ asset: a, actions }: { asset: BoardAsset; actions: Acti
       ];
   return (
     <div className="flex flex-col gap-5">
+      <PositionHistory assetId={a.id} currency={a.currency} />
       <dl className="grid grid-cols-2 gap-2">
         {stats.map(([label, value, tone]) => (
           <div key={label} className="bg-surface-2 rounded-inner px-3 py-2.5">
