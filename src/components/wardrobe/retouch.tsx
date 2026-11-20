@@ -162,7 +162,7 @@ export function RetouchDialog({
   const tool = (active: boolean) =>
     clsx(
       "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-[background-color,color,transform] duration-150 active:scale-95 motion-reduce:active:scale-100",
-      active ? "bg-wardrobe text-ink" : "bg-surface-2 text-muted hover:text-text",
+      active ? "bg-selected text-on-selected" : "bg-surface-2 text-muted hover:text-text",
     );
 
   return (
@@ -170,7 +170,7 @@ export function RetouchDialog({
       ref={dialog}
       onClose={onClose}
       aria-label="Retocar recorte"
-      className="bg-surface text-text border-border rounded-tile m-auto w-[min(40rem,calc(100vw-1rem))] border p-4 backdrop:bg-black/70 sm:p-6"
+      className="bg-surface-solid text-text border-border rounded-tile m-auto w-[min(40rem,calc(100vw-1rem))] border p-4 backdrop:bg-black/70 sm:p-6"
     >
       <h2 className="font-display text-xl font-bold">Retocar recorte</h2>
       <p className="text-muted mt-1 text-sm">

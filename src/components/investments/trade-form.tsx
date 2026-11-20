@@ -244,7 +244,7 @@ export function TradeForm({
               onClick={() => setType(t)}
               className={clsx(
                 "rounded-full px-3.5 py-1.5 text-sm font-medium",
-                type === t ? "bg-finance text-ink" : "bg-surface-2 text-muted hover:text-text",
+                type === t ? "bg-selected text-on-selected" : "bg-surface-2 text-muted hover:text-text",
               )}
             >
               {OPERATION_LABELS[t]}

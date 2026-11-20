@@ -139,7 +139,7 @@ export default async function InvestmentsPage({
           >
             Importar / exportar
           </summary>
-          <ul className="bg-surface-2 border-border-strong rounded-inner absolute right-0 z-20 mt-1 w-64 overflow-hidden border py-1 shadow-xl">
+          <ul className="bg-surface-solid border-border-strong rounded-inner absolute right-0 z-20 mt-1 w-64 overflow-hidden border py-1 shadow-xl">
             <li>
               <Link href="/finanzas/inversiones/importar" className="hover:bg-surface block px-4 py-2.5 text-sm">
                 Importar (Investing, MyInvestor, MEXEM)
@@ -155,7 +155,7 @@ export default async function InvestmentsPage({
       </div>
 
       <section aria-label="Resumen" className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-tile bg-finance text-ink p-6 sm:col-span-2">
+        <div className="rounded-tile bg-surface border-border border p-6 sm:col-span-2">
           <p className="text-sm font-semibold">Valor de la cartera</p>
           <p className="font-display mt-3 text-5xl leading-none font-extrabold">{eur(value)}</p>
           <p className="mt-3 text-sm font-medium">
@@ -213,7 +213,7 @@ export default async function InvestmentsPage({
                   aria-current={r === range ? "page" : undefined}
                   className={clsx(
                     "rounded-full px-3 py-1 text-xs font-medium transition-[background-color,transform] duration-150 active:scale-95",
-                    r === range ? "bg-finance text-ink" : "text-muted hover:text-text",
+                    r === range ? "bg-selected text-on-selected" : "text-muted hover:text-text",
                   )}
                 >
                   {RANGE_LABELS[r]}

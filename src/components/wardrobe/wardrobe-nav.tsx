@@ -26,7 +26,7 @@ export function WardrobeNav() {
                 aria-current={active ? "page" : undefined}
                 className={clsx(
                   "relative flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium whitespace-nowrap transition-[background-color,color,transform] duration-150 active:scale-95 motion-reduce:active:scale-100",
-                  active ? "bg-wardrobe text-ink" : "text-muted hover:text-text",
+                  active ? "bg-selected text-on-selected" : "text-muted hover:text-text",
                 )}
               >
                 {tab.label}
