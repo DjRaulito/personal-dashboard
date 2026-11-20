@@ -20,6 +20,17 @@ import {
   type CutoutStage,
   type PreparedPhoto,
 } from "@/lib/wardrobe/cutout";
+import {
+  colorsAgree,
+  colorText,
+  PATTERN_LABELS,
+  PATTERNS,
+  TONE_LABELS,
+  TONES,
+  type ColorDetail,
+  type Pattern,
+  type Tone,
+} from "@/lib/wardrobe/colors";
 import { RetouchDialog } from "./retouch";
 import {
   CATEGORIES,
@@ -39,12 +50,35 @@ import {
 interface Fields {
   name: string;
   category: Category | "";
-  colors: GarmentColor[];
+  colors: ColorDetail[];
+  pattern: Pattern;
+  fabric: string;
+  formality: number;
   warmth: number;
   occasions: Occasion[];
+  /** La IA y el color medido en la foto no coinciden. */
+  needsReview: boolean;
 }
 
-const EMPTY: Fields = { name: "", category: "", colors: [], warmth: 2, occasions: [] };
+const EMPTY: Fields = {
+  name: "",
+  category: "",
+  colors: [],
+  pattern: "plain",
+  fabric: "",
+  formality: 2,
+  warmth: 2,
+  occasions: [],
+  needsReview: false,
+};
+
+const FORMALITY_LABELS: Record<number, string> = {
+  1: "Deporte",
+  2: "Informal",
+  3: "Arreglado",
+  4: "Elegante",
+  5: "Traje",
+};
 
 const pill = (active: boolean) =>
   clsx(
@@ -60,13 +94,122 @@ function toFormData(fields: Fields, extra: Record<string, string>): FormData {
   fd.set("name", fields.name);
   fd.set("category", fields.category);
   fd.set("warmth", String(fields.warmth));
-  for (const c of fields.colors) fd.append("colors", c);
+  fd.set("color_details", JSON.stringify(fields.colors.filter((c) => c.name.trim())));
+  fd.set("pattern", fields.pattern);
+  fd.set("fabric", fields.fabric);
+  fd.set("formality", String(fields.formality));
+  fd.set("needs_review", fields.needsReview ? "1" : "0");
   for (const o of fields.occasions) fd.append("occasions", o);
   for (const [k, v] of Object.entries(extra)) fd.set(k, v);
   return fd;
 }
 
-/** Campos de una prenda (nombre, categoría, colores, abrigo y ocasiones). */
+/** Colores en palabras: nombre preciso, tono y familia. La muestra solo acompaña. */
+function ColorList({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: Fields;
+  onChange: (next: Fields) => void;
+  disabled?: boolean;
+}) {
+  const set = (i: number, patch: Partial<ColorDetail>) =>
+    onChange({ ...value, colors: value.colors.map((c, j) => (j === i ? { ...c, ...patch } : c)) });
+  return (
+    <fieldset disabled={disabled} className="flex flex-col gap-2">
+      <legend className="text-muted text-sm">Colores (el principal primero)</legend>
+      {value.needsReview && (
+        <p role="alert" className="border-attention text-attention rounded-inner border px-3 py-2 text-sm">
+          ! El color de la foto no coincide con el que dice la IA. Revísalo con luz natural.{" "}
+          <button
+            type="button"
+            onClick={() => onChange({ ...value, needsReview: false })}
+            className="text-text underline underline-offset-4"
+          >
+            Ya lo he revisado
+          </button>
+        </p>
+      )}
+      {value.colors.length === 0 && (
+        <p className="text-muted text-sm">Sin colores todavía. La IA los propone al subir la foto.</p>
+      )}
+      <ul className="flex flex-col gap-2">
+        {value.colors.map((c, i) => (
+          <li
+            key={i}
+            className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 sm:grid-cols-[auto_minmax(0,1fr)_8rem_9rem_auto]"
+          >
+            <span
+              aria-hidden="true"
+              className="border-border-strong h-6 w-6 shrink-0 rounded-full border"
+              style={{ background: c.hex }}
+            />
+            <input
+              aria-label={`Color ${i + 1}: nombre`}
+              value={c.name}
+              onChange={(e) => set(i, { name: e.target.value })}
+              maxLength={40}
+              placeholder="P. ej. azul marino oscuro"
+              className={clsx(inputClass, "col-span-2 sm:col-span-1")}
+            />
+            <select
+              aria-label={`Color ${i + 1}: tono`}
+              value={c.tone}
+              onChange={(e) => set(i, { tone: e.target.value as Tone })}
+              className={clsx(inputClass, "col-start-2 sm:col-start-auto")}
+            >
+              {TONES.map((t) => (
+                <option key={t} value={t}>
+                  {TONE_LABELS[t]}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label={`Color ${i + 1}: familia`}
+              value={c.family}
+              onChange={(e) => {
+                const family = e.target.value as GarmentColor;
+                set(i, { family, hex: COLOR_INFO[family].hex });
+              }}
+              className={clsx(inputClass, "col-start-2 sm:col-start-auto")}
+            >
+              {COLORS.map((f) => (
+                <option key={f} value={f}>
+                  {COLOR_INFO[f].label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              aria-label={`Quitar color ${i + 1}`}
+              onClick={() => onChange({ ...value, colors: value.colors.filter((_, j) => j !== i) })}
+              className="text-muted hover:text-expense rounded-full p-2"
+            >
+              <Trash2 aria-hidden="true" className="h-4 w-4" />
+            </button>
+          </li>
+        ))}
+      </ul>
+      {value.colors.length < 4 && (
+        <button
+          type="button"
+          onClick={() =>
+            onChange({
+              ...value,
+              colors: [...value.colors, { name: "", family: "grey", tone: "medium", hex: COLOR_INFO.grey.hex }],
+            })
+          }
+          className="text-muted hover:text-text self-start text-sm underline underline-offset-4"
+        >
+          Añadir color
+        </button>
+      )}
+    </fieldset>
+  );
+}
+
+/** Campos de una prenda (nombre, categoría, colores, dibujo, abrigo y ocasiones). */
 function GarmentFields({
   value,
   onChange,
@@ -107,34 +250,47 @@ function GarmentFields({
           </select>
         </Field>
       </div>
-      <fieldset disabled={disabled}>
-        <legend className="text-muted text-sm">Colores (máx. 4)</legend>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {COLORS.map((c) => {
-            const on = value.colors.includes(c);
-            return (
-              <button
-                key={c}
-                type="button"
-                aria-pressed={on}
-                title={COLOR_INFO[c].label}
-                onClick={() => onChange({ ...value, colors: toggle(value.colors, c, 4) })}
-                className={clsx(
-                  "focus-visible:outline-content flex items-center gap-1.5 rounded-full border py-1 pr-2.5 pl-1 text-xs transition-colors duration-150 focus-visible:outline-2",
-                  on ? "border-wardrobe text-text" : "border-border-strong text-muted hover:text-text",
-                )}
-              >
-                <span
-                  aria-hidden="true"
-                  className="border-border-strong h-5 w-5 rounded-full border"
-                  style={{ background: COLOR_INFO[c].hex }}
-                />
-                {COLOR_INFO[c].label}
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
+      <ColorList value={value} onChange={onChange} disabled={disabled} />
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="Dibujo">
+          <select
+            value={value.pattern}
+            onChange={(e) => onChange({ ...value, pattern: e.target.value as Pattern })}
+            disabled={disabled}
+            className={inputClass}
+          >
+            {PATTERNS.map((p) => (
+              <option key={p} value={p}>
+                {PATTERN_LABELS[p][0].toUpperCase() + PATTERN_LABELS[p].slice(1)}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Tejido (opcional)">
+          <input
+            value={value.fabric}
+            onChange={(e) => onChange({ ...value, fabric: e.target.value })}
+            maxLength={40}
+            disabled={disabled}
+            placeholder="Algodón, lana…"
+            className={inputClass}
+          />
+        </Field>
+        <Field label="Formalidad">
+          <select
+            value={value.formality}
+            onChange={(e) => onChange({ ...value, formality: Number(e.target.value) })}
+            disabled={disabled}
+            className={inputClass}
+          >
+            {[1, 2, 3, 4, 5].map((f) => (
+              <option key={f} value={f}>
+                {FORMALITY_LABELS[f]}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
       <fieldset disabled={disabled}>
         <legend className="text-muted text-sm">Abrigo</legend>
         <div className="mt-2 flex flex-wrap gap-2">
@@ -225,7 +381,23 @@ function Uploader({ userId, aiReady }: { userId: string; aiReady: boolean }) {
           const tags = await tagGarment(photo.forAi);
           // Solo se rellena si aún no se ha escrito nada
           if (tags.ok)
-            patch(next.key, (d) => (d.fields.name || d.fields.category ? {} : { fields: tags.data, tagged: true }));
+            patch(next.key, (d) =>
+              d.fields.name || d.fields.category
+                ? {}
+                : {
+                    fields: {
+                      ...tags.data,
+                      fabric: tags.data.fabric ?? "",
+                      // Segunda opinión: el color medido en la foto sin fondo
+                      needsReview: Boolean(
+                        photo.measuredHex &&
+                        tags.data.colors[0] &&
+                        !colorsAgree(tags.data.colors[0].hex, photo.measuredHex),
+                      ),
+                    },
+                    tagged: true,
+                  },
+            );
         }
       } catch {
         patch(next.key, { status: "failed", note: "No se pudo leer esta foto." });
@@ -417,9 +589,13 @@ function EditDialog({ garment, userId, onClose }: { garment: Garment; userId: st
   const [fields, setFields] = useState<Fields>({
     name: garment.name,
     category: garment.category,
-    colors: garment.colors,
+    colors: garment.colorDetails,
+    pattern: garment.pattern,
+    fabric: garment.fabric ?? "",
+    formality: garment.formality,
     warmth: garment.warmth,
     occasions: garment.occasions,
+    needsReview: garment.needsReview,
   });
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -531,6 +707,11 @@ function EditDialog({ garment, userId, onClose }: { garment: Garment; userId: st
   );
 }
 
+const shortDay = (d: string) =>
+  new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "UTC" }).format(
+    new Date(`${d}T00:00:00Z`),
+  );
+
 function GarmentCard({ garment, onEdit }: { garment: Garment; onEdit: () => void }) {
   return (
     <li className="bg-surface border-border rounded-inner group relative flex flex-col overflow-hidden border">
@@ -547,18 +728,12 @@ function GarmentCard({ garment, onEdit }: { garment: Garment; onEdit: () => void
       </div>
       <div className="flex flex-1 flex-col gap-1.5 p-3">
         <p className="truncate text-sm font-medium">{garment.name}</p>
-        <p className="text-muted flex items-center gap-1.5 text-xs">
-          {garment.colors.map((c) => (
-            <span
-              key={c}
-              title={COLOR_INFO[c].label}
-              className="border-border-strong h-3 w-3 rounded-full border"
-              style={{ background: COLOR_INFO[c].hex }}
-            >
-              <span className="sr-only">{COLOR_INFO[c].label}</span>
-            </span>
-          ))}
-          <span className="truncate">{WARMTH_LABELS[garment.warmth]}</span>
+        <p className="text-muted line-clamp-2 text-xs">
+          {garment.needsReview && <span className="text-attention">! revisar · </span>}
+          {garment.colorDetails.map(colorText).join(" / ") || "sin color"} · {WARMTH_LABELS[garment.warmth]}
+        </p>
+        <p className="text-muted text-xs">
+          {garment.lastWorn ? `Puesta el ${shortDay(garment.lastWorn)}` : "Sin estrenar aquí"}
         </p>
         {garment.occasions.length > 0 && (
           <p className="text-muted truncate text-xs">{garment.occasions.map((o) => OCCASION_LABELS[o]).join(" · ")}</p>
@@ -586,13 +761,31 @@ export function GarmentManager({
   aiReady: boolean;
 }) {
   const [filter, setFilter] = useState<Category | "all">("all");
+  const [color, setColor] = useState<GarmentColor | "all">("all");
+  const [occasion, setOccasion] = useState<Occasion | "all">("all");
+  const [order, setOrder] = useState<"new" | "rested" | "recent">("new");
+  const shown = useMemo(() => {
+    const list = garments.filter(
+      (g) => (color === "all" || g.colors.includes(color)) && (occasion === "all" || g.occasions.includes(occasion)),
+    );
+    if (order === "new") return list;
+    // Sin usar primero (o usadas hace poco primero)
+    return [...list].sort((a, b) => {
+      const x = a.lastWorn ?? "";
+      const y = b.lastWorn ?? "";
+      return order === "rested" ? x.localeCompare(y) : y.localeCompare(x);
+    });
+  }, [garments, color, occasion, order]);
+  const presentColors = COLORS.filter((c) => garments.some((g) => g.colors.includes(c)));
   const [editing, setEditing] = useState<Garment | null>(null);
   const counts = useMemo(() => {
     const map = new Map<Category, number>();
     for (const g of garments) map.set(g.category, (map.get(g.category) ?? 0) + 1);
     return map;
   }, [garments]);
-  const sections = CATEGORIES.filter((c) => (filter === "all" ? counts.has(c) : c === filter));
+  const sections = CATEGORIES.filter(
+    (c) => (filter === "all" ? counts.has(c) : c === filter) && shown.some((g) => g.category === c),
+  );
 
   return (
     <>
@@ -631,11 +824,51 @@ export function GarmentManager({
                 ))}
               </div>
             </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <label className="text-muted flex flex-col gap-1 text-xs">
+                Color
+                <select
+                  value={color}
+                  onChange={(e) => setColor(e.target.value as GarmentColor | "all")}
+                  className={inputClass}
+                >
+                  <option value="all">Todos</option>
+                  {presentColors.map((c) => (
+                    <option key={c} value={c}>
+                      {COLOR_INFO[c].label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-muted flex flex-col gap-1 text-xs">
+                Ocasión
+                <select
+                  value={occasion}
+                  onChange={(e) => setOccasion(e.target.value as Occasion | "all")}
+                  className={inputClass}
+                >
+                  <option value="all">Todas</option>
+                  {OCCASIONS.map((o) => (
+                    <option key={o} value={o}>
+                      {OCCASION_LABELS[o]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-muted flex flex-col gap-1 text-xs">
+                Orden
+                <select value={order} onChange={(e) => setOrder(e.target.value as typeof order)} className={inputClass}>
+                  <option value="new">Las más nuevas</option>
+                  <option value="rested">Las que llevas más sin ponerte</option>
+                  <option value="recent">Puestas hace poco</option>
+                </select>
+              </label>
+            </div>
             {sections.map((category) => (
               <section key={category} className="mt-5">
                 <h3 className="text-muted text-sm">{CATEGORY_PLURALS[category]}</h3>
                 <ul className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                  {garments
+                  {shown
                     .filter((g) => g.category === category)
                     .map((g) => (
                       <GarmentCard key={g.id} garment={g} onEdit={() => setEditing(g)} />

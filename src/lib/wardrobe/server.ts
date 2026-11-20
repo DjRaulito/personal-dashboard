@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { Weather } from "./ai";
+import { detailsFromFamilies, PATTERNS, type ColorDetail, type Pattern } from "./colors";
 import type { Category, Garment, GarmentColor, Occasion, Outfit } from "./types";
 
 export const WARDROBE_BUCKET = "wardrobe";
@@ -10,11 +11,18 @@ const SIGNED_URL_SECONDS = 2 * 3600;
 /** Prendas del armario con un enlace temporal a su foto, de la más nueva a la más vieja. */
 export async function getGarments(): Promise<Garment[]> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("wardrobe_garments")
-    .select("id, name, category, colors, warmth, occasions, cutout, image_path")
-    .order("created_at", { ascending: false })
-    .limit(500);
+  const [{ data }, { data: wears }] = await Promise.all([
+    supabase
+      .from("wardrobe_garments")
+      .select(
+        "id, name, category, colors, color_details, pattern, fabric, formality, needs_review, warmth, occasions, cutout, image_path",
+      )
+      .order("created_at", { ascending: false })
+      .limit(500),
+    supabase.from("wardrobe_wears").select("garment_id, worn_on").order("worn_on", { ascending: false }).limit(2000),
+  ]);
+  const lastWorn = new Map<string, string>();
+  for (const w of wears ?? []) if (!lastWorn.has(w.garment_id)) lastWorn.set(w.garment_id, w.worn_on);
   const rows = data ?? [];
   if (rows.length === 0) return [];
   const { data: signed } = await supabase.storage.from(WARDROBE_BUCKET).createSignedUrls(
@@ -27,6 +35,15 @@ export async function getGarments(): Promise<Garment[]> {
     name: r.name,
     category: r.category as Category,
     colors: r.colors as GarmentColor[],
+    colorDetails:
+      Array.isArray(r.color_details) && r.color_details.length
+        ? (r.color_details as unknown as ColorDetail[])
+        : detailsFromFamilies(r.colors as GarmentColor[]),
+    pattern: (PATTERNS as readonly string[]).includes(r.pattern) ? (r.pattern as Pattern) : "plain",
+    fabric: r.fabric,
+    formality: r.formality,
+    needsReview: r.needs_review,
+    lastWorn: lastWorn.get(r.id) ?? null,
     warmth: r.warmth,
     occasions: r.occasions as Occasion[],
     cutout: r.cutout,
@@ -38,7 +55,8 @@ export async function getOutfits(): Promise<Outfit[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("wardrobe_outfits")
-    .select("id, name, occasion, note, wardrobe_outfit_items(garment_id)")
+    .select("id, name, occasion, note, favorite, wardrobe_outfit_items(garment_id)")
+    .order("favorite", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(200);
   return (data ?? []).map((o) => ({
@@ -46,6 +64,7 @@ export async function getOutfits(): Promise<Outfit[]> {
     name: o.name,
     occasion: o.occasion as Occasion | null,
     note: o.note,
+    favorite: o.favorite,
     garmentIds: o.wardrobe_outfit_items.map((i) => i.garment_id),
   }));
 }
@@ -113,55 +132,4 @@ export async function getTodayWeather(settings: WardrobeSettings): Promise<Weath
   } catch {
     return null;
   }
-}
-
-// ---------------------------------------------------------------------------
-// «Probar en mí»: foto de cuerpo entero y resultados guardados
-// ---------------------------------------------------------------------------
-
-/** Rutas en el bucket: la foto del usuario y sus pruebas, dentro de su carpeta. */
-export const personPhotoPath = (userId: string) => `${userId}/me/person.jpg`;
-export const tryOnFolder = (userId: string) => `${userId}/tryon`;
-/** Pruebas que se guardan; las más viejas se borran. */
-export const MAX_TRYONS = 12;
-
-export interface TryOnResult {
-  path: string;
-  url: string;
-  createdAt: string;
-}
-
-export interface TryOnState {
-  personUrl: string | null;
-  results: TryOnResult[];
-}
-
-export async function getTryOnState(): Promise<TryOnState> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { personUrl: null, results: [] };
-  const bucket = supabase.storage.from(WARDROBE_BUCKET);
-  const [me, tries] = await Promise.all([
-    bucket.list(`${user.id}/me`, { limit: 5 }),
-    bucket.list(tryOnFolder(user.id), { limit: MAX_TRYONS, sortBy: { column: "created_at", order: "desc" } }),
-  ]);
-  const hasPerson = (me.data ?? []).some((f) => f.name === "person.jpg");
-  const files = (tries.data ?? []).filter((f) => f.name.endsWith(".webp"));
-  const paths = [
-    ...(hasPerson ? [personPhotoPath(user.id)] : []),
-    ...files.map((f) => `${tryOnFolder(user.id)}/${f.name}`),
-  ];
-  if (paths.length === 0) return { personUrl: null, results: [] };
-  const { data: signed } = await bucket.createSignedUrls(paths, SIGNED_URL_SECONDS);
-  const urls = new Map((signed ?? []).filter((s) => !s.error && s.path).map((s) => [s.path!, s.signedUrl]));
-  return {
-    personUrl: hasPerson ? (urls.get(personPhotoPath(user.id)) ?? null) : null,
-    results: files.flatMap((f) => {
-      const path = `${tryOnFolder(user.id)}/${f.name}`;
-      const url = urls.get(path);
-      return url ? [{ path, url, createdAt: f.created_at ?? "" }] : [];
-    }),
-  };
 }

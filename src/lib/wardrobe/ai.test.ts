@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { garmentTagSchema, outfitPrompt, resolveOutfits, warmthFor, weatherLine } from "./ai";
+import {
+  combineGarmentsPrompt,
+  combineSchema,
+  garmentTagSchema,
+  outfitPrompt,
+  resolveOutfits,
+  warmthFor,
+  weatherLine,
+} from "./ai";
+import { detailsFromFamilies } from "./colors";
 import { lookFrom, lookIds, type Garment } from "./types";
 
 const garment = (id: string, category: Garment["category"], extra: Partial<Garment> = {}): Garment => ({
@@ -7,6 +16,12 @@ const garment = (id: string, category: Garment["category"], extra: Partial<Garme
   name: id,
   category,
   colors: [],
+  colorDetails: detailsFromFamilies(extra.colors ?? []),
+  pattern: "plain",
+  fabric: null,
+  formality: 2,
+  needsReview: false,
+  lastWorn: null,
   warmth: 2,
   occasions: [],
   cutout: true,
@@ -31,14 +46,27 @@ describe("armario · etiquetas de la IA", () => {
     const tags = garmentTagSchema.parse({
       name: "  Sudadera gris  ",
       category: "top",
-      colors: ["grey", "turquesa", "grey", "black"],
+      colors: [
+        { name: "Gris Jaspeado", family: "grey", tone: "medium", hex: "#8A8A8A" },
+        { name: "turquesa", family: "turquoise", tone: "light", hex: "#40e0d0" },
+        { name: "negro", family: "black", tone: "muy", hex: "no" },
+      ],
+      pattern: "rayas",
+      fabric: "algodón",
+      formality: "9",
       warmth: "3",
       occasions: ["daily", "boda"],
     });
     expect(tags).toEqual({
       name: "Sudadera gris",
       category: "top",
-      colors: ["grey", "black"],
+      colors: [
+        { name: "gris jaspeado", family: "grey", tone: "medium", hex: "#8a8a8a" },
+        { name: "negro", family: "black", tone: "medium", hex: "#808080" },
+      ],
+      pattern: "plain",
+      fabric: "algodón",
+      formality: 2,
       warmth: 3,
       occasions: ["daily"],
     });
@@ -65,16 +93,18 @@ describe("armario · tiempo", () => {
 describe("armario · outfits", () => {
   it("el encargo lleva las prendas numeradas, la ocasión, el tiempo y la prenda fijada", () => {
     const prompt = outfitPrompt(wardrobe, {
-      occasion: "work",
+      plan: "reunión de trabajo",
       weather: { min: 3, max: 9, rain: 80 },
       pinId: "chino",
-      wishes: "algo sobrio",
+      recentIds: ["camiseta"],
     });
-    expect(prompt).toContain("1 · jersey · top · azul marino · abrigo 3 (abrigada)");
-    expect(prompt).toContain("Ocasión: trabajo");
+    expect(prompt).toContain(
+      "1 · jersey · top · azul marino, tono oscuro · liso · formalidad 2/5 · abrigo 3 (abrigada)",
+    );
+    expect(prompt).toContain("Plan de hoy: reunión de trabajo");
     expect(prompt).toContain("abrigo 3");
     expect(prompt).toContain("La prenda 3 tiene que estar");
-    expect(prompt).toContain("Petición: algo sobrio");
+    expect(prompt).toContain("evítalas si hay alternativa): 0.");
   });
 
   it("valida los conjuntos: una prenda por zona, la fijada dentro y sin repetidos", () => {
@@ -96,7 +126,7 @@ describe("armario · outfits", () => {
     );
     expect(resolved.map((o) => o.name)).toEqual(["A", "D"]);
     expect(resolved[0].garmentIds).toEqual(["camiseta", "vaquero", "zapatillas", "gorra", "bufanda"]);
-    expect(resolved[1]).toEqual({ name: "D", why: "frío", garmentIds: ["abrigo", "jersey", "chino"] });
+    expect(resolved[1]).toEqual({ name: "D", why: "frío", garmentIds: ["abrigo", "jersey", "chino"], notes: [] });
   });
 
   it("la prenda fijada sustituye a la de su zona", () => {
@@ -104,7 +134,34 @@ describe("armario · outfits", () => {
     expect(outfit.garmentIds).toEqual(["camiseta", "chino", "zapatillas"]);
   });
 
-  it("reparte las prendas por zonas del maniquí", () => {
+  it("descarta lo que no pasa las reglas de color", () => {
+    const loud = [
+      garment("verde", "top", { colors: ["green"] }),
+      garment("rojo", "bottom", { colors: ["red"] }),
+      garment("negro", "bottom", { colors: ["black"] }),
+    ];
+    const resolved = resolveOutfits(
+      {
+        outfits: [
+          { name: "A", why: "", items: [0, 1] },
+          { name: "B", why: "", items: [0, 2] },
+        ],
+      },
+      loud,
+      null,
+    );
+    expect(resolved.map((o) => o.name)).toEqual(["B"]);
+  });
+
+  it("¿combina?: el encargo lleva las reglas y alternativas; la respuesta se valida", () => {
+    const prompt = combineGarmentsPrompt([wardrobe[0], wardrobe[2]], wardrobe);
+    expect(prompt).toContain("Las reglas fijas no ven problemas.");
+    expect(prompt).toContain("- jersey (parte de arriba, azul marino, tono oscuro)");
+    const r = combineSchema.parse({ verdict: "quizá", summary: " Combina bien ", fix: "", pieces: "x" });
+    expect(r).toEqual({ pieces: [], verdict: "risky", summary: "Combina bien", fix: null });
+  });
+
+  it("reparte las prendas por zonas", () => {
     const look = lookFrom(["abrigo", "jersey", "camiseta", "chino", "gorra", "bufanda", "reloj", "nada"], wardrobe);
     expect(look).toEqual({
       top: "jersey",

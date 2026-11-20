@@ -7,7 +7,6 @@ import { aiProviderNames } from "@/lib/ai/llm";
 import { getBrainTokens } from "@/lib/brain/server";
 import { getGoogleConfig } from "@/lib/env.server";
 import { createClient } from "@/lib/supabase/server";
-import { tryOnConfigured } from "@/lib/wardrobe/tryon";
 
 export const metadata: Metadata = { title: "Conexiones · Ajustes" };
 export const dynamic = "force-dynamic";
@@ -57,11 +56,6 @@ export default async function ConnectionsPage() {
             name="IA"
             ok={providers.length > 0}
             detail={providers.length ? providers.join(" → ") : "Sin claves: añade GEMINI_API_KEY en Vercel"}
-          />
-          <Status
-            name="Hugging Face (Probar en mí)"
-            ok={tryOnConfigured()}
-            detail={tryOnConfigured() ? "Token configurado" : "Sin token: añade HF_TOKEN en Vercel"}
           />
         </ul>
         <p className="text-muted mt-3 text-xs">

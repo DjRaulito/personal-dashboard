@@ -1,4 +1,5 @@
 // Armario: vocabulario común (categorías, colores, ocasiones) para cliente y servidor.
+import type { ColorDetail, Pattern } from "./colors";
 
 export const CATEGORIES = ["top", "bottom", "outerwear", "shoes", "accessory"] as const;
 export type Category = (typeof CATEGORIES)[number];
@@ -70,7 +71,18 @@ export interface Garment {
   id: string;
   name: string;
   category: Category;
+  /** Familias de color (para filtrar y para las reglas). */
   colors: GarmentColor[];
+  /** Colores con nombre preciso, tono y hex (Armario v3). */
+  colorDetails: ColorDetail[];
+  pattern: Pattern;
+  fabric: string | null;
+  /** 1 muy informal … 5 muy formal. */
+  formality: number;
+  /** La IA y el color medido en la foto no coinciden. */
+  needsReview: boolean;
+  /** Última vez que te la pusiste (YYYY-MM-DD). */
+  lastWorn: string | null;
   warmth: number;
   occasions: Occasion[];
   cutout: boolean;
@@ -83,10 +95,11 @@ export interface Outfit {
   name: string;
   occasion: Occasion | null;
   note: string | null;
+  favorite: boolean;
   garmentIds: string[];
 }
 
-/** Lo que lleva puesto el maniquí: una prenda por zona y los accesorios. */
+/** Un conjunto: una prenda por zona y los accesorios. */
 export interface Look {
   top: string | null;
   bottom: string | null;
@@ -117,10 +130,3 @@ export function lookFrom(ids: string[], garments: Garment[]): Look {
 
 export const lookIds = (look: Look): string[] =>
   [look.outerwear, look.top, look.bottom, look.shoes, ...look.accessories].filter((id): id is string => !!id);
-
-/** Zona del cuerpo para «Probar en mí»: solo se pueden probar estas categorías. */
-export const TRYON_PARTS = {
-  top: "upper_body",
-  outerwear: "upper_body",
-  bottom: "lower_body",
-} as const satisfies Partial<Record<Category, "upper_body" | "lower_body">>;
