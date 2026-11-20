@@ -75,7 +75,7 @@ export default async function Home() {
         ))}
 
         <Link
-          href="/finanzas/plan"
+          href="/finanzas/analisis"
           className="rounded-tile border-border bg-surface hover:border-border-strong flex flex-col border p-6 transition-[border-color,transform] duration-150 active:scale-[0.98] motion-reduce:active:scale-100 md:col-span-3"
         >
           <span className="flex items-center gap-3">

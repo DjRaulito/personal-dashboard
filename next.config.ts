@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
       { source: "/finanzas/ajustes", destination: "/ajustes/finanzas", permanent: false },
       { source: "/finanzas/cuentas", destination: "/ajustes/finanzas/cuentas", permanent: false },
       { source: "/finanzas/categorias", destination: "/ajustes/finanzas/categorias", permanent: false },
+      // Plan y Métricas se funden en Análisis
+      { source: "/finanzas/plan", destination: "/finanzas/analisis", permanent: false },
+      { source: "/finanzas/metricas", destination: "/finanzas/analisis", permanent: false },
       // Inversiones: todo se hace desde la lista de posiciones y su panel
       { source: "/finanzas/inversiones/activo/:id", destination: "/finanzas/inversiones?activo=:id", permanent: false },
       { source: "/finanzas/inversiones/activos", destination: "/finanzas/inversiones", permanent: false },

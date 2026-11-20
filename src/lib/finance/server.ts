@@ -5,20 +5,22 @@ import type { AccountWithBalance, AccountType } from "./accounts";
 import type { Category, CategoryKind } from "./categories";
 import { likePattern, monthBounds, PAGE_SIZE, type TransactionFilters } from "./filters";
 
-export const getAccounts = cache(async (): Promise<AccountWithBalance[]> => {
-  const supabase = await createClient();
-  const [{ data: accounts, error }, { data: balances }] = await Promise.all([
-    supabase.from("accounts").select("id, name, type, currency, initial_balance_cents, archived").order("name"),
-    supabase.rpc("account_balances"),
-  ]);
-  if (error) throw error;
-  const byId = new Map((balances ?? []).map((b) => [b.account_id, b.balance_cents]));
-  return (accounts ?? []).map((a) => ({
-    ...a,
-    type: a.type as AccountType,
-    balance_cents: byId.get(a.id) ?? a.initial_balance_cents,
-  }));
-});
+export const getAccounts = cache(
+  async (client?: Awaited<ReturnType<typeof createClient>>): Promise<AccountWithBalance[]> => {
+    const supabase = client ?? (await createClient());
+    const [{ data: accounts, error }, { data: balances }] = await Promise.all([
+      supabase.from("accounts").select("id, name, type, currency, initial_balance_cents, archived").order("name"),
+      supabase.rpc("account_balances"),
+    ]);
+    if (error) throw error;
+    const byId = new Map((balances ?? []).map((b) => [b.account_id, b.balance_cents]));
+    return (accounts ?? []).map((a) => ({
+      ...a,
+      type: a.type as AccountType,
+      balance_cents: byId.get(a.id) ?? a.initial_balance_cents,
+    }));
+  },
+);
 
 export const getCategories = cache(async (): Promise<Category[]> => {
   const supabase = await createClient();

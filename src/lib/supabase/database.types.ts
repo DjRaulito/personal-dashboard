@@ -501,6 +501,36 @@ export type Database = {
           },
         ];
       };
+      net_worth_snapshots: {
+        Row: {
+          cash_cents: number;
+          created_at: string;
+          day: string;
+          investments_cents: number;
+          total_cents: number | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          cash_cents: number;
+          created_at?: string;
+          day: string;
+          investments_cents: number;
+          total_cents?: number | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          cash_cents?: number;
+          created_at?: string;
+          day?: string;
+          investments_cents?: number;
+          total_cents?: number | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       nutrition_cheats: {
         Row: {
           ai_notes: string | null;
@@ -1476,6 +1506,13 @@ export type Database = {
         Returns: {
           account_id: string;
           balance_cents: number;
+        }[];
+      };
+      account_last_movements: {
+        Args: never;
+        Returns: {
+          account_id: string;
+          last_booked_on: string;
         }[];
       };
       brain_call: {

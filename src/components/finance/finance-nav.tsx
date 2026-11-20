@@ -15,8 +15,7 @@ const TABS = [
     match: (p: string) =>
       ["/finanzas/gastos", "/finanzas/movimientos", "/finanzas/importar"].some((x) => p.startsWith(x)),
   },
-  { href: "/finanzas/plan", label: "Plan", match: (p: string) => p.startsWith("/finanzas/plan") },
-  { href: "/finanzas/metricas", label: "Métricas", match: (p: string) => p.startsWith("/finanzas/metricas") },
+  { href: "/finanzas/analisis", label: "Análisis", match: (p: string) => p.startsWith("/finanzas/analisis") },
 ];
 
 export function FinanceNav() {

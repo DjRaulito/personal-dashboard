@@ -8,7 +8,7 @@ test("sin sesión, la portada redirige al login", async ({ page }) => {
 });
 
 test("las rutas privadas también están protegidas", async ({ page }) => {
-  for (const path of ["/ajustes", "/finanzas", "/finanzas/plan", "/nutricion", "/armario", "/cerebro"]) {
+  for (const path of ["/ajustes", "/finanzas", "/finanzas/analisis", "/nutricion", "/armario", "/cerebro"]) {
     await page.goto(path);
     await expect(page).toHaveURL(/\/login$/);
   }

@@ -5,6 +5,14 @@ import { APP_LOCALE } from "@/lib/datetime";
 
 const monthShort = (iso: string) =>
   new Intl.DateTimeFormat(APP_LOCALE, { month: "short", timeZone: "UTC" }).format(new Date(`${iso}T00:00:00Z`));
+const dayShort = (iso: string) =>
+  new Intl.DateTimeFormat(APP_LOCALE, { day: "numeric", month: "short", timeZone: "UTC" }).format(
+    new Date(`${iso}T00:00:00Z`),
+  );
+const dayLong = (iso: string) =>
+  new Intl.DateTimeFormat(APP_LOCALE, { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(
+    new Date(`${iso}T00:00:00Z`),
+  );
 const monthLong = (iso: string) =>
   new Intl.DateTimeFormat(APP_LOCALE, { month: "long", year: "numeric", timeZone: "UTC" }).format(
     new Date(`${iso}T00:00:00Z`),
@@ -160,7 +168,18 @@ export function CashflowChart({
 }
 
 /** Patrimonio al cierre de cada mes: línea con área. */
-export function NetWorthChart({ data, currency }: { data: { month: string; cents: number }[]; currency: string }) {
+/** `daily`: un punto por día (fotos diarias) en lugar de por mes; `month` lleva entonces la fecha. */
+export function NetWorthChart({
+  data,
+  currency,
+  daily = false,
+}: {
+  data: { month: string; cents: number }[];
+  currency: string;
+  daily?: boolean;
+}) {
+  const long = daily ? dayLong : monthLong;
+  const short = daily ? dayShort : monthShort;
   if (data.length === 0) return null;
   const values = data.map((d) => d.cents);
   const scale = niceScale(Math.min(0, ...values), Math.max(...values));
@@ -225,7 +244,7 @@ export function NetWorthChart({ data, currency }: { data: { month: string; cents
               <li
                 key={d.month}
                 tabIndex={0}
-                aria-label={`${monthLong(d.month)}: ${formatCents(d.cents, currency)}`}
+                aria-label={`${long(d.month)}: ${formatCents(d.cents, currency)}`}
                 className="group relative flex-1 outline-none"
               >
                 <span
@@ -233,7 +252,7 @@ export function NetWorthChart({ data, currency }: { data: { month: string; cents
                   className="bg-border-strong absolute inset-y-0 left-1/2 hidden w-px group-hover:block group-focus-visible:block"
                 />
                 <Tooltip align={i < data.length / 2 ? "left" : "right"}>
-                  <p className="font-semibold first-letter:uppercase">{monthLong(d.month)}</p>
+                  <p className="font-semibold first-letter:uppercase">{long(d.month)}</p>
                   <p className="mt-1 tabular-nums">{formatCents(d.cents, currency)}</p>
                 </Tooltip>
               </li>
@@ -242,12 +261,12 @@ export function NetWorthChart({ data, currency }: { data: { month: string; cents
         </div>
       </div>
       <div aria-hidden="true" className="text-muted mt-2 ml-16 flex justify-between text-[11px]">
-        <span>{monthShort(data[0].month)}</span>
-        <span>{monthShort(last.month)}</span>
+        <span>{short(data[0].month)}</span>
+        <span>{short(last.month)}</span>
       </div>
       <DataTable
-        headers={["Mes", "Patrimonio"]}
-        rows={data.map((d) => [monthLong(d.month), formatCents(d.cents, currency)])}
+        headers={[daily ? "Día" : "Mes", "Patrimonio"]}
+        rows={data.map((d) => [long(d.month), formatCents(d.cents, currency)])}
       />
     </figure>
   );

@@ -23,7 +23,7 @@ async function session() {
 }
 
 function refresh() {
-  revalidatePath("/finanzas/plan");
+  revalidatePath("/finanzas/analisis");
   revalidatePath("/");
 }
 
