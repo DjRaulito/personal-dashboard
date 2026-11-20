@@ -222,7 +222,7 @@ export function ShoppingPlanner({
                                   className={clsx(
                                     "flex min-w-0 flex-1 items-baseline gap-2 rounded-full px-3.5 py-1.5 text-left text-sm transition-[background-color,color] duration-150",
                                     days > 0
-                                      ? "bg-nutrition text-ink font-medium"
+                                      ? "bg-selected text-on-selected font-medium"
                                       : "bg-surface text-muted hover:text-text",
                                   )}
                                   onClick={() => setDays(option.id, days > 0 ? 0 : Math.max(1, 7 - total))}

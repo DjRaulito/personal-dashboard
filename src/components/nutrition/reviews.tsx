@@ -97,7 +97,7 @@ export function MeasureChart({ series }: { series: MeasureSeries }) {
             aria-pressed={m === selected}
             className={clsx(
               "rounded-full px-3.5 py-1.5 text-sm font-medium transition-[background-color,color,transform] duration-150 active:scale-95 motion-reduce:active:scale-100",
-              m === selected ? "bg-nutrition text-ink" : "bg-surface-2 text-muted hover:text-text",
+              m === selected ? "bg-selected text-on-selected" : "bg-surface-2 text-muted hover:text-text",
             )}
             onClick={() => setSelected(m)}
           >

@@ -34,7 +34,7 @@ const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,
 const pill = (active: boolean) =>
   clsx(
     "rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-[background-color,color,transform] duration-150 active:scale-95 motion-reduce:active:scale-100",
-    active ? "bg-nutrition text-ink" : "bg-surface-2 text-muted hover:text-text",
+    active ? "bg-selected text-on-selected" : "bg-surface-2 text-muted hover:text-text",
   );
 const COLS = "grid grid-cols-[minmax(0,1fr)_3rem_2.75rem_2.75rem_2.75rem_1.25rem] items-center gap-x-2";
 
@@ -174,7 +174,7 @@ export function FoodBrowser({ foods }: { foods: Food[] }) {
                 title={label}
                 className={clsx(
                   "rounded-full p-2 transition-colors duration-150",
-                  view === value ? "bg-nutrition text-ink" : "text-muted hover:text-text",
+                  view === value ? "bg-selected text-on-selected" : "text-muted hover:text-text",
                 )}
                 onClick={() => setView(value)}
               >

@@ -108,7 +108,7 @@ export default async function NetWorthPage({ searchParams }: { searchParams: Pro
         </section>
       )}
       <section aria-label="Patrimonio" className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-tile bg-finance text-ink p-6 sm:col-span-2">
+        <div className="rounded-tile bg-surface border-border border p-6 sm:col-span-2">
           <p className="text-sm font-semibold">Patrimonio total</p>
           <p className="font-display mt-3 text-5xl leading-none font-extrabold">{formatCents(total)}</p>
           {prevMonth != null && (
@@ -156,7 +156,7 @@ export default async function NetWorthPage({ searchParams }: { searchParams: Pro
                   aria-current={active ? "page" : undefined}
                   className={clsx(
                     "rounded-full px-3 py-1 text-xs font-medium",
-                    active ? "bg-finance text-ink" : "text-muted hover:text-text",
+                    active ? "bg-selected text-on-selected" : "text-muted hover:text-text",
                   )}
                 >
                   {label}

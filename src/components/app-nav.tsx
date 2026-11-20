@@ -30,8 +30,8 @@ const ICONS: Record<NavIcon, LucideIcon> = {
 
 const itemClass = (active: boolean) =>
   clsx(
-    "focus-visible:outline-text relative flex flex-col items-center gap-1 px-1 py-2.5 text-[11px] font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:-outline-offset-2 active:scale-95 motion-reduce:active:scale-100 md:flex-row md:gap-3 md:rounded-full md:px-4 md:py-2.5 md:text-sm",
-    active ? "text-text md:bg-surface-2" : "text-muted hover:text-text",
+    "focus-visible:outline-text relative my-1.5 flex flex-col items-center gap-0.5 rounded-full px-1 py-1.5 text-[11px] font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:-outline-offset-2 active:scale-95 motion-reduce:active:scale-100 md:my-0 md:flex-row md:gap-3 md:rounded-2xl md:px-4 md:py-2.5 md:text-sm",
+    active ? "text-text bg-white/15" : "text-muted hover:text-text hover:bg-white/8",
   );
 
 function NavLink({ item, pathname, className }: { item: NavItem; pathname: string; className?: string }) {
@@ -40,7 +40,7 @@ function NavLink({ item, pathname, className }: { item: NavItem; pathname: strin
   return (
     <li className={className}>
       <Link href={item.href} aria-current={active ? "page" : undefined} className={itemClass(active)}>
-        <Icon aria-hidden="true" className={clsx("h-5 w-5", active && "text-finance")} strokeWidth={1.75} />
+        <Icon aria-hidden="true" className="h-5 w-5" strokeWidth={active ? 2.25 : 1.75} />
         {/* En móvil solo cabe el nombre de la sección activa */}
         <span className={clsx(active ? "whitespace-nowrap" : "sr-only md:not-sr-only", "md:max-w-full md:truncate")}>
           {item.label}
@@ -63,10 +63,10 @@ function MoreMenu({ items, pathname }: { items: NavItem[]; pathname: string }) {
     <li className="md:hidden">
       <details ref={ref} className="relative">
         <summary className={clsx(itemClass(active), "cursor-pointer list-none [&::-webkit-details-marker]:hidden")}>
-          <MoreHorizontal aria-hidden="true" className={clsx("h-5 w-5", active && "text-finance")} strokeWidth={1.75} />
+          <MoreHorizontal aria-hidden="true" className="h-5 w-5" strokeWidth={active ? 2.25 : 1.75} />
           <span className={active ? "whitespace-nowrap" : "sr-only"}>Más</span>
         </summary>
-        <ul className="bg-surface-2 border-border-strong rounded-inner absolute right-1 bottom-full mb-2 w-48 overflow-hidden border py-1 shadow-xl">
+        <ul className="bg-surface-solid border-border-strong rounded-inner absolute right-0 bottom-full mb-3 w-52 overflow-hidden border py-1 shadow-xl">
           {items.map((item) => {
             const Icon = ICONS[item.icon];
             const on = isActive(item.href, pathname);
@@ -100,17 +100,25 @@ export function AppNav() {
   return (
     <nav
       aria-label="Principal"
-      className="border-border bg-bg/95 fixed inset-x-0 bottom-0 z-20 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur md:sticky md:inset-x-auto md:top-0 md:bottom-auto md:h-dvh md:w-56 md:shrink-0 md:border-t-0 md:border-r md:pb-0 md:backdrop-blur-none"
+      className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-20 md:sticky md:inset-x-auto md:top-0 md:bottom-auto md:h-dvh md:w-60 md:shrink-0 md:p-3.5"
     >
-      <Link href="/" className="font-display hidden px-6 pt-7 pb-8 text-xl font-extrabold md:block">
-        Personal<span className="text-finance">·</span>Dashboard
-      </Link>
-      <ul className="grid grid-cols-5 md:flex md:flex-col md:gap-1 md:px-3">
-        {NAV_ITEMS.map((item) => (
-          <NavLink key={item.href} item={item} pathname={pathname} className={clsx(item.more && "hidden md:block")} />
-        ))}
-        <MoreMenu items={more} pathname={pathname} />
-      </ul>
+      {/* Cristal flotante: cápsula abajo en el móvil, panel lateral en el escritorio */}
+      <div className="glass rounded-full px-1 md:flex md:h-full md:flex-col md:rounded-[var(--radius-tile)] md:px-0 md:pb-3">
+        <Link href="/" className="hidden px-6 pt-6 pb-7 text-lg font-bold tracking-tight md:block">
+          Personal<span className="text-finance">·</span>Dashboard
+        </Link>
+        <ul className="grid grid-cols-5 md:flex md:flex-1 md:flex-col md:gap-1 md:px-3">
+          {NAV_ITEMS.map((item) => (
+            <NavLink
+              key={item.href}
+              item={item}
+              pathname={pathname}
+              className={clsx(item.more && "hidden md:block", item.href === "/ajustes" && "md:mt-auto")}
+            />
+          ))}
+          <MoreMenu items={more} pathname={pathname} />
+        </ul>
+      </div>
     </nav>
   );
 }

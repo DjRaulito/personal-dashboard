@@ -83,7 +83,7 @@ const FORMALITY_LABELS: Record<number, string> = {
 const pill = (active: boolean) =>
   clsx(
     "rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition-[background-color,color,transform] duration-150 active:scale-95 motion-reduce:active:scale-100",
-    active ? "bg-wardrobe text-ink" : "bg-surface-2 text-muted hover:text-text",
+    active ? "bg-selected text-on-selected" : "bg-surface-2 text-muted hover:text-text",
   );
 
 const toggle = <T,>(list: T[], value: T, max = Infinity): T[] =>
@@ -638,7 +638,7 @@ function EditDialog({ garment, userId, onClose }: { garment: Garment; userId: st
       ref={dialog}
       onClose={onClose}
       aria-label={`Editar ${garment.name}`}
-      className="bg-surface text-text border-border rounded-tile m-auto w-[min(34rem,calc(100vw-2rem))] border p-6 backdrop:bg-black/60"
+      className="bg-surface-solid text-text border-border rounded-tile m-auto w-[min(34rem,calc(100vw-2rem))] border p-6 backdrop:bg-black/60"
     >
       <form
         className="flex flex-col gap-4"

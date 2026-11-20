@@ -33,7 +33,7 @@ export function Sheet({
         if (e.target === ref.current) ref.current?.close();
       }}
       className={clsx(
-        "bg-surface text-text border-border max-h-none max-w-none border p-0 backdrop:bg-black/70",
+        "bg-surface-solid text-text border-border max-h-none max-w-none border p-0 backdrop:bg-black/50",
         side
           ? "rounded-t-tile md:rounded-l-tile mt-auto mb-0 w-full md:mt-0 md:mr-0 md:ml-auto md:h-dvh md:w-[32rem] md:rounded-none"
           : "rounded-tile m-auto w-[min(32rem,calc(100vw-1.5rem))]",
@@ -45,7 +45,7 @@ export function Sheet({
           side ? "max-h-[88dvh] md:h-dvh md:max-h-dvh" : "max-h-[90dvh]",
         )}
       >
-        <div className="bg-surface sticky top-0 z-10 flex items-center gap-3 px-5 pt-5 pb-3">
+        <div className="sticky top-0 z-10 flex items-center gap-3 px-5 pt-5 pb-3">
           <h2 className="min-w-0 flex-1 truncate text-lg font-bold">{title}</h2>
           <button
             type="button"

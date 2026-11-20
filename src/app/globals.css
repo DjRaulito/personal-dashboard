@@ -2,18 +2,25 @@
 
 /*
  * Personal Dashboard — tokens de diseño (ver DESIGN.md)
- * Dirección «Contraste claro»: modo oscuro, paleta Okabe-Ito (distinguible con cualquier
- * tipo de daltonismo) y Atkinson Hyperlegible Next. El color nunca informa solo.
+ * Dirección «Cristal tipo visionOS»: fondo con luces de color difuminadas y paneles de cristal
+ * esmerilado encima. Los colores de módulo son de la paleta Okabe-Ito (distinguibles con
+ * daltonismo) y nunca informan solos: siempre van con texto, signo o ▲▼.
  */
 :root {
-  --bg: #101418;
-  --surface: #182027;
-  --surface-2: #22303a;
-  --border: #33424e;
-  --border-strong: #4a5d6c;
+  --bg: #0a0e1a;
+  /* Cristal: blanco translúcido sobre el fondo de luces */
+  --surface: rgb(255 255 255 / 0.08);
+  --surface-2: rgb(255 255 255 / 0.1);
+  /* Para menús y diálogos: cristal más denso, para leer bien encima de cualquier cosa */
+  --surface-solid: rgb(22 27 40 / 0.86);
+  --border: rgb(255 255 255 / 0.14);
+  --border-strong: rgb(255 255 255 / 0.24);
   --text: #ffffff;
-  --text-muted: #c3cdd5;
+  --text-muted: #c9d1db;
   --ink-on-color: #0b1116;
+  /* Lo seleccionado: cápsula blanca con texto oscuro (botón principal, pestaña activa) */
+  --selected: #ffffff;
+  --on-selected: #0a0e1a;
 
   /* Colores de módulo (Okabe-Ito) */
   --finance: #56b4e9; /* celeste: Finanzas y acento principal */
@@ -28,8 +35,9 @@
   --up: var(--finance);
   --down: var(--expense);
 
-  --radius-tile: 20px;
-  --radius-inner: 12px;
+  --radius-tile: 26px;
+  --radius-inner: 16px;
+  --glass-blur: blur(28px) saturate(160%);
 }
 
 @theme inline {
@@ -41,6 +49,9 @@
   --color-text: var(--text);
   --color-muted: var(--text-muted);
   --color-ink: var(--ink-on-color);
+  --color-surface-solid: var(--surface-solid);
+  --color-selected: var(--selected);
+  --color-on-selected: var(--on-selected);
   --color-finance: var(--finance);
   --color-nutrition: var(--nutrition);
   --color-wardrobe: var(--wardrobe);
@@ -52,8 +63,8 @@
   --color-down: var(--down);
   --radius-tile: var(--radius-tile);
   --radius-inner: var(--radius-inner);
-  --font-sans: "Atkinson Hyperlegible Next Variable", system-ui, sans-serif;
-  --font-display: "Atkinson Hyperlegible Next Variable", system-ui, sans-serif;
+  --font-sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 html {
@@ -73,8 +84,57 @@ label {
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: "Atkinson Hyperlegible Next Variable", system-ui, sans-serif;
-  font-feature-settings: "tnum" 1;
+  font-family:
+    "Inter Variable",
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  font-feature-settings:
+    "tnum" 1,
+    "cv11" 1;
+  letter-spacing: -0.006em;
+}
+
+/* Luces de color detrás del cristal (fijas: no se mueven al hacer scroll) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(55% 50% at 12% 12%, rgb(86 180 233 / 0.42), transparent 70%),
+    radial-gradient(45% 45% at 88% 18%, rgb(204 121 167 / 0.34), transparent 70%),
+    radial-gradient(55% 50% at 62% 100%, rgb(0 158 115 / 0.34), transparent 70%), var(--bg);
+}
+
+/* Cristal esmerilado: bloques, menús y diálogos. Los elementos de dentro (bg-surface-2) solo
+   son translúcidos, sin desenfoque propio, para no recargar el móvil. */
+.bg-surface,
+.bg-surface-solid,
+.glass {
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+.glass {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.bg-surface,
+.glass {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.14),
+    0 12px 40px rgb(0 0 0 / 0.22);
+}
+dialog::backdrop {
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+h1,
+h2,
+.font-display {
+  letter-spacing: -0.022em;
 }
 
 /* Subidas y bajadas: la flecha dice el sentido, el color solo lo refuerza */

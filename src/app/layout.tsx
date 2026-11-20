@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 // Fuentes autoalojadas (sin peticiones a Google Fonts en build ni en runtime)
-import "@fontsource-variable/atkinson-hyperlegible-next/wght.css";
+import "@fontsource-variable/inter/wght.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#101418",
+  themeColor: "#0a0e1a",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

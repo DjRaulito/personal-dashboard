@@ -109,7 +109,7 @@ export function CombineStudio({ garments, aiReady }: { garments: Garment[]; aiRe
                 }}
                 className={clsx(
                   "rounded-full px-4 py-1.5 text-sm font-semibold",
-                  mode === id ? "bg-wardrobe text-ink" : "text-muted hover:text-text",
+                  mode === id ? "bg-selected text-on-selected" : "text-muted hover:text-text",
                 )}
               >
                 {label}
@@ -168,7 +168,7 @@ export function CombineStudio({ garments, aiReady }: { garments: Garment[]; aiRe
                             )}
                           >
                             {on && (
-                              <span className="bg-wardrobe text-ink absolute top-1 right-1 rounded-full p-0.5">
+                              <span className="bg-selected text-on-selected absolute top-1 right-1 rounded-full p-0.5">
                                 <Check aria-hidden="true" className="h-3 w-3" />
                               </span>
                             )}

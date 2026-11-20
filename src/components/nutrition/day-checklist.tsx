@@ -9,7 +9,7 @@ import { buttonClass } from "@/components/ui";
 export type MealStatus = "done" | "less" | "more" | "skipped" | "cheat";
 
 const STATUS_OPTIONS: { value: MealStatus; label: string; className: string }[] = [
-  { value: "done", label: "Hecha", className: "bg-nutrition text-ink" },
+  { value: "done", label: "Hecha", className: "bg-selected text-on-selected" },
   { value: "less", label: "Comí menos", className: "bg-attention text-ink" },
   { value: "more", label: "Comí más", className: "bg-attention text-ink" },
   { value: "skipped", label: "Saltada", className: "bg-expense text-ink" },

@@ -7,9 +7,9 @@ export const inputClass =
 
 export const buttonClass = {
   primary:
-    "bg-finance text-ink focus-visible:outline-text inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-[transform,filter] duration-150 hover:scale-[1.02] hover:brightness-105 active:scale-[0.96] active:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 disabled:hover:scale-100 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100",
+    "bg-selected text-on-selected focus-visible:outline-text inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-[transform,filter] duration-150 hover:scale-[1.02] hover:brightness-105 active:scale-[0.96] active:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 disabled:hover:scale-100 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100",
   secondary:
-    "border-border-strong hover:bg-surface-2 active:bg-border focus-visible:outline-content inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-[background-color,transform] duration-150 active:scale-[0.96] focus-visible:outline-2 disabled:opacity-50 motion-reduce:active:scale-100",
+    "bg-surface-2 border-border hover:border-border-strong hover:bg-white/15 active:bg-white/20 focus-visible:outline-content inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-[background-color,transform] duration-150 active:scale-[0.96] focus-visible:outline-2 disabled:opacity-50 motion-reduce:active:scale-100",
   danger:
     "text-expense hover:bg-surface-2 active:bg-border focus-visible:outline-content inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-[background-color,transform] duration-150 active:scale-[0.96] focus-visible:outline-2 disabled:opacity-50 motion-reduce:active:scale-100",
 };

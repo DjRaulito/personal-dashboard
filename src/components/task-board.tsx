@@ -77,7 +77,7 @@ export function TaskBoard({ task }: { task: TaskDetail }) {
               onClick={() => setView(id)}
               className={clsx(
                 "rounded-full px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap",
-                view === id ? "bg-content text-ink" : "text-muted hover:text-text",
+                view === id ? "bg-selected text-on-selected" : "text-muted hover:text-text",
               )}
             >
               {label}

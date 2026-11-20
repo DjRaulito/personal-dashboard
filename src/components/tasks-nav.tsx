@@ -26,7 +26,7 @@ export function TasksNav({ tasks }: { tasks: { slug: string; name: string; newIt
               aria-current={t.active ? "page" : undefined}
               className={clsx(
                 "relative flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
-                t.active ? "bg-content text-ink" : "text-muted hover:text-text",
+                t.active ? "bg-selected text-on-selected" : "text-muted hover:text-text",
               )}
             >
               {t.label}

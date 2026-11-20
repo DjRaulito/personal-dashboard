@@ -80,7 +80,7 @@ export function PositionsBoard({
               onClick={() => setTab(id)}
               className={clsx(
                 "rounded-full px-4 py-1.5 text-sm font-semibold",
-                tab === id ? "bg-finance text-ink" : "text-muted hover:text-text",
+                tab === id ? "bg-selected text-on-selected" : "text-muted hover:text-text",
               )}
             >
               {label}
@@ -237,7 +237,7 @@ function RowMenu({ asset, actions }: { asset: BoardAsset; actions: Actions }) {
       >
         <MoreHorizontal aria-hidden="true" className="h-5 w-5" />
       </summary>
-      <ul className="bg-surface-2 border-border-strong rounded-inner absolute right-0 z-20 mt-1 w-52 overflow-hidden border py-1 shadow-xl">
+      <ul className="bg-surface-solid border-border-strong rounded-inner absolute right-0 z-20 mt-1 w-52 overflow-hidden border py-1 shadow-xl">
         {item("Comprar más", actions.buy)}
         {asset.open && item("Vender", actions.sell)}
         {asset.open && item("Cerrar posición", actions.close)}

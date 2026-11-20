@@ -27,7 +27,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <form action={signInWithGoogle} className="mt-6">
           <button
             type="submit"
-            className="bg-finance text-ink focus-visible:outline-text flex w-full items-center justify-center gap-3 rounded-full px-5 py-3.5 font-semibold transition-transform duration-200 hover:scale-[1.02] focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none motion-reduce:hover:scale-100"
+            className="bg-selected text-on-selected focus-visible:outline-text flex w-full items-center justify-center gap-3 rounded-full px-5 py-3.5 font-semibold transition-transform duration-200 hover:scale-[1.02] focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none motion-reduce:hover:scale-100"
           >
             <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
               <path d="M21.35 11.1H12v2.98h5.35c-.23 1.4-1.66 4.1-5.35 4.1a5.94 5.94 0 0 1 0-11.88c1.84 0 3.07.78 3.78 1.46l2.58-2.49C16.72 3.74 14.56 2.8 12 2.8a9.2 9.2 0 1 0 0 18.4c5.31 0 8.83-3.73 8.83-8.99 0-.6-.07-1.06-.15-1.51Z" />

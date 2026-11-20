@@ -61,7 +61,7 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
         {best ? (
           <Link
             href={`${PAGE}/${best.id}`}
-            className="rounded-tile bg-finance text-ink focus-visible:outline-text p-6 transition-transform duration-200 hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:hover:translate-y-0 sm:col-span-2"
+            className="rounded-tile bg-surface border-border focus-visible:outline-text border p-6 transition-transform duration-200 hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:hover:translate-y-0 sm:col-span-2"
           >
             <p className="text-sm font-semibold">Mejor oportunidad</p>
             <p className="font-display mt-3 text-4xl leading-none font-extrabold">
@@ -186,7 +186,7 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
                   aria-current={(v === "tabla") === table ? "page" : undefined}
                   className={clsx(
                     "rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors duration-150",
-                    (v === "tabla") === table ? "bg-finance text-ink" : "text-muted hover:text-text",
+                    (v === "tabla") === table ? "bg-selected text-on-selected" : "text-muted hover:text-text",
                   )}
                 >
                   {v}
@@ -226,7 +226,7 @@ function Badges({ l }: { l: EvaluatedListing }) {
   return (
     <div className="flex flex-wrap gap-1.5 text-xs font-medium">
       <span className={clsx("bg-surface-2 rounded-full px-2.5 py-0.5", v.text)}>{VERDICT_LABELS[l.ev.verdict]}</span>
-      {l.isNew && <span className="bg-content text-ink rounded-full px-2.5 py-0.5">Nuevo hoy</span>}
+      {l.isNew && <span className="bg-selected text-on-selected rounded-full px-2.5 py-0.5">Nuevo hoy</span>}
       {l.change && l.change.amount < 0 && (
         <span className="bg-surface-2 text-finance rounded-full px-2.5 py-0.5 tabular-nums">
           Rebaja {pct(l.change.pct, 0)}

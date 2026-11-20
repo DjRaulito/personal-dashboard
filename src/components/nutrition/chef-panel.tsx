@@ -18,7 +18,7 @@ const num = (v: number) => v.toLocaleString("es-ES", { maximumFractionDigits: 1 
 const pill = (active: boolean) =>
   clsx(
     "rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition-[background-color,color,transform] duration-150 active:scale-95 motion-reduce:active:scale-100",
-    active ? "bg-nutrition text-ink" : "bg-surface-2 text-muted hover:text-text",
+    active ? "bg-selected text-on-selected" : "bg-surface-2 text-muted hover:text-text",
   );
 
 const SPLITS = [
