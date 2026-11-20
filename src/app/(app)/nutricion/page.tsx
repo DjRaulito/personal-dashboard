@@ -80,59 +80,61 @@ export default async function NutritionPlanPage({ searchParams }: { searchParams
         Valores aproximados: una ración de cada grupo de cada comida (la opción intermedia de cada grupo).
       </p>
 
-      <Tile>
-        <div className="flex flex-wrap items-center gap-3">
-          <TileTitle dot="bg-nutrition">Notas del plan</TileTitle>
-          <Link href="/nutricion/plan" className={`${buttonClass.secondary} ml-auto`}>
-            Ver o editar comidas y raciones
-          </Link>
-        </div>
-        {plan.notes ? (
-          <p className="mt-3 text-sm leading-relaxed whitespace-pre-line">{plan.notes}</p>
-        ) : (
-          <p className="text-muted mt-3 text-sm">Sin notas. Puedes añadirlas al editar el plan.</p>
-        )}
-      </Tile>
-
-      <Tile>
-        <div className="flex flex-wrap items-center gap-3">
-          <TileTitle dot="bg-nutrition">¿Cómo ha ido?</TileTitle>
-          <nav
-            aria-label="Día"
-            className="bg-surface-2 border-border ml-auto flex items-center gap-1 rounded-full border p-1"
-          >
-            <Link
-              href={`/nutricion?dia=${shift(day, -1)}`}
-              className="text-muted hover:text-text rounded-full px-3 py-1 text-sm"
-              aria-label="Día anterior"
+      {/* Lo de hoy delante; las notas del plan al lado en escritorio */}
+      <div className="grid items-start gap-3.5 lg:grid-cols-5">
+        <Tile className="lg:col-span-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <TileTitle dot="bg-nutrition">¿Cómo ha ido?</TileTitle>
+            <nav
+              aria-label="Día"
+              className="bg-surface-2 border-border ml-auto flex items-center gap-1 rounded-full border p-1"
             >
-              ←
-            </Link>
-            <span className="px-2 text-sm font-semibold first-letter:uppercase">{day === today ? "Hoy" : label}</span>
-            {day < today ? (
               <Link
-                href={day === shift(today, -1) ? "/nutricion" : `/nutricion?dia=${shift(day, 1)}`}
+                href={`/nutricion?dia=${shift(day, -1)}`}
                 className="text-muted hover:text-text rounded-full px-3 py-1 text-sm"
-                aria-label="Día siguiente"
+                aria-label="Día anterior"
               >
-                →
+                ←
               </Link>
-            ) : (
-              <span className="text-border-strong px-3 py-1 text-sm" aria-hidden="true">
-                →
-              </span>
-            )}
-          </nav>
-        </div>
-        <div className="mt-3">
-          <DayChecklist
-            key={day}
-            day={day}
-            meals={plan.meals.map((m) => ({ id: m.id, name: m.name }))}
-            initial={initial}
-          />
-        </div>
-      </Tile>
+              <span className="px-2 text-sm font-semibold first-letter:uppercase">{day === today ? "Hoy" : label}</span>
+              {day < today ? (
+                <Link
+                  href={day === shift(today, -1) ? "/nutricion" : `/nutricion?dia=${shift(day, 1)}`}
+                  className="text-muted hover:text-text rounded-full px-3 py-1 text-sm"
+                  aria-label="Día siguiente"
+                >
+                  →
+                </Link>
+              ) : (
+                <span className="text-border-strong px-3 py-1 text-sm" aria-hidden="true">
+                  →
+                </span>
+              )}
+            </nav>
+          </div>
+          <div className="mt-3">
+            <DayChecklist
+              key={day}
+              day={day}
+              meals={plan.meals.map((m) => ({ id: m.id, name: m.name }))}
+              initial={initial}
+            />
+          </div>
+        </Tile>
+        <Tile className="lg:col-span-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <TileTitle dot="bg-nutrition">Notas del plan</TileTitle>
+            <Link href="/nutricion/plan" className={`${buttonClass.secondary} ml-auto`}>
+              Ver o editar comidas y raciones
+            </Link>
+          </div>
+          {plan.notes ? (
+            <p className="mt-3 text-sm leading-relaxed whitespace-pre-line">{plan.notes}</p>
+          ) : (
+            <p className="text-muted mt-3 text-sm">Sin notas. Puedes añadirlas al editar el plan.</p>
+          )}
+        </Tile>
+      </div>
     </>
   );
 }

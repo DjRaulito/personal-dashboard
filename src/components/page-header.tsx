@@ -8,9 +8,9 @@ export function PageHeader({
   children?: React.ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-end gap-4">
+    <header className="flex flex-wrap items-end gap-4 md:pt-2">
       <div className="min-w-0">
-        <h1 className="font-display text-4xl leading-none font-extrabold sm:text-5xl">{title}</h1>
+        <h1 className="font-display text-4xl leading-none font-extrabold">{title}</h1>
         {subtitle && <p className="text-muted mt-2 first-letter:uppercase">{subtitle}</p>}
       </div>
       {children && <div className="ml-auto">{children}</div>}

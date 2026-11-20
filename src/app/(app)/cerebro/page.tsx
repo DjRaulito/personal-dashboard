@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BrainExplorer } from "@/components/brain/brain-explorer";
 import { LiveBrain } from "@/components/brain/live-brain";
-import { PageHeader, PageShell } from "@/components/page-header";
+import { PageShell, SectionHead } from "@/components/page-header";
 import { Tile, TileTitle } from "@/components/ui";
 import { MAX_GRAPH_NODES } from "@/lib/brain/schemas";
 import { getBrain } from "@/lib/brain/server";
@@ -15,7 +15,7 @@ export default async function BrainPage() {
 
   return (
     <PageShell>
-      <PageHeader title="Cerebro" subtitle="La memoria que comparten tus IAs" />
+      <SectionHead title="Cerebro" tabs={<p className="text-muted text-sm">La memoria que comparten tus IAs</p>} />
       <LiveBrain />
       <Tile>
         <TileTitle dot="bg-content">Memoria</TileTitle>
