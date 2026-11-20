@@ -1,42 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { NewAssetForm } from "@/components/investments/new-asset-form";
-import { Tile, TileTitle } from "@/components/ui";
+import { clsx } from "clsx";
+import { BackLink, buttonClass, Tile, TileTitle } from "@/components/ui";
 import { getPortfolio } from "@/lib/investments/server";
 import { KIND_LABELS } from "@/lib/investments/view";
 
-export const metadata: Metadata = { title: "Ajustes · Finanzas" };
+export const metadata: Metadata = { title: "Activos · Inversiones" };
 
-const LINKS = [
-  { href: "/finanzas/cuentas", title: "Cuentas", text: "Bancos, tarjetas, efectivo y su saldo inicial." },
-  {
-    href: "/finanzas/categorias",
-    title: "Categorías y reglas",
-    text: "Cómo se clasifican solos tus gastos e ingresos.",
-  },
-  {
-    href: "/finanzas/inversiones/importar",
-    title: "Importar cartera",
-    text: "Investing y operaciones de tus brokers.",
-  },
-];
-
-export default async function FinanceSettingsPage() {
+export default async function AssetsPage() {
   const pf = await getPortfolio();
   return (
     <>
-      <section className="grid gap-3.5 md:grid-cols-3">
-        {LINKS.map((l) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            className="rounded-tile border-border bg-surface hover:border-border-strong border p-6 transition-[border-color,transform] duration-150 active:scale-[0.98] motion-reduce:active:scale-100"
-          >
-            <span className="font-semibold">{l.title}</span>
-            <span className="text-muted mt-1 block text-sm">{l.text}</span>
-          </Link>
-        ))}
-      </section>
+      <BackLink href="/finanzas/inversiones">Inversiones</BackLink>
+      <Link href="/finanzas/inversiones/importar" className={clsx(buttonClass.secondary, "self-start")}>
+        Importar cartera (Investing y brokers)
+      </Link>
       <Tile>
         <TileTitle>Añadir activo a mano</TileTitle>
         <p className="text-muted mt-1 text-sm">

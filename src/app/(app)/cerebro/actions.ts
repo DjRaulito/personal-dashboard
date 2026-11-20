@@ -15,6 +15,8 @@ async function session() {
 }
 
 const PAGE = "/cerebro";
+// Los tokens se gestionan en Ajustes → Conexiones
+const SETTINGS = "/ajustes/conexiones";
 const id = z.uuid();
 
 export interface SaveMemoryState extends FormState {
@@ -38,6 +40,7 @@ export async function saveMemory(_: SaveMemoryState, formData: FormData): Promis
     };
   }
   revalidatePath(PAGE);
+  revalidatePath(SETTINGS);
   return { ok: true, message: "Guardado", savedId: data.id };
 }
 
@@ -45,6 +48,7 @@ export async function deleteMemory(memoryId: string) {
   const supabase = await session();
   await supabase.from("brain_memories").delete().eq("id", id.parse(memoryId));
   revalidatePath(PAGE);
+  revalidatePath(SETTINGS);
 }
 
 /** Conecta o desconecta dos recuerdos a mano. */
@@ -55,6 +59,7 @@ export async function setLink(first: string, second: string, connect: boolean) {
   if (connect) await supabase.from("brain_links").upsert({ a, b }, { onConflict: "a,b", ignoreDuplicates: true });
   else await supabase.from("brain_links").delete().eq("a", a).eq("b", b);
   revalidatePath(PAGE);
+  revalidatePath(SETTINGS);
 }
 
 /** Borra toda la memoria de golpe (los tokens se conservan). */
@@ -62,6 +67,7 @@ export async function forgetAll() {
   const supabase = await session();
   await supabase.from("brain_memories").delete().not("id", "is", null);
   revalidatePath(PAGE);
+  revalidatePath(SETTINGS);
 }
 
 export interface TokenState extends FormState {
@@ -81,6 +87,7 @@ export async function createToken(_: TokenState, formData: FormData): Promise<To
   const { error } = await supabase.from("brain_tokens").insert({ label, token_hash: hash });
   if (error) return { ok: false, message: "No se pudo crear el token." };
   revalidatePath(PAGE);
+  revalidatePath(SETTINGS);
   return { ok: true, token };
 }
 
@@ -88,4 +95,5 @@ export async function revokeToken(tokenId: string) {
   const supabase = await session();
   await supabase.from("brain_tokens").delete().eq("id", id.parse(tokenId));
   revalidatePath(PAGE);
+  revalidatePath(SETTINGS);
 }

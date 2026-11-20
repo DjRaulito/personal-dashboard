@@ -73,6 +73,9 @@ export default async function InvestmentsPage({ searchParams }: { searchParams: 
           <Link href="/finanzas/inversiones/operaciones" className={buttonClass.secondary}>
             Operaciones
           </Link>
+          <Link href="/finanzas/inversiones/activos" className={buttonClass.secondary}>
+            Activos
+          </Link>
           <Link href="/finanzas/inversiones/importar" className={buttonClass.secondary}>
             Importar
           </Link>

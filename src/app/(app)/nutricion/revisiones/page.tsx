@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { clsx } from "clsx";
-import { MeasureChart, ReviewSheetForm, SyncReviewsButton, type MeasureSeries } from "@/components/nutrition/reviews";
+import { MeasureChart, SyncReviewsButton, type MeasureSeries } from "@/components/nutrition/reviews";
 import { EmptyState, Tile, TileTitle } from "@/components/ui";
 import { APP_LOCALE, dayKey } from "@/lib/datetime";
 import { getMeasurements } from "@/lib/nutrition/measurements";
@@ -109,14 +110,12 @@ export default async function ReviewsPage() {
             ? `Las revisiones se leen de la hoja de tu nutricionista. ${syncedAt ? `Última lectura: ${syncedAt}.` : "Aún no se ha leído desde aquí."}`
             : "Indica cuál es la hoja de cálculo donde tu nutricionista apunta el peso y las medidas."}
         </p>
-        <details className="mt-3" open={!settings.sheetId}>
-          <summary className="text-muted hover:text-text cursor-pointer text-sm">
-            {settings.sheetId ? "Cambiar de hoja" : "Elegir hoja"}
-          </summary>
-          <div className="mt-3 max-w-xl">
-            <ReviewSheetForm configured={Boolean(settings.sheetId)} />
-          </div>
-        </details>
+        <Link
+          href="/ajustes/nutricion"
+          className="text-muted hover:text-text mt-3 inline-block text-sm underline underline-offset-4"
+        >
+          {settings.sheetId ? "Cambiar de hoja en Ajustes" : "Elegir la hoja en Ajustes"}
+        </Link>
       </Tile>
 
       <Tile>

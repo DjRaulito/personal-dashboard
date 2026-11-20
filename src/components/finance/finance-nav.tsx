@@ -17,12 +17,6 @@ const TABS = [
   },
   { href: "/finanzas/plan", label: "Plan", match: (p: string) => p.startsWith("/finanzas/plan") },
   { href: "/finanzas/metricas", label: "Métricas", match: (p: string) => p.startsWith("/finanzas/metricas") },
-  {
-    href: "/finanzas/ajustes",
-    label: "Ajustes",
-    match: (p: string) =>
-      ["/finanzas/ajustes", "/finanzas/cuentas", "/finanzas/categorias"].some((x) => p.startsWith(x)),
-  },
 ];
 
 export function FinanceNav() {

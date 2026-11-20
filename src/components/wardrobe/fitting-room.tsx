@@ -1,10 +1,10 @@
 "use client";
 
-import { useActionState, useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { clsx } from "clsx";
-import { Camera, ChevronLeft, ChevronRight, Shuffle, Sparkles, X } from "lucide-react";
-import { saveCity, saveOutfit, suggestOutfits } from "@/app/(app)/armario/actions";
+import { Camera, ChevronLeft, ChevronRight, Shuffle, Sparkles } from "lucide-react";
+import { saveOutfit, suggestOutfits } from "@/app/(app)/armario/actions";
 import { buttonClass, EmptyState, Field, FormMessage, inputClass, Tile, TileTitle } from "@/components/ui";
 import type { FormState } from "@/lib/finance/schemas";
 import { weatherLine, type ResolvedOutfit, type Weather } from "@/lib/wardrobe/ai";
@@ -148,30 +148,6 @@ function Band({
   );
 }
 
-function CityForm({ city }: { city: string | null }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(saveCity, { ok: true });
-  return (
-    <form action={action} className="flex flex-col gap-2">
-      <div className="flex items-end gap-2">
-        <Field label="Tu ciudad (para el tiempo)" error={state.errors?.city} className="min-w-0 flex-1">
-          <input
-            name="city"
-            defaultValue={city ?? ""}
-            required
-            maxLength={80}
-            autoComplete="address-level2"
-            className={inputClass}
-          />
-        </Field>
-        <button type="submit" disabled={pending} className={buttonClass.secondary}>
-          {pending ? "Buscando…" : "Guardar"}
-        </button>
-      </div>
-      <FormMessage state={state} />
-    </form>
-  );
-}
-
 export function FittingRoom({
   garments,
   initialIds,
@@ -218,7 +194,6 @@ export function FittingRoom({
   const [useWeather, setUseWeather] = useState(weather !== null);
   const [pinId, setPinId] = useState("");
   const [wishes, setWishes] = useState("");
-  const [editCity, setEditCity] = useState(false);
   const [ideas, setIdeas] = useState<ResolvedOutfit[]>([]);
   const [aiError, setAiError] = useState<string | null>(null);
   const [thinking, startThinking] = useTransition();
@@ -490,15 +465,12 @@ export function FittingRoom({
                     : "Indica tu ciudad para que los outfits tengan en cuenta el tiempo."}
                 </p>
               )}
-              {city && !editCity ? (
-                <button
-                  type="button"
-                  onClick={() => setEditCity(true)}
-                  className="text-muted hover:text-text self-start text-xs underline underline-offset-4"
-                >
-                  Cambiar de ciudad
-                </button>
-              ) : null}
+              <Link
+                href="/ajustes/armario"
+                className="text-muted hover:text-text self-start text-xs underline underline-offset-4"
+              >
+                {city ? "Cambiar de ciudad" : "Indicar mi ciudad"}
+              </Link>
             </div>
 
             <Field label="Tiene que llevar (opcional)">
@@ -530,20 +502,6 @@ export function FittingRoom({
               </p>
             )}
           </form>
-          {(!city || editCity) && (
-            <div className="border-border mt-4 border-t pt-4">
-              <CityForm city={city} />
-              {editCity && (
-                <button
-                  type="button"
-                  onClick={() => setEditCity(false)}
-                  className="text-muted hover:text-text mt-2 inline-flex items-center gap-1 text-xs"
-                >
-                  <X aria-hidden="true" className="h-3 w-3" /> Cerrar
-                </button>
-              )}
-            </div>
-          )}
 
           {ideas.length > 0 && (
             <ul className="mt-5 flex flex-col gap-3" aria-label="Outfits propuestos">

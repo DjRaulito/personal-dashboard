@@ -118,7 +118,7 @@ export function Importer({
     return (
       <p className="text-muted text-sm">
         Primero crea una cuenta en{" "}
-        <Link href="/finanzas/cuentas" className="text-text underline">
+        <Link href="/ajustes/finanzas/cuentas" className="text-text underline">
           Cuentas
         </Link>
         .

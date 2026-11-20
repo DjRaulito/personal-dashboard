@@ -48,7 +48,7 @@ export default async function CategoriesPage({
 
   return (
     <>
-      <BackLink href="/finanzas/ajustes">Ajustes</BackLink>
+      <BackLink href="/ajustes/finanzas">Finanzas</BackLink>
       <div className="grid gap-3.5 lg:grid-cols-2">
         <div className="flex flex-col gap-3.5">
           <Tile>
