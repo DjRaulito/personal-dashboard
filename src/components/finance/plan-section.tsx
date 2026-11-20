@@ -1,5 +1,6 @@
 import { clsx } from "clsx";
 import {
+  AddAllSuggestions,
   AddSuggestion,
   BudgetActions,
   BudgetForm,
@@ -105,7 +106,10 @@ export async function PlanSection() {
     .filter((r) => r.amount_cents > 0)
     .reduce((s, r) => s + monthlyEquivalent(r.amount_cents, r.frequency), 0);
   const known = planning.recurring.map((r) => merchantKey(r.match_pattern ?? r.name)).filter(Boolean);
-  const suggestions = detectRecurring(planning.transactions, today)
+  // Los traspasos entre cuentas propias (p. ej. a MyInvestor) no son pagos
+  const transferIds = new Set(categories.filter((c) => c.kind === "transfer").map((c) => c.id));
+  const payments = planning.transactions.filter((t) => !t.category_id || !transferIds.has(t.category_id));
+  const suggestions = detectRecurring(payments, today)
     .filter((s) => !known.some((k) => k && (s.pattern.includes(k) || k.includes(s.pattern))))
     .slice(0, 12);
 
@@ -282,7 +286,10 @@ export async function PlanSection() {
 
         {suggestions.length > 0 && (
           <div className="border-border mt-6 border-t pt-4">
-            <h3 className="font-semibold">Detectados en tus movimientos</h3>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="font-semibold">Detectados en tus movimientos</h3>
+              {suggestions.length > 1 && <AddAllSuggestions suggestions={suggestions} />}
+            </div>
             <p className="text-muted mt-1 text-sm">Cargos que se repiten con regularidad. Añádelos con un toque.</p>
             <ul className="mt-3 flex flex-col">
               {suggestions.map((s) => (

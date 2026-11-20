@@ -85,6 +85,36 @@ describe("recurrentes", () => {
     expect(merchantKey("Recibo Gimnasio Basic-Fit 11/2026")).toBe("RECIBO GIMNASIO BASIC FIT");
   });
 
+  it("en los extractos del BBVA agrupa por el comercio, tras el último «·»", () => {
+    expect(merchantKey("PAGO CON TARJETA EN SUPERMERCADOS · MERCADONA CALLE LACY SABADELL ES")).toBe(
+      "MERCADONA CALLE LACY SABADELL",
+    );
+    expect(merchantKey("ADEUDO DE AXA SEGUROS GENERALES · AXA SEGUROS GENERALES CIF A-12345678")).toBe(
+      "AXA SEGUROS GENERALES",
+    );
+    expect(merchantKey("ADEUDO A SU CARGO · MEDIA MARKT PROTECT SOLUTIONS S.A.")).toBe("MEDIA MARKT PROTECT SOLUTIONS");
+    expect(merchantKey("ABONO DE NOMINA POR TRANSFERENCIA · SALARIO AGOSTO 2026")).toBe("SALARIO");
+    expect(merchantKey("PAGO CON TARJETA EN GASOLINERAS · E.S. BARICENTRO RIPOLLET ES")).toBe("BARICENTRO RIPOLLET");
+  });
+
+  it("con extractos atrasados, mide si sigue activo contra el último movimiento", () => {
+    const txs = ["2026-04-03", "2026-05-03", "2026-06-03", "2026-07-03", "2026-08-03"].map((d) => ({
+      booked_on: d,
+      description: "ADEUDO A SU CARGO · MEDIA MARKT PROTECT SOLUTIONS S.A.",
+      amount_cents: -2119,
+    }));
+    const out = detectRecurring(
+      [...txs, { booked_on: "2026-08-31", description: "BIZUM", amount_cents: -900 }],
+      "2026-11-20",
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      name: "Media Markt Protect Solutions",
+      frequency: "monthly",
+      next_due: "2026-12-03",
+    });
+  });
+
   it("detecta suscripciones mensuales y descarta gastos sueltos", () => {
     const txs = [
       ...["2026-07-05", "2026-08-05", "2026-09-04", "2026-10-06", "2026-11-05"].map((d) => ({

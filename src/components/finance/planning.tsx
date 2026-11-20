@@ -471,6 +471,30 @@ export function RecurringActions({
   );
 }
 
+const toInput = (s: RecurringSuggestion) => ({
+  name: s.name,
+  pattern: s.pattern,
+  amount_cents: s.amount_cents,
+  frequency: s.frequency,
+  next_due: s.next_due,
+  category_id: s.category_id,
+  account_id: s.account_id,
+});
+
+export function AddAllSuggestions({ suggestions }: { suggestions: RecurringSuggestion[] }) {
+  const [pending, startTransition] = useTransition();
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      className={buttonClass.secondary}
+      onClick={() => startTransition(() => addSuggestedRecurring(suggestions.map(toInput)))}
+    >
+      {pending ? "Añadiendo…" : `Añadir los ${suggestions.length}`}
+    </button>
+  );
+}
+
 export function AddSuggestion({ suggestion }: { suggestion: RecurringSuggestion }) {
   const [pending, startTransition] = useTransition();
   return (
@@ -478,19 +502,7 @@ export function AddSuggestion({ suggestion }: { suggestion: RecurringSuggestion 
       type="button"
       disabled={pending}
       className={buttonClass.secondary}
-      onClick={() =>
-        startTransition(() =>
-          addSuggestedRecurring({
-            name: suggestion.name,
-            pattern: suggestion.pattern,
-            amount_cents: suggestion.amount_cents,
-            frequency: suggestion.frequency,
-            next_due: suggestion.next_due,
-            category_id: suggestion.category_id,
-            account_id: suggestion.account_id,
-          }),
-        )
-      }
+      onClick={() => startTransition(() => addSuggestedRecurring([toInput(suggestion)]))}
     >
       {pending ? "Añadiendo…" : "Añadir"}
     </button>
