@@ -14,5 +14,5 @@ export default async function GarmentsPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  return <GarmentManager garments={await getGarments()} userId={user.id} aiReady={aiConfigured()} />;
+  return <GarmentManager garments={await getGarments()} userId={user.id} aiReady={await aiConfigured()} />;
 }

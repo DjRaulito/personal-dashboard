@@ -7,7 +7,7 @@ import type { McpServer } from "./jsonrpc";
 // Así basta con un conector en Claude/Cowork para todo.
 
 const BRAIN_INSTRUCTIONS =
-  "Memoria personal de Raúl. Antes de responder sobre su vida, gustos o proyectos, busca con «search». Guarda con «remember» lo que valga la pena recordar.";
+  "Memoria personal del usuario. Antes de responder sobre su vida, gustos o proyectos, busca con «search». Guarda con «remember» lo que valga la pena recordar.";
 
 export function dashboardServer(brain: BrainCall, property: PropertyRpc, task?: TaskRpc): McpServer {
   const properties = propertyServer(property);

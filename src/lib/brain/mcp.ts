@@ -13,7 +13,7 @@ export const BRAIN_TOOLS = [
   {
     name: "remember",
     description:
-      "Guarda un recuerdo en el cerebro de Raúl. Si ya existe uno con ese título, lo actualiza. Úsalo para hechos, preferencias, decisiones o contexto que merezca la pena recordar en otras conversaciones. Nunca guardes contraseñas ni claves.",
+      "Guarda un recuerdo en el cerebro del usuario. Si ya existe uno con ese título, lo actualiza. Úsalo para hechos, preferencias, decisiones o contexto que merezca la pena recordar en otras conversaciones. Nunca guardes contraseñas ni claves.",
     inputSchema: {
       type: "object",
       properties: {
@@ -74,7 +74,7 @@ export const BRAIN_TOOLS = [
   },
   {
     name: "forget_all",
-    description: "Borra TODA la memoria al instante. Solo si Raúl lo pide de forma explícita.",
+    description: "Borra TODA la memoria al instante. Solo si el usuario lo pide de forma explícita.",
     inputSchema: {
       type: "object",
       properties: { confirm: { type: "boolean", description: "Debe ser true" } },
@@ -91,7 +91,7 @@ export function handleMcp(msg: unknown, call: BrainCall): Promise<Record<string,
   return handleJsonRpc(msg, {
     info: SERVER_INFO,
     instructions:
-      "Memoria personal de Raúl. Antes de responder sobre su vida, gustos o proyectos, busca con «search». Guarda con «remember» lo que valga la pena recordar.",
+      "Memoria personal del usuario. Antes de responder sobre su vida, gustos o proyectos, busca con «search». Guarda con «remember» lo que valga la pena recordar.",
     tools: BRAIN_TOOLS,
     call,
   });

@@ -17,7 +17,7 @@ export type PropertyRpc = (action: string, args: Record<string, unknown>) => Pro
 export const PROPERTY_SERVER_INFO = { name: "inmuebles-dashboard", version: "1.0.0" };
 
 export const PROPERTY_INSTRUCTIONS =
-  "Radar de inversión inmobiliaria de Raúl. Empieza con get_search_context (criterios y anuncios ya vistos). " +
+  "Radar de inversión inmobiliaria del usuario. Empieza con get_search_context (criterios y anuncios ya vistos). " +
   "Guarda cada anuncio con save_listing: solo datos reales y verificables, nunca cálculos de rentabilidad, " +
   "cuotas ni puntuaciones (los hace el dashboard). Marca con mark_removed los anuncios conocidos que ya no " +
   "estén publicados y termina con save_run_summary.";

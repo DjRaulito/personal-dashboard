@@ -11,7 +11,9 @@ describe("ajustes", () => {
       "Tareas",
       "Armario",
       "Datos",
+      "Usuarios",
     ]);
+    expect(SETTINGS_SECTIONS.filter((s) => s.adminOnly).map((s) => s.slug)).toEqual(["usuarios"]);
   });
 
   it("sabe en qué sección estás", () => {

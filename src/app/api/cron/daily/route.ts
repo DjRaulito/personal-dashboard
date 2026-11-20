@@ -29,7 +29,7 @@ export async function GET(request: Request) {
   }
 
   const admin = createSupabase<Database>(url, adminKey, noSession);
-  const { data: list, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 10 });
+  const { data: list, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
   if (error) return NextResponse.json({ error: "No se pudieron leer los usuarios" }, { status: 500 });
 
   const results: Record<string, unknown>[] = [];

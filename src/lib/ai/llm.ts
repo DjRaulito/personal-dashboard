@@ -1,5 +1,8 @@
 import "server-only";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { z } from "zod";
+import { loadAiKeys, serverAiKeys } from "./keys";
+import type { AiKeys, ProviderId } from "./providers";
 
 // IA gratuita para estimaciones, fotos, guiones, agentes y el asistente. Cadena de proveedores con
 // capa gratuita: Gemini (Google AI Studio) y varios compatibles con OpenAI (Groq, Mistral, OpenRouter,
@@ -17,18 +20,33 @@ export interface AiImage {
   data: string;
 }
 
-export function aiConfigured(): boolean {
-  return Boolean(process.env.GEMINI_API_KEY) || COMPAT.some((p) => process.env[p.keyEnv]);
+// Claves del usuario de la petición en curso (cada usuario usa las suyas: Ajustes → Conexiones)
+const keyStore = new AsyncLocalStorage<AiKeys>();
+
+/** Clave de un proveedor para la petición en curso (fuera de una petición, la del servidor). */
+function keyFor(id: ProviderId): string | undefined {
+  return (keyStore.getStore() ?? serverAiKeys())[id];
 }
 
-/** Nombres de los proveedores con clave, en el orden en que se prueban. */
-export function aiProviderNames(): string[] {
-  return providerOrder().map((id) => PROVIDER_LABELS[id]);
+/** Ejecuta `fn` con las claves del usuario actual (si ya están cargadas, las reutiliza). */
+async function withUserKeys<T>(fn: () => Promise<T>): Promise<T> {
+  if (keyStore.getStore()) return fn();
+  return keyStore.run(await loadAiKeys(), fn);
+}
+
+/** ¿Tiene el usuario actual alguna clave de IA? */
+export async function aiConfigured(): Promise<boolean> {
+  return withUserKeys(async () => providerOrder().length > 0);
+}
+
+/** Nombres de los proveedores con clave del usuario actual, en el orden en que se prueban. */
+export async function aiProviderNames(): Promise<string[]> {
+  return withUserKeys(async () => providerOrder().map((id) => PROVIDER_LABELS[id]));
 }
 
 function noProviders(): never {
   throw new AiUnavailableError(
-    "Falta configurar la IA: añade GEMINI_API_KEY, GROQ_API_KEY, MISTRAL_API_KEY u OPENROUTER_API_KEY (todas gratis).",
+    "Falta configurar la IA: añade una clave gratuita (Gemini, Groq, Mistral u OpenRouter) en Ajustes → Conexiones.",
   );
 }
 
@@ -63,7 +81,7 @@ export function geminiCandidates(names: string[]): string[] {
 
 async function listGeminiModels(): Promise<string[]> {
   const res = await fetch(`${GEMINI_BASE}/models?pageSize=200`, {
-    headers: { "x-goog-api-key": process.env.GEMINI_API_KEY! },
+    headers: { "x-goog-api-key": keyFor("gemini")! },
     signal: AbortSignal.timeout(8000),
     cache: "no-store",
   });
@@ -88,7 +106,7 @@ async function postGemini(model: string, body: Record<string, unknown>): Promise
   try {
     return await fetch(`${GEMINI_BASE}/models/${model}:generateContent`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": keyFor("gemini")! },
       body: JSON.stringify(send),
       signal: AbortSignal.timeout(GEMINI_ATTEMPT_MS),
       cache: "no-store",
@@ -153,8 +171,6 @@ interface OpenAiMessage {
 // Proveedores compatibles con OpenAI (capa gratuita)
 // ---------------------------------------------------------------------------
 
-type ProviderId = "gemini" | "groq" | "mistral" | "openrouter" | "cerebras";
-
 const PROVIDER_LABELS: Record<ProviderId, string> = {
   gemini: "Gemini",
   groq: "Groq",
@@ -166,7 +182,6 @@ const PROVIDER_LABELS: Record<ProviderId, string> = {
 interface CompatProvider {
   id: Exclude<ProviderId, "gemini">;
   base: string;
-  keyEnv: string;
   /** Modelos de texto (con herramientas) a probar, el primero el preferido. */
   textModels: () => Promise<string[]>;
   /** Modelos que ven fotos; vacío si el proveedor no tiene. */
@@ -228,7 +243,6 @@ const COMPAT: CompatProvider[] = [
   {
     id: "groq",
     base: "https://api.groq.com/openai/v1",
-    keyEnv: "GROQ_API_KEY",
     textModels: async () => envList("GROQ_MODEL", ["openai/gpt-oss-120b", "qwen/qwen3-32b", "llama-3.3-70b-versatile"]),
     visionModels: async () => envList("GROQ_VISION_MODEL", ["meta-llama/llama-4-scout-17b-16e-instruct"]),
     jsonMode: true,
@@ -236,7 +250,6 @@ const COMPAT: CompatProvider[] = [
   {
     id: "mistral",
     base: "https://api.mistral.ai/v1",
-    keyEnv: "MISTRAL_API_KEY",
     textModels: async () => envList("MISTRAL_MODEL", ["mistral-medium-latest", "mistral-small-latest"]),
     visionModels: async () => envList("MISTRAL_VISION_MODEL", ["mistral-small-latest"]),
     jsonMode: true,
@@ -244,7 +257,6 @@ const COMPAT: CompatProvider[] = [
   {
     id: "openrouter",
     base: "https://openrouter.ai/api/v1",
-    keyEnv: "OPENROUTER_API_KEY",
     textModels: () => openRouterModels(false),
     visionModels: () => openRouterModels(true),
     jsonMode: false,
@@ -253,7 +265,6 @@ const COMPAT: CompatProvider[] = [
   {
     id: "cerebras",
     base: "https://api.cerebras.ai/v1",
-    keyEnv: "CEREBRAS_API_KEY",
     textModels: async () => envList("CEREBRAS_MODEL", ["gpt-oss-120b", "qwen-3-235b-a22b-instruct-2507"]),
     visionModels: async () => [],
     jsonMode: true,
@@ -269,11 +280,7 @@ function providerOrder(): ProviderId[] {
     .map((p) => p.trim().toLowerCase())
     .filter((p): p is ProviderId => p in PROVIDER_LABELS);
   const order = [...new Set([...custom, ...DEFAULT_ORDER])];
-  return order.filter((id) =>
-    id === "gemini"
-      ? Boolean(process.env.GEMINI_API_KEY)
-      : Boolean(process.env[COMPAT.find((p) => p.id === id)!.keyEnv]),
-  );
+  return order.filter((id) => Boolean(keyFor(id)));
 }
 
 // Descanso tras un fallo de cuota o caída: no se vuelve a probar ese proveedor durante un rato
@@ -291,6 +298,9 @@ export class ProviderError extends Error {
   }
 }
 
+// Los descansos van por clave: el fallo de cuota de un usuario no castiga a los demás
+const restKey = (id: ProviderId, model?: string) => `${id}:${(keyFor(id) ?? "").slice(-6)}${model ? `:${model}` : ""}`;
+
 function isResting(key: string) {
   const until = resting.get(key);
   return until !== undefined && until > Date.now();
@@ -303,7 +313,7 @@ async function compatRequest(
   vision: boolean,
 ): Promise<OpenAiMessage> {
   const models = (await (vision ? provider.visionModels() : provider.textModels())).filter(
-    (m) => !isResting(`${provider.id}:${m}`),
+    (m) => !isResting(restKey(provider.id, m)),
   );
   if (!models.length) throw new ProviderError(`${PROVIDER_LABELS[provider.id]} sin modelos disponibles`, true);
   let last: ProviderError | null = null;
@@ -314,7 +324,7 @@ async function compatRequest(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env[provider.keyEnv]}`,
+          Authorization: `Bearer ${keyFor(provider.id)}`,
           ...provider.headers,
         },
         body: JSON.stringify({ ...body, model }),
@@ -328,7 +338,8 @@ async function compatRequest(
     if (!res || res.status === 429 || res.status >= 500 || res.status === 404 || res.status === 400) {
       // 400/404 suelen ser «modelo retirado» o «no admite esto»: se prueba el siguiente modelo
       const status = res ? res.status : "sin respuesta";
-      if (!res || res.status === 429 || res.status >= 500) resting.set(`${provider.id}:${model}`, Date.now() + REST_MS);
+      if (!res || res.status === 429 || res.status >= 500)
+        resting.set(restKey(provider.id, model), Date.now() + REST_MS);
       last = new ProviderError(`${label} ${status}`, true);
       continue;
     }
@@ -426,7 +437,7 @@ async function withFallback<T>(
 ): Promise<T> {
   if (providers.length === 0) noProviders();
   // Los que están descansando van al final (por si son los únicos)
-  const sorted = [...providers].sort((a, b) => Number(isResting(a.id)) - Number(isResting(b.id)));
+  const sorted = [...providers].sort((a, b) => Number(isResting(restKey(a.id))) - Number(isResting(restKey(b.id))));
   const errors: string[] = [];
   for (const provider of sorted) {
     try {
@@ -437,7 +448,7 @@ async function withFallback<T>(
       const message = e instanceof Error ? e.message : "error";
       // Solo descansa si el fallo es de cuota, saturación o caída (no por un JSON mal formado)
       const transient = e instanceof ProviderError ? e.transient : /\b(429|5\d\d)\b|a tiempo|timeout/i.test(message);
-      if (transient) resting.set(provider.id, Date.now() + REST_MS);
+      if (transient) resting.set(restKey(provider.id), Date.now() + REST_MS);
       errors.push(
         message.startsWith(PROVIDER_LABELS[provider.id]) ? message : `${PROVIDER_LABELS[provider.id]}: ${message}`,
       );
@@ -451,11 +462,13 @@ async function withFallback<T>(
  * Admite una foto o varias (Gemini las recibe antes del texto, en orden).
  */
 export async function askJson<T>(schema: z.ZodType<T>, system: string, prompt: string, images?: AiImages): Promise<T> {
-  return withFallback(
-    jsonProviders(imageList(images).length > 0).map(({ id, run }) => ({
-      id,
-      run: async () => schema.parse(extractJson(await run(system, prompt, images))),
-    })),
+  return withUserKeys(() =>
+    withFallback(
+      jsonProviders(imageList(images).length > 0).map(({ id, run }) => ({
+        id,
+        run: async () => schema.parse(extractJson(await run(system, prompt, images))),
+      })),
+    ),
   );
 }
 
@@ -595,14 +608,16 @@ export async function chatWithTools(
   tools: AiTool[],
   options?: ChatOptions,
 ): Promise<ChatResult> {
-  return withFallback(
-    providerOrder().map((id) => ({
-      id,
-      run: () =>
-        id === "gemini"
-          ? geminiChat(system, turns, tools, options)
-          : compatChat(COMPAT.find((p) => p.id === id)!)(system, turns, tools, options),
-    })),
-    (result) => Boolean(result.text),
+  return withUserKeys(() =>
+    withFallback(
+      providerOrder().map((id) => ({
+        id,
+        run: () =>
+          id === "gemini"
+            ? geminiChat(system, turns, tools, options)
+            : compatChat(COMPAT.find((p) => p.id === id)!)(system, turns, tools, options),
+      })),
+      (result) => Boolean(result.text),
+    ),
   );
 }

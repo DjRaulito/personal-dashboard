@@ -26,7 +26,7 @@ export default async function WardrobeTodayPage() {
       weather={weather}
       city={settings.city}
       planHint={event?.title ?? ""}
-      aiReady={aiConfigured()}
+      aiReady={await aiConfigured()}
     />
   );
 }
