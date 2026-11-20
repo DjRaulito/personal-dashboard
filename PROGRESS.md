@@ -278,7 +278,8 @@ Módulo nuevo en `/armario` (color `--wardrobe`). Decidido con Raúl: maniquí c
 - [x] Menú: «Armario» añadido; en móvil la barra inferior (8 secciones) solo muestra el nombre de la sección activa.
 - [ ] Verificar con fotos reales: el recorte del fondo (descarga ~45 MB la primera vez), la propuesta de etiquetas, el tiempo y el estilista no se han podido probar desde el entorno de desarrollo (sin acceso a esos servicios).
 - [x] **«Probar en mí»** (`/armario/probar`): foto de cuerpo entero guardada en privado (`<usuario>/me/person.jpg`); se elige una prenda de arriba (parte de arriba o abrigo) y/o un pantalón y el Space de Hugging Face «Leffa» (ZeroGPU, gratis con el token `HF_TOKEN` de tipo Read, cupo diario) genera la imagen; con arriba y abajo se hacen dos pasadas. La prenda se pasa a fondo blanco con `sharp`. Se guardan las 12 últimas pruebas (`<usuario>/tryon/`). Botón «Probar en mí» también en el probador. Probado de verdad contra el servicio con fotos de ejemplo (15 s arriba + 11 s abajo).
-- [ ] Raúl: añadir `HF_TOKEN` en Vercel (Production y Preview) y probar con su foto y sus prendas.
+- [x] **Recorte mejorado** (18 nov, tras la primera prueba real: una camiseta en la cama salió con la almohada y un objeto pegados): se descartan los trozos sueltos pequeños de la máscara (`keepMainPieces`) y hay un pincel «Retocar» para borrar o recuperar zonas a mano, al subir la foto y en «Editar prenda» para las ya guardadas.
+- [x] Raúl: añadir `HF_TOKEN` en Vercel (Production y Preview) y probar con su foto y sus prendas.
 - [ ] Ideas: ajustar a mano tamaño/posición de una prenda en el maniquí; registrar qué se pone cada día.
 
 ## Decisiones

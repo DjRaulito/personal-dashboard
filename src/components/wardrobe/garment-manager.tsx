@@ -2,11 +2,25 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { clsx } from "clsx";
-import { ImagePlus, Pencil, Trash2 } from "lucide-react";
-import { createGarment, deleteGarment, tagGarment, updateGarment } from "@/app/(app)/armario/actions";
+import { Eraser, ImagePlus, Pencil, Trash2 } from "lucide-react";
+import {
+  createGarment,
+  deleteGarment,
+  replaceGarmentImage,
+  tagGarment,
+  updateGarment,
+} from "@/app/(app)/armario/actions";
 import { buttonClass, EmptyState, Field, inputClass, Tile, TileTitle } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
-import { prepareGarmentPhoto, type CutoutStage, type PreparedPhoto } from "@/lib/wardrobe/cutout";
+import {
+  composeCutout,
+  prepareGarmentPhoto,
+  sourceFromImage,
+  type CutoutSource,
+  type CutoutStage,
+  type PreparedPhoto,
+} from "@/lib/wardrobe/cutout";
+import { RetouchDialog } from "./retouch";
 import {
   CATEGORIES,
   CATEGORY_LABELS,
@@ -182,6 +196,7 @@ const stageText = (s: CutoutStage) =>
 
 function Uploader({ userId, aiReady }: { userId: string; aiReady: boolean }) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [retouching, setRetouching] = useState<Draft | null>(null);
   const working = useRef(false);
   const input = useRef<HTMLInputElement>(null);
 
@@ -204,7 +219,7 @@ function Uploader({ userId, aiReady }: { userId: string; aiReady: boolean }) {
           status: "ready",
           photo,
           preview: URL.createObjectURL(photo.blob),
-          note: photo.cutout ? "" : "No se pudo quitar el fondo: se guardará la foto tal cual.",
+          note: photo.cutout ? "" : "No se pudo quitar el fondo. Bórralo con «Retocar» o se guardará la foto tal cual.",
         });
         if (aiReady) {
           const tags = await tagGarment(photo.forAi);
@@ -241,6 +256,17 @@ function Uploader({ userId, aiReady }: { userId: string; aiReady: boolean }) {
   function discard(draft: Draft) {
     if (draft.preview) URL.revokeObjectURL(draft.preview);
     setDrafts((list) => list.filter((d) => d.key !== draft.key));
+  }
+
+  async function applyRetouch(draft: Draft, mask: Uint8ClampedArray) {
+    if (!draft.photo) return;
+    const composed = await composeCutout(draft.photo.source, mask);
+    if (draft.preview) URL.revokeObjectURL(draft.preview);
+    patch(draft.key, {
+      photo: { ...draft.photo, ...composed, source: { ...draft.photo.source, mask } },
+      preview: URL.createObjectURL(composed.blob),
+      note: "",
+    });
   }
 
   async function save(draft: Draft) {
@@ -344,6 +370,14 @@ function Uploader({ userId, aiReady }: { userId: string; aiReady: boolean }) {
                         <button
                           type="button"
                           disabled={draft.status === "saving"}
+                          onClick={() => setRetouching(draft)}
+                          className={buttonClass.secondary}
+                        >
+                          <Eraser aria-hidden="true" className="h-4 w-4" /> Retocar
+                        </button>
+                        <button
+                          type="button"
+                          disabled={draft.status === "saving"}
                           onClick={() => discard(draft)}
                           className={buttonClass.danger}
                         >
@@ -363,6 +397,13 @@ function Uploader({ userId, aiReady }: { userId: string; aiReady: boolean }) {
           })}
         </ul>
       )}
+      {retouching?.photo && (
+        <RetouchDialog
+          source={retouching.photo.source}
+          onDone={(mask) => applyRetouch(retouching, mask)}
+          onClose={() => setRetouching(null)}
+        />
+      )}
     </Tile>
   );
 }
@@ -371,7 +412,7 @@ function Uploader({ userId, aiReady }: { userId: string; aiReady: boolean }) {
 // Lista de prendas
 // ---------------------------------------------------------------------------
 
-function EditDialog({ garment, onClose }: { garment: Garment; onClose: () => void }) {
+function EditDialog({ garment, userId, onClose }: { garment: Garment; userId: string; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [fields, setFields] = useState<Fields>({
     name: garment.name,
@@ -383,6 +424,34 @@ function EditDialog({ garment, onClose }: { garment: Garment; onClose: () => voi
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pending, start] = useTransition();
+  const [retouch, setRetouch] = useState<CutoutSource | null>(null);
+  const [loadingPhoto, setLoadingPhoto] = useState(false);
+
+  async function openRetouch() {
+    if (!garment.url) return;
+    setError(null);
+    setLoadingPhoto(true);
+    try {
+      const res = await fetch(garment.url);
+      if (!res.ok) throw new Error();
+      setRetouch(await sourceFromImage(await res.blob(), garment.cutout));
+    } catch {
+      setError("No se pudo abrir la foto para retocarla.");
+    } finally {
+      setLoadingPhoto(false);
+    }
+  }
+
+  async function saveRetouch(source: CutoutSource, mask: Uint8ClampedArray) {
+    const composed = await composeCutout(source, mask);
+    const path = `${userId}/${crypto.randomUUID()}.${composed.extension}`;
+    const { error: uploadError } = await createClient()
+      .storage.from("wardrobe")
+      .upload(path, composed.blob, { contentType: composed.blob.type, cacheControl: "31536000" });
+    if (uploadError) throw new Error("No se pudo subir la foto retocada.");
+    const result = await replaceGarmentImage(garment.id, path);
+    if (!result.ok) throw new Error(result.message ?? "No se pudo guardar la foto retocada.");
+  }
 
   useEffect(() => {
     dialog.current?.showModal();
@@ -421,6 +490,16 @@ function EditDialog({ garment, onClose }: { garment: Garment; onClose: () => voi
           <button type="button" onClick={() => dialog.current?.close()} className={buttonClass.secondary}>
             Cancelar
           </button>
+          {garment.url && (
+            <button
+              type="button"
+              disabled={pending || loadingPhoto}
+              onClick={openRetouch}
+              className={buttonClass.secondary}
+            >
+              <Eraser aria-hidden="true" className="h-4 w-4" /> {loadingPhoto ? "Abriendo…" : "Retocar recorte"}
+            </button>
+          )}
           <button
             type="button"
             disabled={pending}
@@ -438,6 +517,16 @@ function EditDialog({ garment, onClose }: { garment: Garment; onClose: () => voi
           </button>
         </div>
       </form>
+      {retouch && (
+        <RetouchDialog
+          source={retouch}
+          onDone={async (mask) => {
+            await saveRetouch(retouch, mask);
+            dialog.current?.close();
+          }}
+          onClose={() => setRetouch(null)}
+        />
+      )}
     </dialog>
   );
 }
@@ -557,7 +646,7 @@ export function GarmentManager({
           </>
         )}
       </Tile>
-      {editing && <EditDialog key={editing.id} garment={editing} onClose={() => setEditing(null)} />}
+      {editing && <EditDialog key={editing.id} garment={editing} userId={userId} onClose={() => setEditing(null)} />}
     </>
   );
 }
