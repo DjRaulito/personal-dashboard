@@ -8,6 +8,7 @@ describe("ajustes", () => {
       "Conexiones",
       "Finanzas",
       "Nutrición",
+      "Tareas",
       "Armario",
       "Datos",
     ]);

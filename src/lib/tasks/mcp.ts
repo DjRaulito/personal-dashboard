@@ -39,7 +39,9 @@ export const TASK_TOOLS = [
     description:
       "Crea o actualiza una tarea programada y su sección en el dashboard. task: identificador corto " +
       "(p. ej. «radar-trabajo»); schedule: cuándo corre, en palabras («cada día a las 8:00»); fields: los " +
-      "campos de cada resultado [{key, label, type}] con type text | number | money (euros) | area (m²) | url | date.",
+      "campos de cada resultado [{key, label, type}] con type text | number | money (euros) | area (m²) | " +
+      "percent (%) | boolean (sí/no) | url | date. El primer campo text es el título. view (opcional): cards " +
+      "(tarjetas con el precio grande), table (comparar cifras) o days (agrupado por día); si no, se deduce.",
     inputSchema: inputJsonSchema(registerSchema),
   },
   {

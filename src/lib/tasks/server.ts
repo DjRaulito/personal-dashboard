@@ -1,6 +1,15 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { fieldsSchema, ITEM_STATUSES, type ItemStatus, type TaskField } from "./fields";
+import {
+  fieldsSchema,
+  ITEM_STATUSES,
+  parseHistory,
+  pickView,
+  type HistoryPoint,
+  type ItemStatus,
+  type TaskField,
+  type TaskView,
+} from "./fields";
 
 export interface TaskSummary {
   id: string;
@@ -22,10 +31,13 @@ export interface TaskItem {
   firstSeenAt: string;
   lastSeenAt: string;
   removedAt: string | null;
+  changedAt: string | null;
+  history: HistoryPoint[];
 }
 
 export interface TaskDetail extends TaskSummary {
   fields: TaskField[];
+  view: TaskView;
   criteria: Record<string, unknown>;
   items: TaskItem[];
   runs: NonNullable<TaskSummary["lastRun"]>[];
@@ -105,14 +117,14 @@ export async function getTask(slug: string): Promise<TaskDetail | null> {
   const supabase = await createClient();
   const { data: t } = await supabase
     .from("scheduled_tasks")
-    .select("id, slug, name, description, schedule, special_view, archived, fields, criteria")
+    .select("id, slug, name, description, schedule, special_view, archived, fields, criteria, view")
     .eq("slug", slug)
     .maybeSingle();
   if (!t) return null;
   const [{ data: items }, { data: runs }] = await Promise.all([
     supabase
       .from("task_items")
-      .select("id, item_key, data, status, first_seen_at, last_seen_at, removed_at")
+      .select("id, item_key, data, status, first_seen_at, last_seen_at, removed_at, changed_at, history")
       .eq("task_id", t.id)
       .order("first_seen_at", { ascending: false })
       .limit(1000),
@@ -123,6 +135,7 @@ export async function getTask(slug: string): Promise<TaskDetail | null> {
       .order("ran_at", { ascending: false })
       .limit(30),
   ]);
+  const fields = fieldsSchema.catch([]).parse(t.fields);
   const runList = (runs ?? []).map((r) => ({
     ranAt: r.ran_at,
     ok: r.ok,
@@ -138,7 +151,8 @@ export async function getTask(slug: string): Promise<TaskDetail | null> {
     schedule: t.schedule,
     specialView: t.special_view,
     archived: t.archived,
-    fields: fieldsSchema.catch([]).parse(t.fields),
+    fields,
+    view: pickView(fields, t.view),
     criteria: (t.criteria ?? {}) as Record<string, unknown>,
     lastRun: runList[0] ?? null,
     newItems: (items ?? []).filter((i) => i.status === "new" && !i.removed_at).length,
@@ -150,6 +164,8 @@ export async function getTask(slug: string): Promise<TaskDetail | null> {
       firstSeenAt: i.first_seen_at,
       lastSeenAt: i.last_seen_at,
       removedAt: i.removed_at,
+      changedAt: i.changed_at,
+      history: parseHistory(i.history),
     })),
     runs: runList,
   };
