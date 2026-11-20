@@ -28,7 +28,7 @@ export default async function PropertySettingsPage() {
 
   return (
     <>
-      <BackLink href="/finanzas/inmuebles">Inmuebles</BackLink>
+      <BackLink href="/tareas/inmuebles">Inmuebles</BackLink>
 
       <SettingsForm settings={settings} />
 

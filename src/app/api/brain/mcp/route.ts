@@ -3,6 +3,7 @@ import { extractToken, type BrainCall } from "@/lib/brain/mcp";
 import { dashboardServer } from "@/lib/mcp/dashboard";
 import { respondJsonRpc } from "@/lib/mcp/jsonrpc";
 import type { PropertyRpc } from "@/lib/realestate/mcp";
+import type { TaskRpc } from "@/lib/tasks/mcp";
 
 // Endpoint MCP del dashboard (cerebro + inmuebles): lo usan Claude, Cowork, ChatGPT, Cursor… con un token (Bearer).
 // No hay sesión: la función brain_call de Supabase comprueba el token y solo toca los datos de su dueño.
@@ -32,13 +33,19 @@ export async function POST(request: Request) {
     return data as Record<string, unknown>;
   };
 
+  const task: TaskRpc = async (action, args) => {
+    const { data, error } = await supabase.rpc("task_call", { p_token: token, p_action: action, p_args: args });
+    if (error || !data || typeof data !== "object") return { error: "No se pudo completar la acción" };
+    return data as Record<string, unknown>;
+  };
+
   const property: PropertyRpc = async (action, args) => {
     const { data, error } = await supabase.rpc("property_call", { p_token: token, p_action: action, p_args: args });
     if (error || !data || typeof data !== "object") return { error: "No se pudo completar la acción" };
     return data as Record<string, unknown>;
   };
 
-  return respondJsonRpc(request, dashboardServer(call, property));
+  return respondJsonRpc(request, dashboardServer(call, property, task));
 }
 
 // El transporte sin estado no abre canal de notificaciones: GET no está soportado

@@ -3,11 +3,20 @@ import { isActive, NAV_ITEMS } from "./navigation";
 
 describe("navegación", () => {
   it("incluye las secciones tras la limpieza", () => {
-    expect(NAV_ITEMS.map((i) => i.label)).toEqual(["Hoy", "Finanzas", "Nutrición", "Armario", "Cerebro", "Ajustes"]);
+    expect(NAV_ITEMS.map((i) => i.label)).toEqual([
+      "Hoy",
+      "Finanzas",
+      "Nutrición",
+      "Armario",
+      "Cerebro",
+      "Tareas",
+      "Ajustes",
+    ]);
   });
 
-  it("en móvil caben todas", () => {
-    expect(NAV_ITEMS.filter((i) => !i.desktopOnly)).toHaveLength(6);
+  it("en móvil la barra tiene 4 secciones y «Más» (5 huecos)", () => {
+    expect(NAV_ITEMS.filter((i) => !i.more).map((i) => i.label)).toEqual(["Hoy", "Finanzas", "Nutrición", "Armario"]);
+    expect(NAV_ITEMS.filter((i) => i.more).map((i) => i.label)).toEqual(["Cerebro", "Tareas", "Ajustes"]);
   });
 
   it("marca la sección activa", () => {

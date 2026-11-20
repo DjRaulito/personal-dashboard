@@ -63,7 +63,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
 
   return (
     <>
-      <BackLink href="/finanzas/inmuebles">Inmuebles</BackLink>
+      <BackLink href="/tareas/inmuebles">Inmuebles</BackLink>
 
       <Tile>
         <div className="flex flex-wrap items-start gap-5">

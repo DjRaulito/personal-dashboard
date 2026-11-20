@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
       // Plan y Métricas se funden en Análisis
       { source: "/finanzas/plan", destination: "/finanzas/analisis", permanent: false },
       { source: "/finanzas/metricas", destination: "/finanzas/analisis", permanent: false },
+      // Inmuebles es una tarea programada más (con su vista propia)
+      { source: "/finanzas/inmuebles", destination: "/tareas/inmuebles", permanent: false },
+      { source: "/finanzas/inmuebles/:path*", destination: "/tareas/inmuebles/:path*", permanent: false },
       // Armario v3: sin probador virtual
       { source: "/armario/probar", destination: "/armario", permanent: false },
       // Inversiones: todo se hace desde la lista de posiciones y su panel
