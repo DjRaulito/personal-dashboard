@@ -128,19 +128,21 @@ const suggestionSchema = z.object({
   account_id: z.uuid().nullable(),
 });
 
-/** Da de alta un pago recurrente detectado en los movimientos. */
-export async function addSuggestedRecurring(input: z.input<typeof suggestionSchema>) {
-  const s = suggestionSchema.parse(input);
+/** Da de alta uno o varios pagos recurrentes detectados en los movimientos. */
+export async function addSuggestedRecurring(input: z.input<typeof suggestionSchema>[]) {
+  const list = z.array(suggestionSchema).min(1).max(50).parse(input);
   const supabase = await session();
-  await supabase.from("recurring_payments").insert({
-    name: s.name,
-    match_pattern: s.pattern,
-    amount_cents: s.amount_cents,
-    frequency: s.frequency,
-    next_due: s.next_due,
-    category_id: s.category_id,
-    account_id: s.account_id,
-  });
+  await supabase.from("recurring_payments").insert(
+    list.map((s) => ({
+      name: s.name,
+      match_pattern: s.pattern,
+      amount_cents: s.amount_cents,
+      frequency: s.frequency,
+      next_due: s.next_due,
+      category_id: s.category_id,
+      account_id: s.account_id,
+    })),
+  );
   refresh();
 }
 

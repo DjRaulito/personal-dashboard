@@ -121,15 +121,30 @@ export function findPayment(
 // Detección automática de recurrentes en los movimientos
 // ---------------------------------------------------------------------------
 
-/** Concepto sin números ni referencias, para agrupar cargos del mismo origen. */
+// Palabras que no identifican al comercio: a partir de CIF/NIF se corta y los sufijos se quitan
+const CUT_FROM = new Set(["CIF", "NIF"]);
+const TRAILING = new Set(["ES", "SA", "SL", "SLU", "SAU"]);
+// Los meses cambian en cada cargo («SALARIO AGOSTO 2026»), no sirven para agrupar
+const MONTHS = new Set(
+  "ENERO FEBRERO MARZO ABRIL MAYO JUNIO JULIO AGOSTO SEPTIEMBRE SETIEMBRE OCTUBRE NOVIEMBRE DICIEMBRE".split(" "),
+);
+
+/**
+ * Concepto sin números ni referencias, para agrupar cargos del mismo origen. En los extractos
+ * del BBVA («PAGO CON TARJETA EN SUPERMERCADOS · MERCADONA …») el comercio va tras el último «·».
+ */
 export function merchantKey(description: string): string {
-  return normalizeText(description)
+  const text = normalizeText(description);
+  const merchant = text.includes("·") ? text.slice(text.lastIndexOf("·") + 1) : text;
+  const words = merchant
     .replace(/\d+/g, " ")
     .replace(/[^A-Z ]/g, " ")
     .split(" ")
-    .filter((w) => w.length > 1)
-    .slice(0, 4)
-    .join(" ");
+    .filter((w) => w.length > 1 && !MONTHS.has(w));
+  const cut = words.findIndex((w) => CUT_FROM.has(w));
+  const kept = (cut >= 0 ? words.slice(0, cut) : words).slice(0, 4);
+  while (kept.length > 1 && TRAILING.has(kept[kept.length - 1])) kept.pop();
+  return kept.join(" ");
 }
 
 export interface RecurringSuggestion {
@@ -170,6 +185,11 @@ export function detectRecurring(
     groups.set(k, list);
   }
 
+  // Los extractos pueden ir con meses de retraso: «sigue activo» se mide contra el último
+  // movimiento conocido, no contra hoy
+  const latest = transactions.reduce((m, t) => (t.booked_on > m ? t.booked_on : m), "");
+  const asOf = latest && latest < today ? latest : today;
+
   const out: RecurringSuggestion[] = [];
   for (const [k, list] of groups) {
     // Un cargo por día como mucho (evita duplicados del mismo día)
@@ -200,7 +220,7 @@ export function detectRecurring(
     const last = rows[rows.length - 1];
     let next = advanceDue(last.booked_on, frequency);
     // Si hace más de dos periodos del último cargo, probablemente ya no está activo
-    if (daysBetween(last.booked_on, today) > gap * 2 + 10) continue;
+    if (daysBetween(last.booked_on, asOf) > gap * 2 + 10) continue;
     while (next < today) next = advanceDue(next, frequency);
     const key = k.split("|")[0];
     out.push({
