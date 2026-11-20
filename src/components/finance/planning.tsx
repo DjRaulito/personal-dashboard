@@ -13,7 +13,7 @@ import {
   saveRecurring,
   setGoalArchived,
   setRecurringActive,
-} from "@/app/(app)/finanzas/plan/actions";
+} from "@/app/(app)/finanzas/analisis/actions";
 import { buttonClass, Field, FormMessage, inputClass } from "@/components/ui";
 import type { categoryOptions } from "@/lib/finance/categories";
 import { parseAmountToCents } from "@/lib/finance/money";

@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { clsx } from "clsx";
 import { CashflowChart, CategoryBars } from "@/components/finance/charts";
 import { EmptyState, Tile, TileTitle } from "@/components/ui";
@@ -11,8 +10,6 @@ import { getPortfolio } from "@/lib/investments/server";
 import { yearlyStats } from "@/lib/investments/view";
 import { createClient } from "@/lib/supabase/server";
 import { trendClass } from "@/lib/trend";
-
-export const metadata: Metadata = { title: "Métricas · Finanzas" };
 
 const eur = (v: number, signed = false) => formatCents(Math.round(v * 100), "EUR", { signed });
 const pct = (v: number | null) =>
@@ -31,7 +28,7 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
   );
 }
 
-export default async function MetricsPage() {
+export async function MetricsSection() {
   const p = financePeriods(new Date());
   const supabase = await createClient();
   // Los 12 meses completos anteriores al actual

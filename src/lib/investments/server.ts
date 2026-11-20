@@ -56,8 +56,9 @@ export interface AssetRow {
   price_symbol: string | null;
 }
 
-export const getPortfolio = cache(async () => {
-  const supabase: Supabase = await createClient();
+/** Cartera completa. `client`: otro cliente de Supabase (p. ej. el de la tarea diaria, sin cookies). */
+export const getPortfolio = cache(async (client?: Supabase) => {
+  const supabase: Supabase = client ?? (await createClient());
   const today = dayKey(new Date());
   const [assets, ops, prices, fxRows] = await Promise.all([
     fetchAll<AssetRow>(

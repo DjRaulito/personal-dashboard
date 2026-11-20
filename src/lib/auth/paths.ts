@@ -3,6 +3,8 @@ const PUBLIC_PREFIXES = [
   "/login",
   "/auth/",
   "/api/health/",
+  // Se protege con CRON_SECRET dentro de la propia ruta
+  "/api/cron/",
   "/api/brain/mcp",
   "/api/inmuebles/mcp",
   "/manifest.webmanifest",

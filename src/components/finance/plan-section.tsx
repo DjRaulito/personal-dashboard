@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { clsx } from "clsx";
 import {
   AddSuggestion,
@@ -30,8 +29,6 @@ import { getPlanning } from "@/lib/finance/planning-server";
 import { getAccounts, getCategories } from "@/lib/finance/server";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Plan · Finanzas" };
-
 const BAR: Record<BudgetState, string> = { ok: "bg-finance", warn: "bg-attention", over: "bg-expense" };
 
 const shortDate = (d: string) =>
@@ -55,7 +52,7 @@ function Progress({ ratio, className, label }: { ratio: number; className: strin
   );
 }
 
-export default async function PlanPage() {
+export async function PlanSection() {
   const now = new Date();
   const today = dayKey(now);
   const p = financePeriods(now);
