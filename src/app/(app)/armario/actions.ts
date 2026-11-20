@@ -44,6 +44,7 @@ async function session() {
 
 function refresh() {
   revalidatePath("/armario", "layout");
+  revalidatePath("/ajustes/armario");
 }
 
 const uuid = z.uuid();

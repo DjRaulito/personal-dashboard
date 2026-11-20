@@ -511,7 +511,8 @@ export async function saveReviewSheet(_: FormState, formData: FormData): Promise
     .upsert({ review_sheet_id: sheetId }, { onConflict: "user_id" });
   if (error) return { ok: false, message: "No se pudo guardar." };
   refresh();
-  return { ok: true, message: "Hoja guardada. Pulsa «Actualizar» para leerla." };
+  revalidatePath("/ajustes/nutricion");
+  return { ok: true, message: "Hoja guardada. Pulsa «Actualizar» en Nutrición → Revisiones para leerla." };
 }
 
 export type SyncResult = { ok: true; added: number; updated: number } | { ok: false; message: string };

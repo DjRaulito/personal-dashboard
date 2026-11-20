@@ -27,7 +27,7 @@ export default async function NetWorthPage() {
       <Tile>
         <EmptyState>Crea tus cuentas e importa tu cartera para ver tu patrimonio.</EmptyState>
         <div className="flex justify-center gap-2">
-          <Link href="/finanzas/cuentas" className={buttonClass.secondary}>
+          <Link href="/ajustes/finanzas/cuentas" className={buttonClass.secondary}>
             Crear cuentas
           </Link>
           <Link href="/finanzas/inversiones/importar" className={buttonClass.primary}>
@@ -86,7 +86,7 @@ export default async function NetWorthPage() {
           <span className="text-muted mt-1 block text-sm">{rows.length} posiciones</span>
         </Link>
         <Link
-          href="/finanzas/cuentas"
+          href="/ajustes/finanzas/cuentas"
           className="rounded-tile border-border bg-surface hover:border-border-strong border p-6 transition-[border-color,transform] duration-150 active:scale-[0.98] motion-reduce:active:scale-100"
         >
           <span className="text-muted block text-sm">Liquidez</span>

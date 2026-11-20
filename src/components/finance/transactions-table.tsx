@@ -154,7 +154,7 @@ function Row({
   onEdit: () => void;
   editor: React.ReactNode;
 }) {
-  const ruleHref = `/finanzas/categorias?patron=${encodeURIComponent(suggestPattern(row.description))}${
+  const ruleHref = `/ajustes/finanzas/categorias?patron=${encodeURIComponent(suggestPattern(row.description))}${
     row.category_id ? `&categoria=${row.category_id}` : ""
   }#nueva-regla`;
   return (

@@ -37,7 +37,7 @@ export default async function TransactionsPage({
       <Tile>
         <EmptyState>
           Primero crea una cuenta en{" "}
-          <Link href="/finanzas/cuentas" className="text-text underline">
+          <Link href="/ajustes/finanzas/cuentas" className="text-text underline">
             Cuentas
           </Link>
           .

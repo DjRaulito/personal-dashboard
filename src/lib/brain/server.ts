@@ -38,3 +38,13 @@ export async function getBrain(limit: number): Promise<BrainData> {
     total: mem.count ?? mem.data?.length ?? 0,
   };
 }
+
+/** Tokens de acceso de las IAs al cerebro (se gestionan en Ajustes → Conexiones). */
+export async function getBrainTokens(): Promise<TokenRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("brain_tokens")
+    .select("id, label, created_at, last_used_at")
+    .order("created_at", { ascending: false });
+  return data ?? [];
+}

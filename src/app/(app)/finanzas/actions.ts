@@ -33,6 +33,7 @@ async function session() {
 
 function refresh() {
   revalidatePath("/finanzas", "layout");
+  revalidatePath("/ajustes", "layout");
   revalidatePath("/");
 }
 

@@ -16,7 +16,7 @@ export default async function AccountsPage() {
 
   return (
     <>
-      <BackLink href="/finanzas/ajustes">Ajustes</BackLink>
+      <BackLink href="/ajustes/finanzas">Finanzas</BackLink>
       <div className="grid gap-3.5 lg:grid-cols-5">
         <Tile className="lg:col-span-3">
           <TileTitle>Tus cuentas</TileTitle>
