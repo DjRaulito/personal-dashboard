@@ -319,7 +319,7 @@ export async function syncBankStatements(): Promise<StatementsSyncResult> {
     if (access.status !== "ok" || !access.scopes.includes(DRIVE_READ_SCOPE)) {
       return {
         ok: false,
-        message: "Falta el permiso para leer Drive: cierra sesión y vuelve a entrar con Google (una sola vez).",
+        message: "Falta el permiso para leer Drive: conecta Google en Ajustes → Conexiones (una sola vez).",
       };
     }
     const r = await syncStatements(supabase, access.accessToken, account.id);
@@ -334,7 +334,7 @@ export async function syncBankStatements(): Promise<StatementsSyncResult> {
     return { ok: r.failed.length === 0, message: parts.join(" ") };
   } catch (e) {
     if (e instanceof GoogleAuthError) {
-      return { ok: false, message: "Google ha rechazado el acceso: cierra sesión y vuelve a entrar." };
+      return { ok: false, message: "Google ha caducado el acceso: pulsa «Reconectar» en Ajustes → Conexiones." };
     }
     console.error("[extractos]", e instanceof Error ? e.message : e);
     return { ok: false, message: "No se pudo leer Drive. Inténtalo de nuevo." };

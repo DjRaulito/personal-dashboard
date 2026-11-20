@@ -11,3 +11,8 @@ export function getGoogleConfig(): GoogleConfig | null {
     }),
   );
 }
+
+/** Clave para cifrar tokens y claves de los usuarios (TOKEN_ENCRYPTION_KEY), o null si falta. */
+export function encryptionKey(): string | null {
+  return parseServerEnv({ TOKEN_ENCRYPTION_KEY: process.env.TOKEN_ENCRYPTION_KEY }).TOKEN_ENCRYPTION_KEY ?? null;
+}

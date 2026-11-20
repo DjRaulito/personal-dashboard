@@ -12,7 +12,7 @@ import { activeSection, SETTINGS_SECTIONS } from "@/lib/settings/sections";
  * portada (lista → detalle, como los ajustes del móvil) y dentro de una sección solo queda
  * el enlace para volver.
  */
-export function SettingsNav() {
+export function SettingsNav({ admin = false }: { admin?: boolean }) {
   const pathname = usePathname();
   const active = activeSection(pathname);
   return (
@@ -27,7 +27,7 @@ export function SettingsNav() {
       )}
       <nav aria-label="Secciones de ajustes" className={clsx(active && "hidden md:block")}>
         <ul className="border-border bg-surface rounded-tile flex flex-col overflow-hidden border md:sticky md:top-6">
-          {SETTINGS_SECTIONS.map((s) => {
+          {SETTINGS_SECTIONS.filter((s) => admin || !s.adminOnly).map((s) => {
             const current = s.slug === active;
             return (
               <li key={s.slug} className="border-border border-t first:border-t-0">

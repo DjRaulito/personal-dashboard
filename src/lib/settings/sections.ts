@@ -4,16 +4,19 @@ export interface SettingsSection {
   slug: string;
   title: string;
   description: string;
+  /** Solo la ven los administradores. */
+  adminOnly?: boolean;
 }
 
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   { slug: "cuenta", title: "Cuenta", description: "Nombre, moneda, zona horaria y cerrar sesión" },
-  { slug: "conexiones", title: "Conexiones", description: "Google, tokens del Cerebro e IA" },
+  { slug: "conexiones", title: "Conexiones", description: "Google, claves de IA y tokens del Cerebro" },
   { slug: "finanzas", title: "Finanzas", description: "Cuentas, categorías, extractos y salario" },
   { slug: "nutricion", title: "Nutrición", description: "Hoja de control de tu nutricionista" },
   { slug: "tareas", title: "Tareas", description: "Párrafo para tus tareas programadas y archivarlas" },
   { slug: "armario", title: "Armario", description: "Ciudad para el tiempo" },
   { slug: "datos", title: "Datos", description: "Exportar todo y borrar datos de un módulo" },
+  { slug: "usuarios", title: "Usuarios", description: "Invitar a otras personas", adminOnly: true },
 ] as const;
 
 /** Sección activa a partir de la ruta (`/ajustes/finanzas/cuentas` → finanzas); null en la portada. */

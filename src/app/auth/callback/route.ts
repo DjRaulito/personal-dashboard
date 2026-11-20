@@ -39,7 +39,12 @@ export async function GET(request: NextRequest) {
     if (saveError) console.error("[auth] no se pudo guardar la integración de Google", saveError.message);
   }
 
-  return NextResponse.redirect(`${origin}/`);
+  // Vuelta a la página desde la que se conectó Google (solo rutas internas: evita redirecciones abiertas)
+  const next = request.cookies.get("auth_next")?.value;
+  const safeNext = next && /^\/(?!\/)[\w\-/]*$/.test(next) ? next : "/";
+  const response = NextResponse.redirect(`${origin}${safeNext}`);
+  if (next) response.cookies.delete("auth_next");
+  return response;
 }
 
 /** Permisos que el usuario concedió de verdad (Google deja desmarcar algunos al dar el consentimiento). */

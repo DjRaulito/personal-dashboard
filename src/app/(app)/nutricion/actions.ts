@@ -530,14 +530,14 @@ export async function syncReviews(): Promise<SyncResult> {
     if (access.status !== "ok" || !access.scopes.includes(SHEETS_READ_SCOPE)) {
       return {
         ok: false,
-        message: "Falta el permiso para leer hojas de cálculo: cierra sesión y vuelve a entrar con Google.",
+        message: "Falta el permiso para leer hojas de cálculo: conecta Google en Ajustes → Conexiones.",
       };
     }
     tabs = await readSpreadsheet(access.accessToken, sheetId);
   } catch (e) {
     if (e instanceof SheetAccessError) return { ok: false, message: e.message };
     if (e instanceof GoogleAuthError) {
-      return { ok: false, message: "Google ha rechazado el acceso: cierra sesión y vuelve a entrar." };
+      return { ok: false, message: "Google ha caducado el acceso: pulsa «Reconectar» en Ajustes → Conexiones." };
     }
     return { ok: false, message: "No se pudo leer la hoja. Inténtalo de nuevo." };
   }

@@ -64,8 +64,8 @@ export default async function FinanceSettingsPage() {
         <p className="text-muted mt-2 max-w-2xl text-sm">
           El botón «Sincronizar extractos» de Gastos lee los PDF del BBVA de tu carpeta «{STATEMENTS_FOLDER}» de Google
           Drive, abre solo los nuevos y añade sus movimientos a la cuenta del BBVA, con categoría por tus reglas y sin
-          duplicar. Usa tu propio inicio de sesión de Google: la primera vez, cierra sesión y vuelve a entrar para dar
-          permiso de lectura de Drive.
+          duplicar. Usa tu propia cuenta de Google: la primera vez, conéctala en Ajustes → Conexiones para dar permiso
+          de lectura de Drive.
         </p>
         <p className="mt-3 text-sm">
           {periods.length

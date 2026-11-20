@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { clsx } from "clsx";
 import { TokenManager } from "@/components/brain/token-manager";
+import { AiKeysManager, GoogleButtons } from "@/components/settings-connections";
 import { Tile, TileTitle } from "@/components/ui";
 import { aiProviderNames } from "@/lib/ai/llm";
+import type { ProviderId } from "@/lib/ai/providers";
 import { getBrainTokens } from "@/lib/brain/server";
 import { getGoogleConfig } from "@/lib/env.server";
 import { createClient } from "@/lib/supabase/server";
@@ -26,42 +28,72 @@ function Status({ name, ok, detail }: { name: string; ok: boolean; detail: strin
 
 export default async function ConnectionsPage() {
   const supabase = await createClient();
-  const [{ data: google }, tokens, h] = await Promise.all([
-    supabase.from("integrations").select("account_email, updated_at").eq("provider", "google").maybeSingle(),
+  const [{ data: google }, tokens, h, { data: keys }, providers, { data: admin }] = await Promise.all([
+    supabase.from("integrations").select("account_email, scopes, updated_at").eq("provider", "google").maybeSingle(),
     getBrainTokens(),
     headers(),
+    supabase.from("user_api_keys").select("provider, hint"),
+    aiProviderNames(),
+    supabase.rpc("is_admin"),
   ]);
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const endpoint = `${proto}://${host}/api/brain/mcp`;
-  const providers = aiProviderNames();
+  const configured = Boolean(getGoogleConfig());
+  const saved = Object.fromEntries((keys ?? []).map((k) => [k.provider, k.hint])) as Partial<
+    Record<ProviderId, string>
+  >;
+  const scopes = google?.scopes ?? [];
+  const grants = [
+    scopes.some((s) => s.includes("calendar")) && "calendario",
+    scopes.some((s) => s.includes("spreadsheets")) && "hojas",
+    scopes.some((s) => s.includes("drive")) && "Drive",
+  ].filter(Boolean);
 
   return (
     <>
       <Tile>
-        <TileTitle>Servicios</TileTitle>
+        <TileTitle>Google</TileTitle>
+        <p className="text-muted mt-1 text-sm">
+          Para leer tu calendario, la hoja de la nutricionista y los extractos de Drive. Los permisos se dan una sola
+          vez aquí; al entrar en la app ya no se vuelven a pedir.
+        </p>
         <ul className="mt-4 flex flex-col gap-2">
           <Status
-            name="Google (calendario y hojas)"
-            ok={Boolean(getGoogleConfig() && google)}
+            name="Cuenta"
+            ok={configured && Boolean(google)}
             detail={
-              !getGoogleConfig()
+              !configured
                 ? "Sin configurar en el servidor"
                 : google
-                  ? `Conectado${google.account_email ? ` · ${google.account_email}` : ""}`
-                  : "Sin conectar: vuelve a entrar con Google"
+                  ? `Conectada${google.account_email ? ` · ${google.account_email}` : ""}${grants.length ? ` · ${grants.join(", ")}` : ""}`
+                  : "Sin conectar"
             }
           />
-          <Status
-            name="IA"
-            ok={providers.length > 0}
-            detail={providers.length ? providers.join(" → ") : "Sin claves: añade GEMINI_API_KEY en Vercel"}
-          />
         </ul>
-        <p className="text-muted mt-3 text-xs">
-          Las claves viven en las variables de entorno de Vercel, nunca en la app ni en el repositorio.
-        </p>
+        {configured && (
+          <div className="mt-3">
+            <GoogleButtons connected={Boolean(google)} />
+          </div>
+        )}
       </Tile>
+
+      <Tile>
+        <TileTitle dot="bg-content">IA</TileTitle>
+        <p className="text-muted mt-1 text-sm">
+          Tus claves gratuitas para leer tickets y platos, el armario y el asistente. Se guardan cifradas y no se
+          vuelven a enseñar. Con varias, si una se queda sin cuota se pasa a la siguiente.
+        </p>
+        <p className={clsx("mt-3 text-sm", providers.length ? "text-muted" : "text-attention")}>
+          {providers.length
+            ? `En uso: ${providers.join(" → ")}${admin ? " (con las del servidor de respaldo)" : ""}`
+            : "! Sin claves: añade al menos una para usar la IA."}
+        </p>
+        <div className="mt-4">
+          <AiKeysManager saved={saved} />
+        </div>
+      </Tile>
+
       <Tile>
         <TileTitle dot="bg-content">Cerebro: acceso de tus IAs</TileTitle>
         <p className="text-muted mt-1 mb-5 text-sm">

@@ -1730,11 +1730,48 @@ export type Database = {
           },
         ];
       };
+      user_api_keys: {
+        Row: {
+          created_at: string;
+          encrypted_key: string;
+          hint: string;
+          id: string;
+          provider: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          encrypted_key: string;
+          hint: string;
+          id?: string;
+          provider: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          encrypted_key?: string;
+          hint?: string;
+          id?: string;
+          provider?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
     };
     Functions: {
+      add_invite: { Args: { p_email: string }; Returns: undefined };
+      is_admin: { Args: never; Returns: boolean };
+      list_invites: {
+        Args: never;
+        Returns: { email: string; invited_at: string; joined: boolean; is_admin: boolean }[];
+      };
+      remove_invite: { Args: { p_email: string }; Returns: undefined };
       account_balances: {
         Args: never;
         Returns: {

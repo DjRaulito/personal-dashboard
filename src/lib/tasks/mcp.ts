@@ -9,7 +9,7 @@ import { cleanItem, fieldsSchema, registerSchema, type TaskField } from "./field
 export type TaskRpc = (action: string, args: Record<string, unknown>) => Promise<Record<string, unknown>>;
 
 export const TASK_INSTRUCTIONS =
-  "Tareas programadas de Raúl. Cada tarea tiene su sección en el dashboard, que se crea sola. " +
+  "Tareas programadas del usuario. Cada tarea tiene su sección en el dashboard, que se crea sola. " +
   "La primera vez llama a register_task (nombre, identificador, horario, descripción y los campos de sus " +
   "resultados). En cada ejecución empieza con get_task_context, guarda cada resultado con save_item, marca " +
   "con mark_items_removed lo que ya no exista y termina con save_task_summary. Solo datos reales.";
@@ -47,7 +47,7 @@ export const TASK_TOOLS = [
   {
     name: "get_task_context",
     description:
-      "Devuelve la tarea (descripción, campos y criterios que Raúl ha configurado), los resultados ya " +
+      "Devuelve la tarea (descripción, campos y criterios que el usuario ha configurado), los resultados ya " +
       "guardados (clave, estado) y las últimas ejecuciones. Llámala al principio de cada ejecución.",
     inputSchema: inputJsonSchema(taskRef),
   },
