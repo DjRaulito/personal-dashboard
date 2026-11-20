@@ -70,7 +70,7 @@ export default async function NetWorthPage() {
       <section aria-label="Patrimonio" className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-tile bg-finance text-ink p-6 sm:col-span-2">
           <p className="text-sm font-semibold">Patrimonio total</p>
-          <p className="font-display mt-3 text-5xl leading-none font-extrabold tracking-tight">{formatCents(total)}</p>
+          <p className="font-display mt-3 text-5xl leading-none font-extrabold">{formatCents(total)}</p>
           {prevMonth != null && (
             <p className="mt-3 text-sm font-medium">
               {formatCents(total - prevMonth, "EUR", { signed: true })} desde el cierre del mes pasado
@@ -82,9 +82,7 @@ export default async function NetWorthPage() {
           className="rounded-tile border-border bg-surface hover:border-border-strong border p-6 transition-[border-color,transform] duration-150 active:scale-[0.98] motion-reduce:active:scale-100"
         >
           <span className="text-muted block text-sm">Inversiones</span>
-          <span className="font-display mt-3 block text-3xl font-extrabold tracking-tight">
-            {formatCents(invested)}
-          </span>
+          <span className="font-display mt-3 block text-3xl font-extrabold">{formatCents(invested)}</span>
           <span className="text-muted mt-1 block text-sm">{rows.length} posiciones</span>
         </Link>
         <Link
@@ -92,7 +90,7 @@ export default async function NetWorthPage() {
           className="rounded-tile border-border bg-surface hover:border-border-strong border p-6 transition-[border-color,transform] duration-150 active:scale-[0.98] motion-reduce:active:scale-100"
         >
           <span className="text-muted block text-sm">Liquidez</span>
-          <span className="font-display mt-3 block text-3xl font-extrabold tracking-tight">{formatCents(cash)}</span>
+          <span className="font-display mt-3 block text-3xl font-extrabold">{formatCents(cash)}</span>
           <span className="text-muted mt-1 block text-sm">{accounts.filter((a) => !a.archived).length} cuentas</span>
         </Link>
       </section>

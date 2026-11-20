@@ -63,17 +63,13 @@ export default async function NutritionPlanPage({ searchParams }: { searchParams
       <section aria-label="Kcal y macros del plan" className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
         <Tile>
           <p className="text-muted text-sm">Kcal al día</p>
-          <p className="font-display mt-2 text-2xl font-extrabold tracking-tight tabular-nums sm:text-3xl">
-            {round(planned.kcal)}
-          </p>
+          <p className="font-display mt-2 text-2xl font-extrabold tabular-nums sm:text-3xl">{round(planned.kcal)}</p>
           <p className="text-muted mt-1 text-xs">{plan.name}</p>
         </Tile>
         {macros.map((m) => (
           <Tile key={m.label}>
             <p className="text-muted text-sm">{m.label}</p>
-            <p className="font-display mt-2 text-2xl font-extrabold tracking-tight tabular-nums sm:text-3xl">
-              {round(m.grams)} g
-            </p>
+            <p className="font-display mt-2 text-2xl font-extrabold tabular-nums sm:text-3xl">{round(m.grams)} g</p>
             <p className="text-muted mt-1 text-xs">
               {macroKcal > 0 ? `${Math.round(m.share * 100)} % de las kcal` : "—"}
             </p>

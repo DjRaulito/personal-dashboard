@@ -78,7 +78,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
             />
           )}
           <div className="min-w-0 flex-1">
-            <h1 className="font-display text-3xl font-extrabold tracking-tight">{place}</h1>
+            <h1 className="font-display text-3xl font-extrabold">{place}</h1>
             {l.title && <p className="text-muted mt-1">{l.title}</p>}
             <p className="text-muted mt-2 text-sm">
               {[
@@ -104,7 +104,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
             </p>
           </div>
           <div className="text-right">
-            <p className="font-display text-3xl font-extrabold tracking-tight tabular-nums">{eur(l.price)}</p>
+            <p className="font-display text-3xl font-extrabold tabular-nums">{eur(l.price)}</p>
             {l.sqm && <p className="text-muted text-sm tabular-nums">{eur(l.price / l.sqm)}/m²</p>}
             {change && (
               <p className={clsx("text-sm tabular-nums", tone(-change.amount))}>
@@ -126,7 +126,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
       <section aria-label="Veredicto" className="grid gap-3.5 lg:grid-cols-3">
         <div className={clsx("rounded-tile text-ink p-6 lg:col-span-2", v.bg)}>
           <p className="text-sm font-semibold">Veredicto</p>
-          <p className="font-display mt-2 text-3xl font-extrabold tracking-tight">{VERDICT_LABELS[ev.verdict]}</p>
+          <p className="font-display mt-2 text-3xl font-extrabold">{VERDICT_LABELS[ev.verdict]}</p>
           <p className="mt-1 text-sm font-medium">
             Puntuación {ev.score.total}/100
             {ev.maxPrice && <> · precio máximo {eur(ev.maxPrice.max)}</>}

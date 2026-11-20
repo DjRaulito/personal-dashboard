@@ -92,7 +92,7 @@ export function ShoppingPlanner({
       <section aria-label="Gasto aproximado" className="grid grid-cols-2 gap-3.5 lg:grid-cols-3">
         <Tile>
           <p className="text-muted text-sm">A la semana</p>
-          <p className="font-display mt-2 text-2xl font-extrabold tracking-tight tabular-nums sm:text-3xl">
+          <p className="font-display mt-2 text-2xl font-extrabold tabular-nums sm:text-3xl">
             {summary.lines.length ? eur(summary.totalCents) : "—"}
           </p>
           <p className="text-muted mt-1 text-xs">
@@ -103,7 +103,7 @@ export function ShoppingPlanner({
         </Tile>
         <Tile>
           <p className="text-muted text-sm">Al mes</p>
-          <p className="font-display mt-2 text-2xl font-extrabold tracking-tight tabular-nums sm:text-3xl">
+          <p className="font-display mt-2 text-2xl font-extrabold tabular-nums sm:text-3xl">
             {summary.lines.length ? eur(Math.round(summary.totalCents * WEEKS_PER_MONTH)) : "—"}
           </p>
           <p className="text-muted mt-1 text-xs">4,3 semanas</p>

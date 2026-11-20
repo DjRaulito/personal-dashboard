@@ -10,7 +10,7 @@ export function PageHeader({
   return (
     <header className="flex flex-wrap items-end gap-4">
       <div className="min-w-0">
-        <h1 className="font-display text-4xl leading-none font-extrabold tracking-tight sm:text-5xl">{title}</h1>
+        <h1 className="font-display text-4xl leading-none font-extrabold sm:text-5xl">{title}</h1>
         {subtitle && <p className="text-muted mt-2 first-letter:uppercase">{subtitle}</p>}
       </div>
       {children && <div className="ml-auto">{children}</div>}

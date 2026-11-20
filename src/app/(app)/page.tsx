@@ -69,7 +69,7 @@ export default async function Home() {
               <span aria-hidden="true" className="bg-finance h-2.5 w-2.5 rounded-full" />
               <span className="font-semibold">{w.title}</span>
             </span>
-            <span className="font-display mt-4 block text-3xl font-extrabold tracking-tight">{w.value}</span>
+            <span className="font-display mt-4 block text-3xl font-extrabold">{w.value}</span>
             <span className="text-muted mt-1 block text-sm">{hasAccounts ? "Ver finanzas" : "Crea tus cuentas"}</span>
           </Link>
         ))}
@@ -113,7 +113,7 @@ export default async function Home() {
           </span>
           {plan ? (
             <>
-              <span className="font-display mt-4 block text-3xl font-extrabold tracking-tight tabular-nums">
+              <span className="font-display mt-4 block text-3xl font-extrabold tabular-nums">
                 {mealsMarked}/{plan.meals.length} comidas
               </span>
               <span className="text-muted mt-1 block text-sm">

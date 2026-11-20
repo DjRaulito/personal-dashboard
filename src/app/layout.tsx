@@ -1,16 +1,15 @@
 import type { Metadata, Viewport } from "next";
 // Fuentes autoalojadas (sin peticiones a Google Fonts en build ni en runtime)
-import "@fontsource-variable/bricolage-grotesque/opsz.css";
-import "@fontsource-variable/onest/index.css";
+import "@fontsource-variable/atkinson-hyperlegible-next/wght.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Personal Dashboard",
-  description: "Finanzas, calendario, contenido, gimnasio, nutrición y agentes en un solo panel.",
+  description: "Finanzas, nutrición, armario, cerebro y tareas en un solo panel.",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b0b0e",
+  themeColor: "#101418",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

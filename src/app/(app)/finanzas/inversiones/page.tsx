@@ -15,6 +15,7 @@ import {
   recentDailyPnl,
 } from "@/lib/investments/view";
 import { formatCents } from "@/lib/finance/money";
+import { trendClass } from "@/lib/trend";
 
 export const metadata: Metadata = { title: "Inversiones · Finanzas" };
 
@@ -23,8 +24,7 @@ const pct = (v: number | null) =>
   v == null
     ? "—"
     : `${v > 0 ? "+" : ""}${(v * 100).toLocaleString("es-ES", { maximumFractionDigits: 2, minimumFractionDigits: 2 })} %`;
-const tone = (v: number | null) =>
-  v == null || Math.abs(v) < 1e-9 ? "text-muted" : v > 0 ? "text-finance" : "text-expense";
+const tone = trendClass;
 
 const RANGE_LABELS = { "1M": "1M", "3M": "3M", YTD: "Año", "1A": "1A", TOTAL: "Todo" } as const;
 
@@ -62,7 +62,7 @@ export default async function InvestmentsPage({ searchParams }: { searchParams: 
     stock: "bg-content",
     etf: "bg-nutrition",
     pension: "bg-attention",
-    other: "bg-gym",
+    other: "bg-extra",
   };
 
   return (
@@ -85,21 +85,21 @@ export default async function InvestmentsPage({ searchParams }: { searchParams: 
       <section aria-label="Resumen" className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-tile bg-finance text-ink p-6 sm:col-span-2">
           <p className="text-sm font-semibold">Valor de la cartera</p>
-          <p className="font-display mt-3 text-5xl leading-none font-extrabold tracking-tight">{eur(value)}</p>
+          <p className="font-display mt-3 text-5xl leading-none font-extrabold">{eur(value)}</p>
           <p className="mt-3 text-sm font-medium">
             Hoy {eur(today.pnlEur, true)} ({pct(today.returnPct)})
           </p>
         </div>
         <Tile>
           <p className="text-muted text-sm">Plusvalía latente</p>
-          <p className={clsx("font-display mt-3 text-3xl font-extrabold tracking-tight", tone(value - cost))}>
+          <p className={clsx("font-display mt-3 text-3xl font-extrabold", tone(value - cost))}>
             {eur(value - cost, true)}
           </p>
           <p className="text-muted mt-1 text-sm">Coste {eur(cost)}</p>
         </Tile>
         <Tile>
           <p className="text-muted text-sm">Ganancia total</p>
-          <p className={clsx("font-display mt-3 text-3xl font-extrabold tracking-tight", tone(total.pnlEur))}>
+          <p className={clsx("font-display mt-3 text-3xl font-extrabold", tone(total.pnlEur))}>
             {eur(total.pnlEur, true)}
           </p>
           <p className="text-muted mt-1 text-sm">
@@ -167,7 +167,7 @@ export default async function InvestmentsPage({ searchParams }: { searchParams: 
             parts={[...byKind.entries()].map(([kind, v]) => ({
               label: KIND_LABELS[kind as keyof typeof KIND_LABELS],
               value: v,
-              className: kindColors[kind] ?? "bg-gym",
+              className: kindColors[kind] ?? "bg-extra",
             }))}
           />
         </div>

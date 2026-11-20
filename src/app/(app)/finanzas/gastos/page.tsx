@@ -93,21 +93,21 @@ export default async function ExpensesPage({
       <section aria-label="Resumen del mes" className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
         <Tile>
           <p className="text-muted text-sm">Gastos</p>
-          <p className="font-display mt-3 text-3xl font-extrabold tracking-tight">{formatCents(expense)}</p>
+          <p className="font-display mt-3 text-3xl font-extrabold">{formatCents(expense)}</p>
         </Tile>
         <Tile>
           <p className="text-muted text-sm">Ingresos</p>
-          <p className="font-display mt-3 text-3xl font-extrabold tracking-tight">{formatCents(income)}</p>
+          <p className="font-display mt-3 text-3xl font-extrabold">{formatCents(income)}</p>
         </Tile>
         <Tile>
           <p className="text-muted text-sm">Ahorro</p>
-          <p className={clsx("font-display mt-3 text-3xl font-extrabold tracking-tight", saving < 0 && "text-expense")}>
+          <p className={clsx("font-display mt-3 text-3xl font-extrabold", saving < 0 && "text-expense")}>
             {formatCents(saving, "EUR", { signed: true })}
           </p>
         </Tile>
         <Tile>
           <p className="text-muted text-sm">Tasa de ahorro</p>
-          <p className="font-display mt-3 text-3xl font-extrabold tracking-tight">
+          <p className="font-display mt-3 text-3xl font-extrabold">
             {income > 0 ? `${Math.round((saving / income) * 100)} %` : "—"}
           </p>
         </Tile>
