@@ -89,3 +89,27 @@ describe("tareas · cómo se pintan", () => {
     expect(g.undated).toHaveLength(1);
   });
 });
+
+describe("grupos", () => {
+  it("agrupa por un campo de estado", async () => {
+    const { groupField, groupCounts, groupLabel } = await import("./fields");
+    const fields = [
+      { key: "empresa", label: "Empresa", type: "text" as const },
+      { key: "estado", label: "Estado", type: "text" as const },
+    ];
+    expect(groupField(fields)?.key).toBe("estado");
+    expect(groupField([fields[0]])).toBeNull();
+    const items = [
+      { data: { estado: "cartera" } },
+      { data: { estado: "Vigilancia" } },
+      { data: { estado: "cartera" } },
+      { data: {} },
+    ];
+    expect(groupCounts(items, "estado")).toEqual([
+      { value: "cartera", count: 2 },
+      { value: "vigilancia", count: 1 },
+      { value: "sin estado", count: 1 },
+    ]);
+    expect(groupLabel("vigilancia")).toBe("Vigilancia");
+  });
+});

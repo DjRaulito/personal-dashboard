@@ -117,6 +117,31 @@ export function fieldRoles(fields: TaskField[]) {
   };
 }
 
+// Campos de texto que reparten los resultados en grupos (p. ej. cartera / vigilancia)
+const GROUP_KEYS = ["estado", "status", "lista", "grupo"];
+
+/** Campo por el que agrupar los resultados, si la tarea declara uno («estado», «lista»…). */
+export function groupField(fields: TaskField[]): TaskField | null {
+  return fields.find((f) => f.type === "text" && GROUP_KEYS.includes(f.key.toLowerCase())) ?? null;
+}
+
+/** Valores del campo de grupo con cuántos resultados tiene cada uno, en orden de aparición. */
+export function groupCounts(
+  items: { data: Record<string, unknown> }[],
+  key: string,
+): { value: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const i of items) {
+    const v = i.data[key];
+    const value = typeof v === "string" && v.trim() ? v.trim().toLowerCase() : "sin estado";
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+  return [...counts].map(([value, count]) => ({ value, count }));
+}
+
+/** «vigilancia» → «Vigilancia». */
+export const groupLabel = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+
 export interface HistoryPoint {
   at: string;
   data: Record<string, unknown>;

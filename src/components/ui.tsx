@@ -35,7 +35,12 @@ export function Field({
 }
 
 export function Tile({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <section className={clsx("rounded-tile border-border bg-surface border p-6", className)}>{children}</section>;
+  // min-w-0: una tabla ancha nunca ensancha la rejilla de la página (se desplaza dentro)
+  return (
+    <section className={clsx("rounded-tile border-border bg-surface min-w-0 border p-5 sm:p-6", className)}>
+      {children}
+    </section>
+  );
 }
 
 export function TileTitle({ children, dot = "bg-finance" }: { children: React.ReactNode; dot?: string }) {
