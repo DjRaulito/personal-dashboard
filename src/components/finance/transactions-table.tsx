@@ -18,6 +18,7 @@ export interface TableRow extends TransactionFormValues {
 }
 
 const dateFmt = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+const shortDate = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "UTC" });
 
 export function TransactionsTable({
   rows,
@@ -68,7 +69,9 @@ export function TransactionsTable({
       <div className="bg-surface-2 rounded-inner mb-3 flex min-h-11 flex-wrap items-center gap-2 px-3 py-1.5">
         {ids.length === 0 ? (
           <>
-            <span className="text-muted text-sm">Toca una fila para seleccionarla · Mayús + clic para un tramo</span>
+            <span className="text-muted text-sm">
+              Toca una fila para seleccionarla<span className="hidden sm:inline"> · Mayús + clic para un tramo</span>
+            </span>
             <button
               type="button"
               onClick={() => setSelected(new Set(rows.map((r) => r.id)))}
@@ -133,12 +136,12 @@ export function TransactionsTable({
       </div>
 
       <div className="relative overflow-x-auto">
-        <table role="grid" aria-multiselectable="true" className="w-full min-w-[600px] text-sm">
+        <table role="grid" aria-multiselectable="true" className="w-full text-sm sm:min-w-[600px]">
           <thead className="text-muted text-left">
             <tr>
-              <th className="py-2 pl-3 font-medium">Fecha</th>
-              <th className="py-2 font-medium">Concepto</th>
-              <th className="py-2 font-medium">Categoría</th>
+              <th className="hidden py-2 pl-3 font-medium sm:table-cell">Fecha</th>
+              <th className="py-2 pl-3 font-medium sm:pl-0">Concepto</th>
+              <th className="hidden py-2 font-medium sm:table-cell">Categoría</th>
               <th className="py-2 text-right font-medium">Importe</th>
               <th className="py-2">
                 <span className="sr-only">Acciones</span>
@@ -213,16 +216,23 @@ function Row({
           selected ? "bg-finance/12 shadow-[inset_3px_0_0_var(--color-finance)]" : "hover:bg-surface-2/60",
         )}
       >
-        <td className="text-muted py-2.5 pl-3 whitespace-nowrap tabular-nums">
+        <td className="text-muted hidden py-2.5 pl-3 whitespace-nowrap tabular-nums sm:table-cell">
           {dateFmt.format(new Date(`${row.booked_on}T00:00:00Z`))}
         </td>
-        <td className="max-w-xs py-2.5">
+        <td className="max-w-0 py-2.5 pl-3 sm:max-w-xs sm:pl-0">
           <span className="block truncate" title={row.description}>
             {row.description}
           </span>
-          <span className="text-muted block truncate text-xs">{row.accountName}</span>
+          {/* En el móvil la fecha y la categoría van aquí debajo */}
+          <span className="text-muted block truncate text-xs">
+            <span className="tabular-nums sm:hidden">
+              {shortDate.format(new Date(`${row.booked_on}T00:00:00Z`))} ·{" "}
+            </span>
+            <span className="sm:hidden">{row.categoryLabel ?? "Sin categoría"} · </span>
+            {row.accountName}
+          </span>
         </td>
-        <td className="py-2.5">
+        <td className="hidden py-2.5 sm:table-cell">
           {row.categoryLabel ? (
             <span className="bg-surface-2 rounded-full px-2.5 py-1 text-xs">{row.categoryLabel}</span>
           ) : (
@@ -242,7 +252,10 @@ function Row({
           >
             {editing ? "Cerrar" : "Editar"}
           </button>
-          <Link href={ruleHref} className="text-muted hover:text-text px-2 text-xs underline-offset-2 hover:underline">
+          <Link
+            href={ruleHref}
+            className="text-muted hover:text-text hidden px-2 text-xs underline-offset-2 hover:underline sm:inline"
+          >
             Crear regla
           </Link>
         </td>

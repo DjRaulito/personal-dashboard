@@ -6,7 +6,7 @@ import { Archive, X } from "lucide-react";
 import { saveCriteria, setArchived, setItemStatus } from "@/app/(app)/tareas/actions";
 import { ItemCards, ItemDays, ItemDetail, ItemTable } from "@/components/tasks/task-items";
 import { buttonClass, EmptyState, FormMessage, inputClass, Tile, TileTitle } from "@/components/ui";
-import { fieldRoles, groupByDay, type ItemStatus } from "@/lib/tasks/fields";
+import { fieldRoles, groupByDay, groupCounts, groupField, groupLabel, type ItemStatus } from "@/lib/tasks/fields";
 import type { TaskDetail, TaskItem } from "@/lib/tasks/server";
 
 const when = (iso: string) =>
@@ -50,7 +50,10 @@ export function TaskBoard({ task }: { task: TaskDetail }) {
     all: items.filter((i) => matches("all", i)).length,
     discarded: items.filter((i) => matches("discarded", i)).length,
   };
-  const [view, setView] = useState<View>(counts.new > 0 ? "new" : "all");
+  // Si la tarea reparte sus resultados por estado (cartera / vigilancia…), se ven todos por grupos
+  const groupBy = groupField(task.fields);
+  const [view, setView] = useState<View>(counts.new > 0 && !groupBy ? "new" : "all");
+  const [group, setGroup] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState("");
@@ -73,6 +76,7 @@ export function TaskBoard({ task }: { task: TaskDetail }) {
     const list = items.filter(
       (i) =>
         matches(view, i) &&
+        (!groupBy || !group || groupValue(i, groupBy.key) === group) &&
         (!onlyFlags || flags.every((f) => i.data[f.key] === true)) &&
         (!q || Object.values(i.data).some((v) => String(v).toLowerCase().includes(q))),
     );
@@ -82,7 +86,7 @@ export function TaskBoard({ task }: { task: TaskDetail }) {
       const y = b.data[sortKey];
       return typeof x === "number" && typeof y === "number" ? x - y : String(x ?? "").localeCompare(String(y ?? ""));
     });
-  }, [items, view, query, sortKey, onlyFlags, flags]);
+  }, [items, view, query, sortKey, onlyFlags, flags, group, groupBy]);
 
   const current = items.find((i) => i.id === selected) ?? null;
 
@@ -267,6 +271,16 @@ export function TaskBoard({ task }: { task: TaskDetail }) {
                 </label>
               )}
             </div>
+            {groupBy && (
+              <GroupChips
+                groups={groupCounts(
+                  items.filter((i) => matches(view, i)),
+                  groupBy.key,
+                )}
+                value={group}
+                onChange={setGroup}
+              />
+            )}
             {visible.length === 0 ? (
               <EmptyState>
                 {items.length === 0
@@ -277,6 +291,25 @@ export function TaskBoard({ task }: { task: TaskDetail }) {
               </EmptyState>
             ) : grouped ? (
               <ItemDays {...listProps} {...grouped} />
+            ) : groupBy && !group ? (
+              <div className="flex flex-col gap-6">
+                {groupCounts(visible, groupBy.key).map(({ value, count }) => {
+                  const list = visible.filter((i) => groupValue(i, groupBy.key) === value);
+                  return (
+                    <section key={value} aria-label={groupLabel(value)}>
+                      <h3 className="mb-2 flex items-baseline gap-2 font-semibold">
+                        {groupLabel(value)}
+                        <span className="text-muted text-sm font-normal tabular-nums">{count}</span>
+                      </h3>
+                      {task.view === "table" ? (
+                        <ItemTable {...listProps} items={list} />
+                      ) : (
+                        <ItemCards {...listProps} items={list} />
+                      )}
+                    </section>
+                  );
+                })}
+              </div>
             ) : task.view === "table" ? (
               <ItemTable {...listProps} items={visible} />
             ) : (
@@ -303,6 +336,48 @@ export function TaskBoard({ task }: { task: TaskDetail }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+const groupValue = (i: TaskItem, key: string) => {
+  const v = i.data[key];
+  return typeof v === "string" && v.trim() ? v.trim().toLowerCase() : "sin estado";
+};
+
+/** Pastillas para ver un grupo (Cartera, Vigilancia…) o todos. */
+function GroupChips({
+  groups,
+  value,
+  onChange,
+}: {
+  groups: { value: string; count: number }[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  if (groups.length < 2) return null;
+  const chip = (id: string, label: string, count: number) => (
+    <button
+      key={id || "todos"}
+      type="button"
+      aria-pressed={value === id}
+      onClick={() => onChange(id)}
+      className={clsx(
+        "min-h-9 rounded-full border px-3.5 py-1 text-sm font-medium whitespace-nowrap transition-colors",
+        value === id ? "bg-selected text-on-selected border-transparent" : "border-border text-muted hover:text-text",
+      )}
+    >
+      {label} <span className="tabular-nums opacity-70">{count}</span>
+    </button>
+  );
+  return (
+    <div className="mb-4 flex flex-wrap gap-2" aria-label="Grupos">
+      {chip(
+        "",
+        "Todos",
+        groups.reduce((s, g) => s + g.count, 0),
+      )}
+      {groups.map((g) => chip(g.value, groupLabel(g.value), g.count))}
     </div>
   );
 }
