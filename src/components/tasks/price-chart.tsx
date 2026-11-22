@@ -58,7 +58,7 @@ export function PriceChart({
           className="text-muted relative w-14 shrink-0 text-right text-[11px] whitespace-nowrap tabular-nums"
         >
           {scale.ticks.map((t) => (
-            <span key={t} className="absolute right-0 -translate-y-1/2" style={{ top: `${y(t)}%` }}>
+            <span key={`l${t}`} className="absolute right-0 -translate-y-1/2" style={{ top: `${y(t)}%` }}>
               {fmt(t)}
             </span>
           ))}
@@ -66,7 +66,7 @@ export function PriceChart({
         <div className="relative h-56 flex-1">
           {scale.ticks.map((t) => (
             <span
-              key={t}
+              key={`g${t}`}
               aria-hidden="true"
               className="bg-border absolute inset-x-0 h-px"
               style={{ top: `${y(t)}%` }}
