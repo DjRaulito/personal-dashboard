@@ -204,7 +204,7 @@ function ItemCard({
 /** Tabla para comparar cifras fila contra fila (p. ej. empresas del fondo). */
 export function ItemTable({ fields, items, selected, onSelect, now }: ListProps) {
   const r = fieldRoles(fields);
-  const cols = fields.filter((f) => f.type !== "url" && f !== r.title);
+  const cols = fields.filter((f) => f.type !== "url" && f.type !== "image" && f !== r.title);
   const numeric = (f: TaskField) => ["number", "money", "area", "percent"].includes(f.type);
   return (
     <div className="-mx-6 overflow-x-auto px-6">
@@ -327,7 +327,7 @@ export function ItemDetail({
       )}
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
         {fields
-          .filter((f) => f !== r.title && f !== r.price && f.type !== "url")
+          .filter((f) => f !== r.title && f !== r.price && f.type !== "url" && f.type !== "image")
           .map((f) => (
             <div key={f.key} className="min-w-0">
               <dt className="text-muted text-xs">{f.label}</dt>

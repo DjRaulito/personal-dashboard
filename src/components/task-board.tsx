@@ -99,7 +99,12 @@ export function TaskBoard({ task }: { task: TaskDetail }) {
   }, [current]);
 
   const stale = !task.archived && (!task.lastRun || now - Date.parse(task.lastRun.ranAt) > 3 * 86_400_000);
-  const listProps = { fields: task.fields, selected, onSelect: setSelected, onStatus, pending, now };
+  // Abrir un resultado nuevo lo marca como visto, como un correo en Gmail
+  const onSelect = (id: string) => {
+    setSelected(id);
+    if (items.find((i) => i.id === id)?.status === "new") onStatus(id, "seen");
+  };
+  const listProps = { fields: task.fields, selected, onSelect, onStatus, pending, now };
   const grouped =
     task.view === "days"
       ? groupByDay(
@@ -256,7 +261,7 @@ export function TaskBoard({ task }: { task: TaskDetail }) {
                 >
                   <option value="">Más recientes</option>
                   {task.fields
-                    .filter((f) => f.type !== "url")
+                    .filter((f) => f.type !== "url" && f.type !== "image")
                     .map((f) => (
                       <option key={f.key} value={f.key}>
                         Por {f.label.toLowerCase()}
