@@ -1,7 +1,7 @@
 // Tareas programadas: campos que declara cada tarea y validación de sus resultados.
 import { z } from "zod";
 
-export const FIELD_TYPES = ["text", "number", "money", "area", "percent", "boolean", "url", "date"] as const;
+export const FIELD_TYPES = ["text", "number", "money", "area", "percent", "boolean", "url", "image", "date"] as const;
 export type FieldType = (typeof FIELD_TYPES)[number];
 
 export const fieldSchema = z.object({
@@ -11,7 +11,7 @@ export const fieldSchema = z.object({
 });
 export type TaskField = z.infer<typeof fieldSchema>;
 
-export const fieldsSchema = z.array(fieldSchema).max(20);
+export const fieldsSchema = z.array(fieldSchema).max(30);
 
 export const registerSchema = z.object({
   task: z.string().regex(/^[a-z0-9][a-z0-9-]{1,39}$/, "task: identificador en minúsculas con guiones"),
@@ -30,11 +30,11 @@ const valueFor = (type: FieldType) =>
           z.boolean(),
           z.enum(["true", "false", "sí", "si", "no"]).transform((v) => v !== "false" && v !== "no"),
         ])
-      : type === "url"
-        ? z.url().max(500)
+      : type === "url" || type === "image"
+        ? z.url({ protocol: /^https?$/ }).max(1000)
         : type === "date"
           ? z.iso.date().or(z.iso.datetime())
-          : z.string().trim().max(500);
+          : z.string().trim().max(2000);
 
 /**
  * Valida los datos de un resultado contra los campos declarados: se quedan solo los campos
@@ -111,9 +111,12 @@ export function fieldRoles(fields: TaskField[]) {
     price,
     area,
     url: fields.find((f) => f.type === "url"),
+    image: fields.find((f) => f.type === "image"),
     date: fields.find((f) => f.type === "date"),
     flags: fields.filter((f) => f.type === "boolean"),
-    rest: fields.filter((f) => f !== title && f !== price && f.type !== "url" && f.type !== "boolean"),
+    rest: fields.filter(
+      (f) => f !== title && f !== price && f.type !== "url" && f.type !== "image" && f.type !== "boolean",
+    ),
   };
 }
 

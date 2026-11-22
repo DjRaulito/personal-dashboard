@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import {
   fieldsSchema,
@@ -113,7 +114,8 @@ export async function getTasks(): Promise<TaskSummary[]> {
   });
 }
 
-export async function getTask(slug: string): Promise<TaskDetail | null> {
+/** Una tarea con sus resultados (memorizada por petición: la usan el layout y la página). */
+export const getTask = cache(async function getTask(slug: string): Promise<TaskDetail | null> {
   const supabase = await createClient();
   const { data: t } = await supabase
     .from("scheduled_tasks")
@@ -169,4 +171,4 @@ export async function getTask(slug: string): Promise<TaskDetail | null> {
     })),
     runs: runList,
   };
-}
+});
