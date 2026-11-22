@@ -44,7 +44,9 @@ export function Stat({
   return (
     <div className="min-w-0">
       <dt className="text-muted text-xs">{label}</dt>
-      <dd className={clsx("font-semibold tabular-nums", big ? "font-display text-2xl font-extrabold" : "text-base", tone)}>
+      <dd
+        className={clsx("font-semibold tabular-nums", big ? "font-display text-2xl font-extrabold" : "text-base", tone)}
+      >
         {value}
       </dd>
       {hint && <dd className="text-muted text-xs">{hint}</dd>}
@@ -54,9 +56,7 @@ export function Stat({
 
 function Meta({ p }: { p: FundPosition }) {
   return (
-    <span className="text-muted text-xs">
-      {[p.ticker, sizeLabel(p.size), p.country].filter(Boolean).join(" · ")}
-    </span>
+    <span className="text-muted text-xs">{[p.ticker, sizeLabel(p.size), p.country].filter(Boolean).join(" · ")}</span>
   );
 }
 

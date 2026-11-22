@@ -65,7 +65,12 @@ export function PriceChart({
         </div>
         <div className="relative h-56 flex-1">
           {scale.ticks.map((t) => (
-            <span key={t} aria-hidden="true" className="bg-border absolute inset-x-0 h-px" style={{ top: `${y(t)}%` }} />
+            <span
+              key={t}
+              aria-hidden="true"
+              className="bg-border absolute inset-x-0 h-px"
+              style={{ top: `${y(t)}%` }}
+            />
           ))}
           {levels.map((l) => (
             <span

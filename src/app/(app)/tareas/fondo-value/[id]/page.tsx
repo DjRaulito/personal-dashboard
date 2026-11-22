@@ -114,7 +114,12 @@ export default async function FundPositionPage({ params }: Params) {
           {[p.ticker, p.market, p.country, sizeLabel(p.size), p.cap && `Cap. ${p.cap}`].filter(Boolean).join(" · ")}
         </p>
         <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
-          <Stat label="Hoy" value={formatPrice(p.price, p.currency)} big hint={`Visto el ${shortDate(item.lastSeenAt)}`} />
+          <Stat
+            label="Hoy"
+            value={formatPrice(p.price, p.currency)}
+            big
+            hint={`Visto el ${shortDate(item.lastSeenAt)}`}
+          />
           {inPortfolio ? (
             <Stat
               label="Entró a"
@@ -130,7 +135,9 @@ export default async function FundPositionPage({ params }: Params) {
             <Stat
               label="Entrar por debajo de"
               value={formatPrice(p.entryMax, p.currency)}
-              hint={gap == null ? undefined : gap >= 0 ? "✓ Ya está por debajo" : `Le falta caer ${formatPct(-gap, false)}`}
+              hint={
+                gap == null ? undefined : gap >= 0 ? "✓ Ya está por debajo" : `Le falta caer ${formatPct(-gap, false)}`
+              }
             />
           )}
           <Stat label="Precio de salida" value={formatPrice(p.target, p.currency)} hint="escenario base" />
