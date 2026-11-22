@@ -203,3 +203,7 @@ export function groupByDay<T>(items: T[], dayOf: (item: T) => string | null, tod
   }
   return { days: [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)), undated, past };
 }
+
+/** Fecha corta («20 nov») en Europe/Madrid. Vive aquí para poder usarla también en el servidor. */
+export const shortDate = (iso: string) =>
+  new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "Europe/Madrid" }).format(new Date(iso));

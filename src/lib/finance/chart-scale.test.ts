@@ -23,3 +23,11 @@ describe("niceScale", () => {
     expect(toPercent(50, 0, 200)).toBe(25);
   });
 });
+
+describe("niceScale con precios pequeños", () => {
+  it("no repite ticks cuando el paso es decimal", () => {
+    const { ticks } = niceScale(39.2, 40.9);
+    expect(new Set(ticks).size).toBe(ticks.length);
+    expect(ticks).toContain(39.5);
+  });
+});

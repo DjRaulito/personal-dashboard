@@ -2,13 +2,18 @@
 
 import { clsx } from "clsx";
 import { Check, ExternalLink, Star, X } from "lucide-react";
-import { fieldRoles, formatValue, lastChange, valueSeries, type ItemStatus, type TaskField } from "@/lib/tasks/fields";
+import {
+  fieldRoles,
+  formatValue,
+  lastChange,
+  shortDate,
+  valueSeries,
+  type ItemStatus,
+  type TaskField,
+} from "@/lib/tasks/fields";
 import type { TaskItem } from "@/lib/tasks/server";
 
 // Cómo se pinta cada resultado de una tarea: tarjeta, fila de tabla o agrupado por día, y su detalle.
-
-export const shortDate = (iso: string) =>
-  new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "Europe/Madrid" }).format(new Date(iso));
 
 const DAY_MS = 86_400_000;
 

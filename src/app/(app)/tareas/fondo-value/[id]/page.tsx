@@ -4,7 +4,7 @@ import { ExternalLink } from "lucide-react";
 import { FUND_BASE, signTone, Stat } from "@/components/tasks/fund-views";
 import { MarkSeen } from "@/components/tasks/mark-seen";
 import { PriceChart, type PriceLevel } from "@/components/tasks/price-chart";
-import { shortDate } from "@/components/tasks/task-items";
+import { shortDate } from "@/lib/tasks/fields";
 import { BackLink, Tile, TileTitle } from "@/components/ui";
 import { yahooDailyCloses } from "@/lib/investments/yahoo";
 import {
@@ -249,8 +249,8 @@ export default async function FundPositionPage({ params }: Params) {
             <p className="text-muted mt-3 text-sm">Sin notas todavía.</p>
           ) : (
             <ol className="mt-3 flex flex-col">
-              {notes.map((n) => (
-                <li key={n.at} className="border-border border-t py-2.5 text-sm first:border-t-0">
+              {notes.map((n, i) => (
+                <li key={`${n.at}-${i}`} className="border-border border-t py-2.5 text-sm first:border-t-0">
                   <time className="text-muted text-xs" dateTime={n.at}>
                     {shortDate(n.at)}
                   </time>

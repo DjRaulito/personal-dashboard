@@ -11,7 +11,9 @@ export function niceScale(min: number, max: number, targetTicks = 4): { min: num
   const lo = Math.floor(min / step) * step;
   const hi = Math.ceil(max / step) * step;
   const ticks: number[] = [];
-  for (let v = lo; v <= hi + step / 2; v += step) ticks.push(Math.round(v));
+  // Redondea a la precisión del paso (no a enteros): con precios pequeños el paso puede ser 0,5.
+  const decimals = Math.max(0, Math.ceil(-Math.log10(step)) + 1);
+  for (let v = lo; v <= hi + step / 2; v += step) ticks.push(Number(v.toFixed(decimals)));
   return { min: lo, max: hi, ticks };
 }
 
