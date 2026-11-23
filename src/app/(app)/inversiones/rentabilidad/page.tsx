@@ -105,7 +105,7 @@ export default async function ReturnsPage() {
         <Tile className="lg:col-span-3">
           <TileTitle>Por años</TileTitle>
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[480px] text-sm tabular-nums">
+            <table className="w-full min-w-[600px] text-sm tabular-nums">
               <thead>
                 <tr className="text-muted text-xs">
                   <th scope="col" className="py-2 text-left font-medium">
@@ -119,6 +119,9 @@ export default async function ReturnsPage() {
                   </th>
                   <th scope="col" className="py-2 text-right font-medium">
                     Aportado
+                  </th>
+                  <th scope="col" className="py-2 text-right font-medium">
+                    Plusvalías realizadas
                   </th>
                   <th scope="col" className="py-2 text-right font-medium">
                     Dividendos
@@ -136,12 +139,17 @@ export default async function ReturnsPage() {
                     </td>
                     <td className="py-2.5 text-right">{eur(y.pnlEur, true)}</td>
                     <td className="text-muted py-2.5 text-right">{eur(y.contributedEur, true)}</td>
+                    <td className={clsx("py-2.5 text-right", trendClass(y.realizedEur))}>{eur(y.realizedEur, true)}</td>
                     <td className="text-muted py-2.5 text-right">{eur(y.dividendsEur)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <p className="text-muted mt-3 text-xs">
+            Plusvalías realizadas con FIFO (como Hacienda). Los traspasos entre fondos cuentan aquí como venta, aunque
+            fiscalmente no tributan.
+          </p>
         </Tile>
         <Tile className="lg:col-span-2">
           <TileTitle>Ganancia o pérdida diaria</TileTitle>

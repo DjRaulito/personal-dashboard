@@ -1,3 +1,4 @@
+import { clsx } from "clsx";
 import Link from "next/link";
 import { niceScale, toPercent } from "@/lib/finance/chart-scale";
 import { formatCents, formatCentsCompact } from "@/lib/finance/money";
@@ -89,7 +90,7 @@ export function CashflowChart({
       <div className="flex gap-2">
         <div
           aria-hidden="true"
-          className="text-muted relative w-14 shrink-0 text-right text-[11px] whitespace-nowrap tabular-nums"
+          className="text-muted relative w-11 shrink-0 text-right text-[11px] whitespace-nowrap tabular-nums sm:w-14"
         >
           {scale.ticks.map((t) => (
             <span
@@ -116,7 +117,7 @@ export function CashflowChart({
                 key={d.month}
                 tabIndex={0}
                 aria-label={`${monthLong(d.month)}: ingresos ${formatCents(d.income, currency)}, gastos ${formatCents(d.expense, currency)}`}
-                className="group hover:bg-surface-2/60 focus-visible:bg-surface-2/60 relative flex flex-1 items-end justify-center gap-[2px] rounded-md outline-none"
+                className="group hover:bg-surface-2/60 focus-visible:bg-surface-2/60 relative flex min-w-0 flex-1 items-end justify-center gap-px rounded-md px-[3px] outline-none sm:gap-[2px] sm:px-1"
               >
                 <span
                   className="bg-finance block w-full max-w-3 rounded-t-[4px]"
@@ -152,9 +153,13 @@ export function CashflowChart({
           </ul>
         </div>
       </div>
-      <div aria-hidden="true" className="text-muted mt-2 ml-16 flex text-[11px]">
-        {data.map((d) => (
-          <span key={d.month} className="flex-1 text-center">
+      {/* En móvil no caben 13 meses: se rotula uno de cada dos, contando desde el último */}
+      <div aria-hidden="true" className="text-muted mt-2 ml-[52px] flex text-[11px] sm:ml-16">
+        {data.map((d, i) => (
+          <span
+            key={d.month}
+            className={clsx("min-w-0 flex-1 text-center", (data.length - 1 - i) % 2 === 1 && "invisible sm:visible")}
+          >
             {monthShort(d.month)}
           </span>
         ))}
