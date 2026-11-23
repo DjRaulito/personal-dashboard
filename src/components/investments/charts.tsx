@@ -196,6 +196,8 @@ export function DailyPnlChart({ points }: { points: { date: string; pnl: number 
   );
 }
 
+const pct = (share: number) => `${Math.round(share * 100)} %`;
+
 /** Reparto en una barra segmentada (como mucho 4 partes + leyenda). */
 export function AllocationBar({ parts }: { parts: { label: string; value: number; className: string }[] }) {
   const total = parts.reduce((s, p) => s + p.value, 0);
@@ -205,7 +207,7 @@ export function AllocationBar({ parts }: { parts: { label: string; value: number
       <div
         className="flex h-7 gap-[2px] overflow-hidden"
         role="img"
-        aria-label={parts.map((p) => `${p.label} ${Math.round((p.value / total) * 100)} %`).join(", ")}
+        aria-label={parts.map((p) => `${p.label} ${pct(p.value / total)}`).join(", ")}
       >
         {parts
           .filter((p) => p.value > 0)
@@ -214,22 +216,25 @@ export function AllocationBar({ parts }: { parts: { label: string; value: number
             return (
               <span
                 key={p.label}
-                className={`${p.className} text-ink flex items-center rounded-[4px] px-2 text-xs font-semibold`}
+                className={`${p.className} text-ink flex min-w-0 items-center overflow-hidden rounded-[4px] px-1.5 text-xs font-semibold whitespace-nowrap`}
                 style={{ width: `${share * 100}%` }}
-                title={`${p.label}: ${eur(p.value)} (${Math.round(share * 100)} %)`}
+                title={`${p.label}: ${eur(p.value)} (${pct(share)})`}
               >
-                {share > 0.12 ? `${Math.round(share * 100)} %` : ""}
+                {/* En móvil la barra es estrecha: el % solo cabe en los tramos grandes; siempre está en la leyenda */}
+                {share >= 0.2 ? pct(share) : ""}
               </span>
             );
           })}
       </div>
-      <ul className="text-muted mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+      <ul className="mt-3 flex flex-col gap-1.5 text-sm sm:flex-row sm:flex-wrap sm:gap-x-4 sm:gap-y-1">
         {parts
           .filter((p) => p.value > 0)
           .map((p) => (
-            <li key={p.label} className="flex items-center gap-2">
-              <span aria-hidden="true" className={`inline-block h-2.5 w-2.5 rounded-[3px] ${p.className}`} />
-              {p.label} <span className="text-text tabular-nums">{eur(p.value)}</span>
+            <li key={p.label} className="text-muted flex items-center gap-2">
+              <span aria-hidden="true" className={`inline-block h-2.5 w-2.5 shrink-0 rounded-[3px] ${p.className}`} />
+              <span className="min-w-0 truncate">{p.label}</span>
+              <span className="text-text ml-auto tabular-nums sm:ml-0">{eur(p.value)}</span>
+              <span className="w-11 text-right tabular-nums sm:w-auto">{pct(p.value / total)}</span>
             </li>
           ))}
       </ul>
