@@ -5,13 +5,7 @@ import { clsx } from "clsx";
 import { ChevronDown, LayoutList, Rows3 } from "lucide-react";
 import { FoodActions } from "@/components/nutrition/forms";
 import { EmptyState, inputClass } from "@/components/ui";
-import {
-  dominantMacro,
-  FOOD_CATEGORIES,
-  FOOD_CATEGORY_LABELS,
-  type Food,
-  type FoodCategory,
-} from "@/lib/nutrition/portions";
+import { dominantMacro, FOOD_CATEGORIES, FOOD_CATEGORY_LABELS, type Food } from "@/lib/nutrition/portions";
 
 type MacroKey = "protein_g" | "carbs_g" | "fat_g";
 type SortKey = "name" | "kcal" | MacroKey;
@@ -94,21 +88,36 @@ function FoodRow({
 }
 
 /** Lista de alimentos: macros por 100 g de un vistazo, con filtros y vista en lista o por apartados. */
-export function FoodBrowser({ foods }: { foods: Food[] }) {
+export function FoodBrowser({
+  foods,
+  meals,
+}: {
+  foods: Food[];
+  /** Comidas del plan activo con los alimentos que admite cada una. */
+  meals: { id: string; name: string; foodIds: string[] }[];
+}) {
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<FoodCategory | null>(null);
+  const [meal, setMeal] = useState<string | null>(null);
   const [macro, setMacro] = useState<MacroKey | null>(null);
   const [sort, setSort] = useState<SortKey>("name");
   const [view, setView] = useState<"list" | "sections">("sections");
   const byId = useMemo(() => new Map(foods.map((f) => [f.id, f])), [foods]);
   const rawFoods = useMemo(() => foods.filter((f) => !f.cooked_from).map((f) => ({ id: f.id, name: f.name })), [foods]);
 
+  // Una comida admite sus alimentos y también sus versiones cocidas
+  const mealFoods = useMemo(() => {
+    const ids = meals.find((m) => m.id === meal)?.foodIds;
+    if (!ids) return null;
+    const set = new Set(ids);
+    return new Set(foods.filter((f) => set.has(f.id) || (f.cooked_from && set.has(f.cooked_from))).map((f) => f.id));
+  }, [foods, meals, meal]);
+
   const shown = useMemo(() => {
     const q = norm(query.trim());
     const list = foods.filter(
       (f) =>
         (!q || norm(f.name).includes(q)) &&
-        (!category || (f.category ?? "other") === category) &&
+        (!mealFoods || mealFoods.has(f.id)) &&
         (!macro || dominantMacro(f) === macro),
     );
     return list.sort((a, b) =>
@@ -118,7 +127,7 @@ export function FoodBrowser({ foods }: { foods: Food[] }) {
           ? a.kcal - b.kcal
           : b[sort] - a[sort] || a.name.localeCompare(b.name, "es"),
     );
-  }, [foods, query, category, macro, sort]);
+  }, [foods, query, mealFoods, macro, sort]);
 
   const sections =
     view === "sections"
@@ -183,6 +192,28 @@ export function FoodBrowser({ foods }: { foods: Food[] }) {
             ))}
           </div>
         </div>
+        {meals.length > 0 && (
+          <div
+            role="group"
+            aria-label="Comida"
+            className="-mx-4 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0"
+          >
+            <button type="button" aria-pressed={!meal} className={pill(!meal)} onClick={() => setMeal(null)}>
+              Todas las comidas
+            </button>
+            {meals.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                aria-pressed={meal === m.id}
+                className={pill(meal === m.id)}
+                onClick={() => setMeal(meal === m.id ? null : m.id)}
+              >
+                {m.name}
+              </button>
+            ))}
+          </div>
+        )}
         <div
           role="group"
           aria-label="Macro principal"
@@ -200,26 +231,6 @@ export function FoodBrowser({ foods }: { foods: Food[] }) {
               onClick={() => setMacro(macro === m.key ? null : m.key)}
             >
               Sobre todo {m.label.toLowerCase()}
-            </button>
-          ))}
-        </div>
-        <div
-          role="group"
-          aria-label="Apartado"
-          className="-mx-4 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0"
-        >
-          <button type="button" aria-pressed={!category} className={pill(!category)} onClick={() => setCategory(null)}>
-            Todos
-          </button>
-          {FOOD_CATEGORIES.filter((c) => foods.some((f) => (f.category ?? "other") === c)).map((c) => (
-            <button
-              key={c}
-              type="button"
-              aria-pressed={category === c}
-              className={pill(category === c)}
-              onClick={() => setCategory(category === c ? null : c)}
-            >
-              {FOOD_CATEGORY_LABELS[c]}
             </button>
           ))}
         </div>

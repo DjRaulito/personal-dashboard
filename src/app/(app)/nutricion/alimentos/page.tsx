@@ -3,16 +3,20 @@ import { FoodBrowser } from "@/components/nutrition/food-browser";
 import { FoodForm } from "@/components/nutrition/forms";
 import { LoadCatalogButton } from "@/components/nutrition/setup";
 import { Tile } from "@/components/ui";
-import { getFoods } from "@/lib/nutrition/server";
+import { getActivePlan, getFoods } from "@/lib/nutrition/server";
 
 export const metadata: Metadata = { title: "Alimentos · Nutrición" };
 
 export default async function FoodsPage() {
-  const foods = await getFoods();
+  const [foods, plan] = await Promise.all([getFoods(), getActivePlan()]);
+  // Alimentos de cada comida del plan activo (para filtrar por comida)
+  const meals = (plan?.meals ?? [])
+    .map((m) => ({ id: m.id, name: m.name, foodIds: m.groups.flatMap((g) => g.options.map((o) => o.food_id)) }))
+    .filter((m) => m.foodIds.length > 0);
   const rawFoods = foods.filter((f) => !f.cooked_from).map((f) => ({ id: f.id, name: f.name }));
   return (
     <>
-      <FoodBrowser foods={foods} />
+      <FoodBrowser foods={foods} meals={meals} />
       <Tile>
         <details>
           <summary className="flex cursor-pointer list-none items-center gap-3 font-semibold">
