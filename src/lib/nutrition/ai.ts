@@ -12,35 +12,84 @@ const num = (max: number) => z.coerce.number().min(0).max(max);
 // Estimación de un cheat meal
 // ---------------------------------------------------------------------------
 
-export const cheatEstimateSchema = z.object({
-  kcal: num(20000),
-  protein_g: num(2000),
-  carbs_g: num(2000),
-  fat_g: num(2000),
+// La IA desglosa plato a plato (gramos y macros de cada uno) y la app suma: pedir solo el total
+// hacía que devolviera cifras redondas parecidas (p. ej. 1700) para comidas muy distintas.
+const cheatItemSchema = z.object({
+  name: z.string().max(120),
+  grams: num(5000),
+  kcal: num(10000).optional(),
+  protein_g: num(1000),
+  carbs_g: num(1000),
+  fat_g: num(1000),
+});
+
+const cheatRawSchema = z.object({
+  items: z.array(cheatItemSchema).max(30).optional(),
+  kcal: num(20000).optional(),
+  protein_g: num(2000).optional(),
+  carbs_g: num(2000).optional(),
+  fat_g: num(2000).optional(),
   notes: z.string().max(1000).optional().default(""),
 });
+
+const round = (v: number) => Math.round(v);
+/** Kcal de unos macros (Atwater: 4 / 4 / 9). */
+const kcalOf = (m: { protein_g: number; carbs_g: number; fat_g: number }) =>
+  m.protein_g * 4 + m.carbs_g * 4 + m.fat_g * 9;
+
+function cheatTotals(raw: z.infer<typeof cheatRawSchema>) {
+  const items = raw.items ?? [];
+  if (items.length === 0) {
+    const m = { protein_g: raw.protein_g ?? 0, carbs_g: raw.carbs_g ?? 0, fat_g: raw.fat_g ?? 0 };
+    return { kcal: round(raw.kcal ?? kcalOf(m)), ...m, notes: raw.notes };
+  }
+  const sum = (k: "protein_g" | "carbs_g" | "fat_g") => round(items.reduce((s, i) => s + i[k], 0));
+  const macros = { protein_g: sum("protein_g"), carbs_g: sum("carbs_g"), fat_g: sum("fat_g") };
+  // Kcal de cada plato: la de la IA si es coherente con sus macros; si no, la de los macros
+  const kcal = round(
+    items.reduce((s, i) => {
+      const fromMacros = kcalOf(i);
+      return s + (i.kcal && Math.abs(i.kcal - fromMacros) <= fromMacros * 0.15 ? i.kcal : fromMacros);
+    }, 0),
+  );
+  const breakdown = items.map((i) => `${i.name} (${round(i.grams)} g)`).join(", ");
+  const notes = [breakdown, raw.notes].filter(Boolean).join(". ").slice(0, 1000);
+  return { kcal, ...macros, notes };
+}
+
+export const cheatEstimateSchema = cheatRawSchema.transform(cheatTotals);
 export type CheatEstimate = z.infer<typeof cheatEstimateSchema>;
+
+const ITEMS_FORMAT =
+  '"items": [{"name": "plato o alimento", "grams": peso de la ración en gramos, "kcal": n, "protein_g": n, "carbs_g": n, "fat_g": n}]';
+const ITEMS_RULES = [
+  "Desglosa la comida en cada plato, bebida, salsa y postre por separado, con su peso en gramos y los macros de ESA cantidad.",
+  "Respeta las cantidades que se indiquen (unidades, tamaños, si era abundante o con más azúcar o aceite de lo normal).",
+  "No redondees a cifras redondas: calcula cada plato con tablas reales (BEDCA, cartas de las cadenas si se nombran).",
+];
 
 export function cheatPrompt(description: string): string {
   return [
-    "Estima las calorías y macros totales de esta comida libre (cheat meal).",
+    "Estima las calorías y macros de esta comida libre (cheat meal).",
+    ...ITEMS_RULES,
     "Si no se indican cantidades, asume raciones normales de restaurante en España.",
-    'Devuelve: {"kcal": número, "protein_g": número, "carbs_g": número, "fat_g": número, "notes": "qué has supuesto, en una frase"}',
+    `Devuelve: {${ITEMS_FORMAT}, "notes": "qué has supuesto, en una frase"}`,
     `Comida: """${description.slice(0, 1000)}"""`,
   ].join("\n");
 }
 
-export const cheatPhotoSchema = cheatEstimateSchema.extend({
-  description: z.string().max(300).optional().default(""),
-});
+export const cheatPhotoSchema = cheatRawSchema
+  .extend({ description: z.string().max(300).optional().default("") })
+  .transform((raw) => ({ ...cheatTotals(raw), description: raw.description }));
 export type CheatPhotoEstimate = z.infer<typeof cheatPhotoSchema>;
 
 export function cheatPhotoPrompt(hint: string): string {
   return [
-    "Mira la foto del plato y estima las calorías y macros totales de lo que se ve.",
+    "Mira la foto del plato y estima las calorías y macros de lo que se ve.",
     "Calcula el tamaño de las raciones por el plato, los cubiertos y el envase. Si hay varias personas, cuenta solo una ración.",
+    ...ITEMS_RULES,
     hint ? `Detalles que da el usuario: """${hint.slice(0, 500)}"""` : "",
-    'Devuelve: {"description": "qué comida es, en pocas palabras", "kcal": número, "protein_g": número, "carbs_g": número, "fat_g": número, "notes": "qué has supuesto, en una frase"}',
+    `Devuelve: {"description": "qué comida es, en pocas palabras", ${ITEMS_FORMAT}, "notes": "qué has supuesto, en una frase"}`,
   ]
     .filter(Boolean)
     .join("\n");

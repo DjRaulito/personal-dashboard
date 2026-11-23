@@ -122,6 +122,19 @@ describe("IA de nutrición", () => {
     });
   });
 
+  it("suma el desglose por platos y corrige kcal incoherentes con los macros", () => {
+    const out = cheatEstimateSchema.parse({
+      items: [
+        { name: "Canelones", grams: "450", kcal: 720, protein_g: 33, carbs_g: 63, fat_g: 36 },
+        // 1000 kcal no cuadra con 10/10/10 g (170 kcal): se usa la de los macros
+        { name: "Refresco", grams: 330, kcal: 1000, protein_g: 10, carbs_g: 10, fat_g: 10 },
+      ],
+      notes: "Ración grande",
+    });
+    expect(out).toMatchObject({ kcal: 890, protein_g: 43, carbs_g: 73, fat_g: 46 });
+    expect(out.notes).toBe("Canelones (450 g), Refresco (330 g). Ración grande");
+  });
+
   it("respeta los alimentos obligatorios y el máximo por grupo aunque la IA no lo haga", () => {
     const suggestion = mealSuggestionSchema.parse({
       proposals: [
