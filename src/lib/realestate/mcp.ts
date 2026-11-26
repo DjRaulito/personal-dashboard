@@ -32,8 +32,8 @@ export const PROPERTY_TOOLS = [
   {
     name: "get_search_context",
     description:
-      "Devuelve los criterios de búsqueda (zonas por prioridad, rango de precio, capital propio máximo, " +
-      "rentabilidad bruta objetivo, notas) y los anuncios ya guardados (URL, precio, estado). Llámala al " +
+      "Devuelve los criterios de búsqueda (zonas por prioridad, rango de precio, " +
+      "aportación máxima, ROI con apalancamiento objetivo, rentabilidad bruta, notas) y los anuncios ya guardados (URL, precio, estado). Llámala al " +
       "principio: no repitas anuncios conocidos salvo para actualizarlos (precio, si sigue activo).",
     inputSchema: { type: "object", properties: {} },
   },
@@ -45,9 +45,12 @@ export const PROPERTY_TOOLS = [
       "reform_cost y furnishing_cost estimados para dejarlo listo para alquilar. rent_cap es la renta máxima " +
       "legal si la zona está tensionada (índice de referencia), no la anunciada. rent_comparables y " +
       "sale_comparables: anuncios reales con su enlace. scores (0–10): demand = facilidad de alquilar, " +
-      "appreciation = revalorización, safety = seguridad jurídica, técnica y de liquidez. provenance marca " +
+      "appreciation = potencial de revalorización, safety = seguridad jurídica, técnica y de liquidez. provenance marca " +
       "cada dato como verificado, anunciante o estimado. target_price solo si hay evidencia para negociar " +
-      "(negotiation_evidence). pending: lo que falta validar. No inventes datos: si no lo sabes, omítelo.",
+      "(negotiation_evidence). pending: lo que falta validar. Manda siempre rent.conservative (renta legal: " +
+      "índice o renta anterior) y rent.base: sin renta el dashboard no puede calcular nada. appreciation: " +
+      "revalorización anual de la zona en % (conservadora, base, optimista) con su fuente. No inventes datos: " +
+      "si no lo sabes, omítelo.",
     inputSchema: inputJsonSchema(listingInputSchema),
   },
   {
@@ -80,7 +83,9 @@ function contextForAgent(raw: Record<string, unknown>) {
       zones_by_priority: parseZones(c.zones),
       price_range_eur: [c.price_min_eur, c.price_max_eur],
       price_exceptional_max_eur: c.price_exceptional_eur,
-      max_equity_eur: c.max_equity_eur,
+      max_contribution_eur: c.max_equity_eur,
+      contribution_rule: "aportación = entrada + ITP",
+      leveraged_roi_pct: { opportunity: c.roi_opportunity_pct, option: c.roi_option_pct },
       gross_yield_pct: { minimum: c.gross_min_pct, target: c.gross_target_pct },
       notes: c.notes,
     },

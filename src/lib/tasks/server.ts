@@ -84,6 +84,7 @@ export async function getTasks(): Promise<TaskSummary[]> {
         .from("property_listings")
         .select("id", { count: "exact", head: true })
         .eq("status", "nuevo")
+        .is("seen_at", null)
         .is("removed_at", null),
     ]);
   const lastRun = new Map<string, TaskSummary["lastRun"]>();

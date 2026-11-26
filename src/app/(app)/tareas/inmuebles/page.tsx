@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { clsx } from "clsx";
 import { date, dateTime, eur, num, pct, tone, VERDICT_TONE } from "@/components/properties/format";
+import { MarkAllSeenButton } from "@/components/tasks/mark-all-seen";
 import { buttonClass, EmptyState, inputClass, Tile, TileTitle } from "@/components/ui";
-import { VERDICT_LABELS } from "@/lib/realestate/engine";
+import { ROI_CLASS_LABELS, VERDICT_LABELS, type RoiClass } from "@/lib/realestate/engine";
 import { CONDITION_LABELS, STATUS_LABELS, STATUSES } from "@/lib/realestate/schemas";
 import { getProperties } from "@/lib/realestate/server";
 import {
@@ -30,6 +31,7 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
   const list = filterListings(all, filters);
   const summary = summarize(all, data.runs);
   const table = sp.vista === "tabla";
+  const unread = all.filter((l) => l.status === "nuevo" && !l.seen && l.listingState !== "retirado").length;
 
   if (all.length === 0) {
     return (
@@ -70,7 +72,8 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
             </p>
             <p className="mt-3 truncate font-semibold">{placeOf(best)}</p>
             <p className="mt-1 text-sm font-medium tabular-nums">
-              {eur(best.price)} · bruta {pct(best.ev.base?.grossYield)} · {eur(best.ev.base?.cashflowMonth, true)}/mes
+              {eur(best.price)} · ROI {pct(best.ev.conservative?.leveragedRoi)} · bruta{" "}
+              {pct(best.ev.conservative?.grossYield)} · {eur(best.ev.conservative?.cashflowMonth, true)}/mes
             </p>
           </Link>
         ) : (
@@ -80,10 +83,15 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
           </Tile>
         )}
         <Tile>
-          <p className="text-muted text-sm">Cumplen tus criterios</p>
+          <p className="text-muted text-sm">Oportunidades · opciones</p>
           <p className="font-display mt-3 text-4xl font-extrabold tabular-nums">
-            {summary.meeting}
+            {summary.opportunities}
+            <span className="text-muted text-lg font-bold"> · {summary.options}</span>
             <span className="text-muted text-lg font-bold"> de {summary.active}</span>
+          </p>
+          <p className="text-muted mt-1 text-sm">
+            ROI ≥ {num(data.settings.criteria.roi_opportunity_pct, 1)} % / ≥{" "}
+            {num(data.settings.criteria.roi_option_pct, 1)} % · {summary.meeting} cumplen todo
           </p>
           <p className="text-muted mt-1 text-sm">
             {summary.newToday} nuevos hoy · {summary.priceDrops} con rebaja
@@ -110,7 +118,7 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
         </p>
       )}
 
-      {(summary.bestCashflow || summary.bestCashOnCash) && (
+      {(summary.bestCashflow || summary.bestRoi) && (
         <ul className="flex flex-wrap gap-2 text-sm">
           {summary.bestCashflow && (
             <li>
@@ -119,19 +127,18 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
                 className="bg-surface-2 hover:bg-border rounded-full px-3 py-1"
               >
                 Mejor cash flow: {placeOf(summary.bestCashflow)} (
-                {eur(summary.bestCashflow.ev.base?.cashflowMonth, true)}
+                {eur(summary.bestCashflow.ev.conservative?.cashflowMonth, true)}
                 /mes)
               </Link>
             </li>
           )}
-          {summary.bestCashOnCash && (
+          {summary.bestRoi && (
             <li>
               <Link
-                href={`${PAGE}/${summary.bestCashOnCash.id}`}
+                href={`${PAGE}/${summary.bestRoi.id}`}
                 className="bg-surface-2 hover:bg-border rounded-full px-3 py-1"
               >
-                Mejor cash-on-cash: {placeOf(summary.bestCashOnCash)} ({pct(summary.bestCashOnCash.ev.base?.cashOnCash)}
-                )
+                Mejor ROI: {placeOf(summary.bestRoi)} ({pct(summary.bestRoi.ev.conservative?.leveragedRoi)})
               </Link>
             </li>
           )}
@@ -171,7 +178,7 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
                 defaultChecked={filters.onlyMeeting}
                 className="accent-finance h-4 w-4"
               />
-              Solo los que cumplen
+              Solo los que cumplen todo
             </label>
             <button type="submit" className={buttonClass.secondary}>
               Filtrar
@@ -193,6 +200,7 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
                 </Link>
               ))}
             </nav>
+            <MarkAllSeenButton slug="inmuebles" count={unread} />
             <Link href={`${PAGE}/ajustes`} className={buttonClass.secondary}>
               Criterios y conexión
             </Link>
@@ -210,7 +218,12 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
         <ul className="grid gap-3.5 lg:grid-cols-2">
           {list.map((l, i) => (
             <li key={l.id}>
-              <ListingCard l={l} rank={i + 1} grossMin={data.settings.criteria.gross_min_pct} />
+              <ListingCard
+                l={l}
+                rank={i + 1}
+                grossMin={data.settings.criteria.gross_min_pct}
+                maxContribution={data.settings.criteria.max_equity_eur * 100}
+              />
             </li>
           ))}
         </ul>
@@ -221,12 +234,26 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
 
 const placeOf = (l: EvaluatedListing) => [l.neighborhood, l.municipality].filter(Boolean).join(", ");
 
+const CLASS_TONE: Record<RoiClass, string> = {
+  oportunidad: "bg-finance text-ink",
+  opcion: "bg-surface-2 text-finance",
+  fuera: "bg-surface-2 text-muted",
+};
+
 function Badges({ l }: { l: EvaluatedListing }) {
   const v = VERDICT_TONE[l.ev.verdict];
   return (
     <div className="flex flex-wrap gap-1.5 text-xs font-medium">
+      {l.ev.roiClass && l.ev.roiClass !== "fuera" && (
+        <span className={clsx("rounded-full px-2.5 py-0.5", CLASS_TONE[l.ev.roiClass])}>
+          {ROI_CLASS_LABELS[l.ev.roiClass]}
+        </span>
+      )}
       <span className={clsx("bg-surface-2 rounded-full px-2.5 py-0.5", v.text)}>{VERDICT_LABELS[l.ev.verdict]}</span>
       {l.isNew && <span className="bg-selected text-on-selected rounded-full px-2.5 py-0.5">Nuevo hoy</span>}
+      {!l.seen && !l.isNew && l.status === "nuevo" && (
+        <span className="bg-selected text-on-selected rounded-full px-2.5 py-0.5">Sin ver</span>
+      )}
       {l.change && l.change.amount < 0 && (
         <span className="bg-surface-2 text-finance rounded-full px-2.5 py-0.5 tabular-nums">
           Rebaja {pct(l.change.pct, 0)}
@@ -245,18 +272,37 @@ function Badges({ l }: { l: EvaluatedListing }) {
   );
 }
 
-function ListingCard({ l, rank, grossMin }: { l: EvaluatedListing; rank: number; grossMin: number }) {
-  const b = l.ev.base;
+function ListingCard({
+  l,
+  rank,
+  grossMin,
+  maxContribution,
+}: {
+  l: EvaluatedListing;
+  rank: number;
+  grossMin: number;
+  maxContribution: number;
+}) {
+  // Todo con renta conservadora: es la que clasifica
+  const b = l.ev.conservative;
   const target = l.ev.purchasePrice !== l.price ? l.ev.purchasePrice : null;
   const stats: { label: string; value: string; className?: string }[] = [
+    {
+      label: "ROI apalancado",
+      value: pct(b?.leveragedRoi),
+      className: l.ev.roiClass === "fuera" ? "text-expense" : l.ev.roiClass ? "text-finance" : undefined,
+    },
     {
       label: "Bruta",
       value: pct(b?.grossYield),
       className: b && b.grossYield * 100 >= grossMin ? "text-finance" : undefined,
     },
     { label: "Cash flow", value: b ? `${eur(b.cashflowMonth, true)}/mes` : "—", className: tone(b?.cashflowMonth) },
-    { label: "Cash-on-cash", value: pct(b?.cashOnCash), className: tone(b?.cashOnCash) },
-    { label: "Capital propio", value: eur(b?.equity) },
+    {
+      label: "Aportación",
+      value: eur(b?.contribution),
+      className: b && b.contribution > maxContribution ? "text-expense" : undefined,
+    },
   ];
   return (
     <Link
@@ -300,7 +346,10 @@ function ListingCard({ l, rank, grossMin }: { l: EvaluatedListing; rank: number;
           {pct(l.ev.discountNeeded / l.price, 0)}).
         </p>
       )}
-      <p className="text-muted mt-auto text-xs">Visto por primera vez el {date(l.firstSeenAt)}</p>
+      <p className="text-muted mt-auto text-xs">
+        Renta conservadora{b ? ` ${eur(b.rent)}/mes` : ""} · caja total {eur(b?.equity)} · visto por primera vez el{" "}
+        {date(l.firstSeenAt)}
+      </p>
     </Link>
   );
 }
@@ -318,12 +367,16 @@ function ListingTable({ list }: { list: EvaluatedListing[] }) {
     "Estado",
     "Alquiler cons. / base",
     "Bruta",
-    "Neta",
-    "Capital",
+    "ROI apal. cons. / base",
+    "ROI sin apal.",
+    "Reval. base / ROI total",
+    "Aportación",
+    "Caja total",
     "Cuota",
-    "Cash flow/mes",
-    "CoC",
+    "CF/mes",
+    "CF al estrés",
     "Precio máx.",
+    "Clase",
     "Puntos",
     "Confianza",
     "Veredicto",
@@ -331,8 +384,8 @@ function ListingTable({ list }: { list: EvaluatedListing[] }) {
   return (
     <Tile className="p-0 sm:p-0">
       <div className="relative overflow-x-auto p-4 sm:p-6">
-        <table className="w-full min-w-[1500px] text-sm">
-          <caption className="sr-only">Ranking de pisos con sus números</caption>
+        <table className="w-full min-w-[1800px] text-sm">
+          <caption className="sr-only">Ranking de pisos con sus números (renta conservadora)</caption>
           <thead className="text-muted text-left">
             <tr>
               {head.map((h, i) => (
@@ -344,8 +397,9 @@ function ListingTable({ list }: { list: EvaluatedListing[] }) {
           </thead>
           <tbody>
             {list.map((l, i) => {
-              const b = l.ev.base;
+              const b = l.ev.conservative;
               const rent = l.data.rent;
+              const appr = l.ev.appreciation?.base;
               return (
                 <tr key={l.id} className="border-border border-t tabular-nums">
                   <td className="text-muted py-2.5 pr-3">{i + 1}</td>
@@ -376,14 +430,24 @@ function ListingTable({ list }: { list: EvaluatedListing[] }) {
                     {eur(rent.conservative)} / {eur(rent.base)}
                   </td>
                   <td className="py-2.5 pr-3 text-right">{pct(b?.grossYield)}</td>
-                  <td className="py-2.5 pr-3 text-right">{pct(b?.netYield)}</td>
+                  <td className="py-2.5 pr-3 text-right">
+                    {pct(b?.leveragedRoi)} / {pct(l.ev.base?.leveragedRoi)}
+                  </td>
+                  <td className="py-2.5 pr-3 text-right">{pct(b?.unleveragedRoi)}</td>
+                  <td className="py-2.5 pr-3 text-right">
+                    {appr ? `${eur(appr.yearly)} / ${pct(appr.totalRoi)}` : "—"}
+                  </td>
+                  <td className="py-2.5 pr-3 text-right">{eur(b?.contribution)}</td>
                   <td className="py-2.5 pr-3 text-right">{eur(b?.equity)}</td>
                   <td className="py-2.5 pr-3 text-right">{eur(b?.payment)}</td>
                   <td className={clsx("py-2.5 pr-3 text-right", tone(b?.cashflowMonth))}>
                     {eur(b?.cashflowMonth, true)}
                   </td>
-                  <td className={clsx("py-2.5 pr-3 text-right", tone(b?.cashOnCash))}>{pct(b?.cashOnCash)}</td>
+                  <td className={clsx("py-2.5 pr-3 text-right", tone(l.ev.stressed?.cashflowMonth))}>
+                    {eur(l.ev.stressed?.cashflowMonth, true)}
+                  </td>
                   <td className="py-2.5 pr-3 text-right">{eur(l.ev.maxPrice?.max)}</td>
+                  <td className="py-2.5 pr-3 text-right">{l.ev.roiClass ? ROI_CLASS_LABELS[l.ev.roiClass] : "—"}</td>
                   <td className="py-2.5 pr-3 text-right font-semibold">{l.ev.score.total}</td>
                   <td className="py-2.5 pr-3 text-right capitalize">{l.confidence}</td>
                   <td className={clsx("py-2.5 text-right whitespace-nowrap", VERDICT_TONE[l.ev.verdict].text)}>

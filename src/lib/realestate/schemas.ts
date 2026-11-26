@@ -100,6 +100,15 @@ export const listingInputSchema = z.object({
     .default({}),
   rent_cap: euros(20_000).optional(),
   rent_cap_note: text(400).optional(),
+  appreciation: z
+    .object({
+      conservative: z.number().min(-20).max(30).optional(),
+      base: z.number().min(-20).max(30).optional(),
+      optimistic: z.number().min(-20).max(30).optional(),
+      source: text(400).optional(),
+    })
+    .optional()
+    .describe("Revalorización anual estimada de la zona en % (p. ej. 2 = 2 %), con la fuente"),
   rent_comparables: z.array(comparable).max(10).default([]),
   sale_comparables: z.array(comparable).max(10).default([]),
   market_price_sqm: euros(50_000).optional(),
@@ -148,6 +157,7 @@ export function toListingData(input: z.infer<typeof listingInputSchema>) {
     },
     rent_cap: cents(input.rent_cap),
     rent_cap_note: input.rent_cap_note,
+    appreciation: input.appreciation,
     rent_comparables: input.rent_comparables.map(comparableCents),
     sale_comparables: input.sale_comparables.map(comparableCents),
     market_price_sqm: cents(input.market_price_sqm),
@@ -189,6 +199,15 @@ export const listingDataSchema = z
     rent: z.object({ conservative: centsField, base: centsField, optimistic: centsField }).catch({}).default({}),
     rent_cap: centsField,
     rent_cap_note: z.string().optional(),
+    appreciation: z
+      .object({
+        conservative: z.number().optional(),
+        base: z.number().optional(),
+        optimistic: z.number().optional(),
+        source: z.string().optional(),
+      })
+      .optional()
+      .catch(undefined),
     rent_comparables: z.array(storedComparable).catch([]).default([]),
     sale_comparables: z.array(storedComparable).catch([]).default([]),
     market_price_sqm: centsField,
@@ -243,24 +262,30 @@ const pct = (max = 100) => z.coerce.number().min(0).max(max);
 export const assumptionsSchema = z.object({
   /** Impuesto de transmisiones patrimoniales (vivienda usada en Cataluña, editable). */
   itp_pct: pct(20).default(10),
-  /** Notaría, registro y gestoría sobre el precio. */
-  purchase_costs_pct: pct(10).default(1.5),
-  appraisal_eur: pct(5000).default(400),
+  /** Notaría, registro y gestoría sobre el precio (además del importe fijo). */
+  purchase_costs_pct: pct(10).default(0),
+  appraisal_eur: pct(20_000).default(3200),
   ltv_pct: pct(100).default(80),
   ltv_alt_pct: pct(100).default(70),
-  interest_pct: pct(15).default(3.2),
-  term_years: z.coerce.number().int().min(5).max(40).default(30),
+  interest_pct: pct(15).default(3.4),
+  term_years: z.coerce.number().int().min(5).max(40).default(25),
   reform_contingency_pct: pct(100).default(10),
   /** Cédula, certificado energético y altas. */
   setup_eur: pct(20_000).default(300),
-  vacancy_months: pct(12).default(1),
+  vacancy_months: pct(12).default(0.6),
   maintenance_pct: pct(30).default(5),
   management_pct: pct(30).default(0),
   /** Seguro de impago, sobre la renta anual. */
   default_insurance_pct: pct(15).default(4),
-  home_insurance_eur: pct(5000).default(250),
-  community_default_eur: pct(1000).default(60),
-  ibi_default_eur: pct(10_000).default(350),
+  home_insurance_eur: pct(5000).default(220),
+  community_default_eur: pct(1000).default(40),
+  ibi_default_eur: pct(10_000).default(375),
+  /** Tipo para la prueba de estrés del cash flow. */
+  stress_interest_pct: pct(15).default(4.5),
+  /** Revalorización anual si la tarea no trae una de la zona. */
+  appreciation_conservative_pct: pct(30).default(1),
+  appreciation_base_pct: pct(30).default(2),
+  appreciation_optimistic_pct: pct(30).default(3),
 });
 export type Assumptions = z.infer<typeof assumptionsSchema>;
 
@@ -277,13 +302,17 @@ export type Weights = z.infer<typeof weightsSchema>;
 export const criteriaSchema = z.object({
   /** Municipios en orden de prioridad, separados por comas. */
   zones: z.string().trim().max(1000).default(""),
-  price_min_eur: pct(5_000_000).default(150_000),
-  price_max_eur: pct(5_000_000).default(200_000),
+  price_min_eur: pct(5_000_000).default(100_000),
+  price_max_eur: pct(5_000_000).default(166_700),
   /** Tope excepcional: solo con margen de negociación demostrable. */
-  price_exceptional_eur: pct(5_000_000).default(230_000),
+  price_exceptional_eur: pct(5_000_000).default(170_000),
+  /** Aportación máxima: entrada + ITP. */
   max_equity_eur: pct(5_000_000).default(50_000),
-  gross_min_pct: pct(50).default(8),
-  gross_target_pct: pct(50).default(10),
+  gross_min_pct: pct(50).default(7),
+  gross_target_pct: pct(50).default(8),
+  /** ROI con apalancamiento (renta conservadora) para «oportunidad» y para «opción». */
+  roi_opportunity_pct: pct(100).default(10),
+  roi_option_pct: pct(100).default(8),
   notes: z.string().trim().max(2000).default(""),
   weights: weightsSchema.default(weightsSchema.parse({})),
 });

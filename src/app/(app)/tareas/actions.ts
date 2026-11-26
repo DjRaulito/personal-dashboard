@@ -28,6 +28,36 @@ export async function setItemStatus(id: string, status: string): Promise<void> {
   refresh();
 }
 
+/**
+ * Marca como leídos los resultados nuevos de una tarea (o de todas si no se indica).
+ * En el radar de inmuebles se marca `seen_at`, sin tocar el estado de decisión.
+ */
+export async function markAllSeen(slug?: string): Promise<void> {
+  const parsedSlug = z.string().trim().min(1).max(80).optional().parse(slug);
+  const supabase = await session();
+  const now = new Date().toISOString();
+  let taskId: string | null = null;
+  let properties = !parsedSlug;
+  if (parsedSlug) {
+    const { data } = await supabase
+      .from("scheduled_tasks")
+      .select("id, special_view")
+      .eq("slug", parsedSlug)
+      .maybeSingle();
+    if (!data) return;
+    if (data.special_view === "inmuebles") properties = true;
+    else taskId = data.id;
+  }
+  await Promise.all([
+    properties && supabase.from("property_listings").update({ seen_at: now }).is("seen_at", null),
+    (!parsedSlug || taskId) &&
+      (taskId
+        ? supabase.from("task_items").update({ status: "seen" }).eq("status", "new").eq("task_id", taskId)
+        : supabase.from("task_items").update({ status: "seen" }).eq("status", "new")),
+  ]);
+  refresh();
+}
+
 /** Criterios que lee la tarea (JSON libre que la IA recibe en get_task_context). */
 export async function saveCriteria(slug: string, json: string): Promise<{ ok: boolean; message: string }> {
   let criteria: unknown;

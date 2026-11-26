@@ -25,6 +25,7 @@ function record(overrides: Partial<ListingRecord> = {}): ListingRecord {
     first_seen_at: "2026-11-16T07:00:00Z",
     last_checked_at: "2026-11-16T07:00:00Z",
     removed_at: null,
+    seen_at: null,
     ...overrides,
   };
 }

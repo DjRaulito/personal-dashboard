@@ -5,7 +5,7 @@ import { settingsSchema, type PropertySettings } from "./schemas";
 import { toListing, type Listing, type RunInfo } from "./view";
 
 const LISTING_COLUMNS =
-  "id, url, source, title, municipality, neighborhood, price_cents, first_price_cents, sqm, rooms, confidence, listing_state, status, data, user_notes, discard_reason, first_seen_at, last_checked_at, removed_at";
+  "id, url, source, title, municipality, neighborhood, price_cents, first_price_cents, sqm, rooms, confidence, listing_state, status, data, user_notes, discard_reason, first_seen_at, last_checked_at, removed_at, seen_at";
 
 export async function getPropertySettings(): Promise<PropertySettings> {
   const supabase = await createClient();

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useOptimistic, useState, useTransition } from "reac
 import { clsx } from "clsx";
 import { Archive, X } from "lucide-react";
 import { saveCriteria, setArchived, setItemStatus } from "@/app/(app)/tareas/actions";
+import { MarkAllSeenButton } from "@/components/tasks/mark-all-seen";
 import { ItemCards, ItemDays, ItemDetail, ItemTable } from "@/components/tasks/task-items";
 import { buttonClass, EmptyState, FormMessage, inputClass, Tile, TileTitle } from "@/components/ui";
 import { fieldRoles, groupByDay, groupCounts, groupField, groupLabel, type ItemStatus } from "@/lib/tasks/fields";
@@ -120,9 +121,12 @@ export function TaskBoard({ task }: { task: TaskDetail }) {
 
   return (
     <div className="flex flex-col gap-3.5">
-      <div>
-        <h2 className="text-2xl font-bold">{task.name}</h2>
-        {task.description && task.lastRun && <p className="text-muted mt-1 text-sm">{task.description}</p>}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-bold">{task.name}</h2>
+          {task.description && task.lastRun && <p className="text-muted mt-1 text-sm">{task.description}</p>}
+        </div>
+        <MarkAllSeenButton slug={task.slug} count={counts.new} />
       </div>
       <section aria-label="Resumen" className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
         <Tile className="col-span-2">
