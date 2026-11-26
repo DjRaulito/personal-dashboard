@@ -38,14 +38,26 @@ export function SettingsForm({ settings }: { settings: PropertySettings }) {
       value: c.price_exceptional_eur,
       suffix: "€",
     },
-    { name: "max_equity_eur", label: "Capital propio máximo", value: c.max_equity_eur, suffix: "€" },
+    { name: "max_equity_eur", label: "Aportación máxima (entrada + ITP)", value: c.max_equity_eur, suffix: "€" },
+    {
+      name: "roi_opportunity_pct",
+      label: "ROI con apalancamiento para «oportunidad»",
+      value: c.roi_opportunity_pct,
+      suffix: "%",
+    },
+    { name: "roi_option_pct", label: "ROI con apalancamiento para «opción»", value: c.roi_option_pct, suffix: "%" },
     { name: "gross_min_pct", label: "Rentabilidad bruta mínima", value: c.gross_min_pct, suffix: "%" },
     { name: "gross_target_pct", label: "Rentabilidad bruta objetivo", value: c.gross_target_pct, suffix: "%" },
   ];
   const purchase: NumField[] = [
     { name: "itp_pct", label: "ITP", value: a.itp_pct, suffix: "%" },
-    { name: "purchase_costs_pct", label: "Notaría, registro y gestoría", value: a.purchase_costs_pct, suffix: "%" },
-    { name: "appraisal_eur", label: "Tasación", value: a.appraisal_eur, suffix: "€" },
+    {
+      name: "appraisal_eur",
+      label: "Notaría, registro, gestoría y tasación",
+      value: a.appraisal_eur,
+      suffix: "€",
+    },
+    { name: "purchase_costs_pct", label: "Gastos extra sobre el precio", value: a.purchase_costs_pct, suffix: "%" },
     { name: "reform_contingency_pct", label: "Imprevistos de reforma", value: a.reform_contingency_pct, suffix: "%" },
     { name: "setup_eur", label: "Cédula, certificados y altas", value: a.setup_eur, suffix: "€" },
   ];
@@ -54,6 +66,22 @@ export function SettingsForm({ settings }: { settings: PropertySettings }) {
     { name: "ltv_alt_pct", label: "Financiación a comparar", value: a.ltv_alt_pct, suffix: "% del precio" },
     { name: "interest_pct", label: "Tipo de interés fijo", value: a.interest_pct, suffix: "%" },
     { name: "term_years", label: "Plazo", value: a.term_years, suffix: "años", step: "1" },
+    { name: "stress_interest_pct", label: "Tipo de la prueba de estrés", value: a.stress_interest_pct, suffix: "%" },
+  ];
+  const appreciation: NumField[] = [
+    {
+      name: "appreciation_conservative_pct",
+      label: "Conservadora",
+      value: a.appreciation_conservative_pct,
+      suffix: "% al año",
+    },
+    { name: "appreciation_base_pct", label: "Base", value: a.appreciation_base_pct, suffix: "% al año" },
+    {
+      name: "appreciation_optimistic_pct",
+      label: "Optimista",
+      value: a.appreciation_optimistic_pct,
+      suffix: "% al año",
+    },
   ];
   const operating: NumField[] = [
     { name: "vacancy_months", label: "Vacancia", value: a.vacancy_months, suffix: "meses al año" },
@@ -75,7 +103,7 @@ export function SettingsForm({ settings }: { settings: PropertySettings }) {
     { name: "ibi_default_eur", label: "IBI si no se sabe", value: a.ibi_default_eur, suffix: "€/año" },
   ];
   const weights: NumField[] = [
-    { name: "w_cashflow", label: "Cash flow y cash-on-cash", value: c.weights.cashflow },
+    { name: "w_cashflow", label: "ROI con apalancamiento y cash flow", value: c.weights.cashflow },
     { name: "w_net_yield", label: "Rentabilidad neta", value: c.weights.net_yield },
     { name: "w_price", label: "Precio frente a comparables", value: c.weights.price },
     { name: "w_demand", label: "Demanda de alquiler", value: c.weights.demand },
@@ -127,6 +155,14 @@ export function SettingsForm({ settings }: { settings: PropertySettings }) {
       <Tile>
         <TileTitle>Hipoteca</TileTitle>
         {grid(financing)}
+      </Tile>
+
+      <Tile>
+        <TileTitle>Revalorización</TileTitle>
+        <p className="text-muted mt-1 text-sm">
+          Se usa si la tarea no trae la de la zona. Es informativa: no cuenta para clasificar.
+        </p>
+        {grid(appreciation)}
       </Tile>
 
       <Tile>

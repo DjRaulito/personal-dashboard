@@ -26,6 +26,18 @@ export async function setStatus(listingId: string, status: string) {
   revalidatePath(PAGE, "layout");
 }
 
+/** Abrir la ficha marca el anuncio como visto (no cambia su estado de decisión). */
+export async function markListingSeen(listingId: string) {
+  const supabase = await session();
+  await supabase
+    .from("property_listings")
+    .update({ seen_at: new Date().toISOString() })
+    .eq("id", id.parse(listingId))
+    .is("seen_at", null);
+  revalidatePath("/tareas", "layout");
+  revalidatePath("/");
+}
+
 const notesSchema = z.object({
   id: z.uuid(),
   user_notes: z.string().trim().max(4000, "Máximo 4.000 caracteres").default(""),

@@ -1,20 +1,34 @@
 import { describe, expect, it } from "vitest";
 import {
   analyze,
+  appreciation,
   evaluate,
+  firstYearInterest,
   maxPrice,
   monthlyPayment,
   priceChange,
   priceVsMarket,
   rentForGross,
+  rentForRoi,
   scenarioRent,
   score,
   sensitivities,
   type ListingFacts,
 } from "./engine";
-import { DEFAULT_SETTINGS, listingDataSchema, listingInputSchema, toListingData } from "./schemas";
+import { assumptionsSchema, DEFAULT_SETTINGS, listingDataSchema, listingInputSchema, toListingData } from "./schemas";
 
-const { assumptions: A, criteria: C } = DEFAULT_SETTINGS;
+const { criteria: C } = DEFAULT_SETTINGS;
+// Supuestos fijos para que las cuentas del test no dependan de los valores por defecto
+const A = assumptionsSchema.parse({
+  purchase_costs_pct: 1.5,
+  appraisal_eur: 400,
+  interest_pct: 3.2,
+  term_years: 30,
+  vacancy_months: 1,
+  home_insurance_eur: 250,
+  community_default_eur: 60,
+  ibi_default_eur: 350,
+});
 
 function facts(overrides: Record<string, unknown> = {}): ListingFacts {
   const input = listingInputSchema.parse({
@@ -99,15 +113,56 @@ describe("análisis de una operación", () => {
 });
 
 describe("precio máximo", () => {
-  it("toma el menor entre rentabilidad, capital y cash flow", () => {
-    const mp = maxPrice(facts(), A, C)!;
-    expect(mp.byYield).toBeCloseTo(16_500_000); // 13.200 € / 8 %
-    expect(mp.byEquity).toBeCloseTo((5_000_000 - 70_000) / 0.315, 0);
-    expect(mp.max).toBe(Math.min(mp.byYield, mp.byEquity, mp.byCashflow));
-    // Al precio máximo por capital, el capital propio es justo el tope
-    expect(analyze(facts(), A, { purchasePrice: mp.byEquity })!.equity).toBeCloseTo(5_000_000, 0);
+  it("toma el menor entre aportación y ROI, con renta conservadora", () => {
+    const f = facts();
+    const mp = maxPrice(f, A, C)!;
+    expect(mp.byYield).toBeCloseTo((99_000 * 12) / 0.07, 0); // renta conservadora / 7 %
+    expect(mp.byEquity).toBeCloseTo(5_000_000 / 0.3, 0); // entrada 20 % + ITP 10 %
+    expect(mp.max).toBe(Math.min(mp.byEquity, mp.byRoi));
+    const at = (p: number) => analyze(f, A, { purchasePrice: p, scenario: "conservative" })!;
+    // Al precio máximo por aportación, la aportación es justo el tope
+    expect(at(mp.byEquity).contribution).toBeCloseTo(5_000_000, 0);
+    // Al precio máximo por ROI, el ROI con apalancamiento es justo el de «oportunidad»
+    expect(at(mp.byRoi).leveragedRoi!).toBeCloseTo(0.1, 6);
     // Al precio máximo por cash flow, el cash flow es cero
-    expect(analyze(facts(), A, { purchasePrice: mp.byCashflow })!.cashflowYear).toBeCloseTo(0, 0);
+    expect(at(mp.byCashflow).cashflowYear).toBeCloseTo(0, 0);
+  });
+});
+
+describe("ROI con apalancamiento", () => {
+  it("intereses del primer año con el cuadro de amortización", () => {
+    // 100.000 € al 3,4 % a 25 años: ~3.360 € de intereses el primer año
+    expect(firstYearInterest(10_000_000, 3.4, 25)).toBeGreaterThan(330_000);
+    expect(firstYearInterest(10_000_000, 3.4, 25)).toBeLessThan(340_000);
+    expect(firstYearInterest(0, 3.4, 25)).toBe(0);
+  });
+
+  it("resta intereses y gastos, no la amortización, y divide por entrada + ITP", () => {
+    const an = analyze(facts(), A)!;
+    expect(an.downPayment).toBeCloseTo(3_600_000);
+    expect(an.contribution).toBeCloseTo(5_400_000);
+    expect(an.leveragedRoi!).toBeCloseTo((an.rent * 12 - an.interestYear1 - an.opex.total) / 5_400_000, 9);
+    expect(an.unleveragedRoi).toBeCloseTo((110_000 * 12) / 19_800_000, 9);
+  });
+
+  it("la renta necesaria para el ROI objetivo lo da justo", () => {
+    const rent = rentForRoi(facts(), A, 10)!;
+    expect(analyze(facts(), A, { rentOverride: rent })!.leveragedRoi!).toBeCloseTo(0.1, 5);
+  });
+
+  it("la revalorización suma al ROI total", () => {
+    const an = analyze(facts(), A)!;
+    const r = appreciation(an, 0.02);
+    expect(r.yearly).toBeCloseTo(360_000);
+    expect(r.totalRoi!).toBeCloseTo(an.leveragedRoi! + 360_000 / an.contribution, 9);
+  });
+
+  it("clasifica con la renta conservadora", () => {
+    const good = evaluate(facts({ price: 110_000, rent: { conservative: 950, base: 1_050 } }), A, C);
+    expect(good.roiClass).toBe("oportunidad");
+    expect(good.meetsCriteria).toBe(true);
+    const weak = evaluate(facts(), A, C);
+    expect(weak.roiClass).toBe("fuera");
   });
 });
 

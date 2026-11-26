@@ -1028,6 +1028,7 @@ export type Database = {
           neighborhood: string;
           price_cents: number;
           removed_at: string | null;
+          seen_at: string | null;
           rooms: number | null;
           source: string;
           sqm: number | null;
@@ -1053,6 +1054,7 @@ export type Database = {
           neighborhood?: string;
           price_cents: number;
           removed_at?: string | null;
+          seen_at?: string | null;
           rooms?: number | null;
           source?: string;
           sqm?: number | null;
@@ -1078,6 +1080,7 @@ export type Database = {
           neighborhood?: string;
           price_cents?: number;
           removed_at?: string | null;
+          seen_at?: string | null;
           rooms?: number | null;
           source?: string;
           sqm?: number | null;

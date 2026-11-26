@@ -73,7 +73,7 @@ describe("conector de inmuebles", () => {
     });
     const { body } = await callTool("get_search_context", {});
     expect(body.criteria.zones_by_priority).toEqual(["Zona A", "Zona B"]);
-    expect(body.criteria.max_equity_eur).toBe(40_000);
+    expect(body.criteria.max_contribution_eur).toBe(40_000);
     expect(body.known_listings).toHaveLength(1);
   });
 

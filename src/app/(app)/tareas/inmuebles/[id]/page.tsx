@@ -3,12 +3,15 @@ import { notFound } from "next/navigation";
 import { clsx } from "clsx";
 import { date, dateTime, eur, num, pct, tone, VERDICT_TONE } from "@/components/properties/format";
 import { DeleteListingButton, NotesForm, StatusSelect } from "@/components/properties/listing-controls";
+import { MarkListingSeen } from "@/components/properties/mark-seen";
 import { BackLink, Tile, TileTitle } from "@/components/ui";
 import {
   analyze,
   evaluate,
   priceChange,
   rentForGross,
+  rentForRoi,
+  ROI_CLASS_LABELS,
   SCENARIO_LABELS,
   sensitivities,
   VERDICT_LABELS,
@@ -48,7 +51,9 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
   const { assumptions: a, criteria: c } = settings;
   const facts = factsOf(l);
   const ev = evaluate(facts, a, c, l.confidence);
-  const b = ev.base;
+  // Los números principales van con renta conservadora: es la que clasifica
+  const b = ev.conservative;
+  const rateDelta = Math.max(0, a.stress_interest_pct - a.interest_pct);
   const change = priceChange(history, l.price);
   const place = [l.neighborhood, l.municipality].filter(Boolean).join(", ");
   const v = VERDICT_TONE[ev.verdict];
@@ -57,12 +62,16 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
   const scenarios = (["conservative", "base", "optimistic"] as RentScenario[]).map((s) => ({
     key: s,
     an: analyze(facts, a, { scenario: s, purchasePrice: ev.purchasePrice }),
+    stressed: analyze(facts, a, { scenario: s, purchasePrice: ev.purchasePrice, rateDelta }),
   }));
-  const alt = analyze(facts, a, { purchasePrice: ev.purchasePrice, ltvPct: a.ltv_alt_pct });
+  const alt = analyze(facts, a, { purchasePrice: ev.purchasePrice, ltvPct: a.ltv_alt_pct, scenario: "conservative" });
+  const rentRoiTarget = rentForRoi(facts, a, c.roi_opportunity_pct, ev.purchasePrice);
+  const maxContribution = c.max_equity_eur * 100;
   const stress = sensitivities(facts, a, ev.purchasePrice);
 
   return (
     <>
+      <MarkListingSeen id={l.id} seen={l.seen} />
       <BackLink href="/tareas/inmuebles">Inmuebles</BackLink>
 
       <Tile>
@@ -127,6 +136,12 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
         <div className={clsx("rounded-tile text-ink p-6 lg:col-span-2", v.bg)}>
           <p className="text-sm font-semibold">Veredicto</p>
           <p className="font-display mt-2 text-3xl font-extrabold">{VERDICT_LABELS[ev.verdict]}</p>
+          {b && ev.roiClass && (
+            <p className="mt-1 font-semibold tabular-nums">
+              {ROI_CLASS_LABELS[ev.roiClass]} · ROI con apalancamiento {pct(b.leveragedRoi)} con renta conservadora
+              {ev.base && <> ({pct(ev.base.leveragedRoi)} con la base)</>}
+            </p>
+          )}
           <p className="mt-1 text-sm font-medium">
             Puntuación {ev.score.total}/100
             {ev.maxPrice && <> · precio máximo {eur(ev.maxPrice.max)}</>}
@@ -153,7 +168,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
           <ul className="mt-4 flex flex-col gap-2.5 text-sm">
             {(
               [
-                ["Cash flow y cash-on-cash", ev.score.cashflow, c.weights.cashflow],
+                ["ROI con apalancamiento y cash flow", ev.score.cashflow, c.weights.cashflow],
                 ["Rentabilidad neta", ev.score.net_yield, c.weights.net_yield],
                 ["Precio frente a comparables", ev.score.price, c.weights.price],
                 ["Demanda de alquiler", ev.score.demand, c.weights.demand],
@@ -199,9 +214,11 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
             <Row label="Precio de compra analizado" value={eur(ev.purchasePrice)} />
             {ev.maxPrice && (
               <>
-                <Row label={`Máximo por bruta ≥ ${num(c.gross_min_pct, 1)} %`} value={eur(ev.maxPrice.byYield)} />
-                <Row label={`Máximo por capital ≤ ${eur(c.max_equity_eur * 100)}`} value={eur(ev.maxPrice.byEquity)} />
-                <Row label="Máximo sin cash flow negativo" value={eur(ev.maxPrice.byCashflow)} />
+                <Row label={`Máximo por aportación ≤ ${eur(maxContribution)}`} value={eur(ev.maxPrice.byEquity)} />
+                <Row label={`Máximo por ROI ≥ ${num(c.roi_opportunity_pct, 1)} %`} value={eur(ev.maxPrice.byRoi)} />
+                <Row label="Precio máximo (el menor)" value={eur(ev.maxPrice.max)} strong />
+                <Row label={`Informativo: bruta ≥ ${num(c.gross_min_pct, 1)} %`} value={eur(ev.maxPrice.byYield)} />
+                <Row label="Informativo: sin cash flow negativo" value={eur(ev.maxPrice.byCashflow)} />
               </>
             )}
           </dl>
@@ -245,9 +262,12 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
                   {(
                     [
                       ["Alquiler mensual", (x: Analysis) => eur(x.rent) + (x.rentCapped ? " (tope)" : "")],
+                      ["ROI con apalancamiento", (x: Analysis) => pct(x.leveragedRoi)],
+                      ["ROI sin apalancamiento", (x: Analysis) => pct(x.unleveragedRoi)],
                       ["Rentabilidad bruta", (x: Analysis) => pct(x.grossYield)],
                       ["Rentabilidad neta", (x: Analysis) => pct(x.netYield)],
                       ["Gastos operativos al año", (x: Analysis) => eur(x.opex.total)],
+                      ["Intereses del primer año", (x: Analysis) => eur(x.interestYear1)],
                       ["Cash flow mensual", (x: Analysis) => eur(x.cashflowMonth, true)],
                       ["Cash flow anual", (x: Analysis) => eur(x.cashflowYear, true)],
                       ["Cash-on-cash", (x: Analysis) => pct(x.cashOnCash)],
@@ -264,11 +284,26 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
                       ))}
                     </tr>
                   ))}
+                  <tr className="border-border border-t">
+                    <th scope="row" className="text-muted py-2 text-left font-normal">
+                      Cash flow mensual al {num(a.stress_interest_pct, 2)} %
+                    </th>
+                    {scenarios.map((s) => (
+                      <td key={s.key} className={clsx("py-2 text-right", tone(s.stressed?.cashflowMonth))}>
+                        {s.stressed ? eur(s.stressed.cashflowMonth, true) : "—"}
+                      </td>
+                    ))}
+                  </tr>
                 </tbody>
               </table>
             </div>
             <p className="text-muted mt-3 text-xs">
-              Renta necesaria para un {num(c.gross_min_pct, 1)} % bruto:{" "}
+              ROI con apalancamiento = (renta anual − intereses del primer año − gastos operativos) ÷ (entrada + ITP);
+              la amortización del préstamo no cuenta como gasto. Clasifica la renta conservadora.
+            </p>
+            <p className="text-muted mt-1 text-xs">
+              Renta necesaria para un ROI del {num(c.roi_opportunity_pct, 1)} %:{" "}
+              {rentRoiTarget != null ? `${eur(rentRoiTarget)}/mes` : "—"} · para un {num(c.gross_min_pct, 1)} % bruto:{" "}
               {eur(rentForGross(ev.purchasePrice, c.gross_min_pct))}
               /mes · para un {num(c.gross_target_pct, 1)} %: {eur(rentForGross(ev.purchasePrice, c.gross_target_pct))}
               /mes.
@@ -282,7 +317,14 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
               <TileTitle>Capital necesario</TileTitle>
               <dl className="mt-4 flex flex-col gap-2 text-sm">
                 <Row label="Precio de compra" value={eur(b.purchasePrice)} />
+                <Row label={`Entrada (${num(100 - b.ltvPct)} %)`} value={eur(b.downPayment)} />
                 <Row label={`ITP (${num(a.itp_pct, 1)} %)`} value={eur(b.itp)} />
+                <Row
+                  label={`Aportación (entrada + ITP, máx. ${eur(maxContribution)})`}
+                  value={eur(b.contribution)}
+                  strong
+                  className={b.contribution > maxContribution ? "text-expense" : "text-finance"}
+                />
                 <Row label="Notaría, registro, gestoría y tasación" value={eur(b.purchaseCosts)} />
                 <Row
                   label={`Reforma (+${num(a.reform_contingency_pct)} % imprevistos)`}
@@ -291,21 +333,19 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
                 />
                 <Row label="Mobiliario" value={eur(b.furnishing)} />
                 <Row label="Cédula, certificados y altas" value={eur(b.setup)} />
-                <Row label="Coste total" value={eur(b.totalCost)} strong />
-                <Row label={`Hipoteca (${num(b.ltvPct)} % del precio)`} value={`− ${eur(b.loan)}`} />
-                <Row
-                  label="Capital propio"
-                  value={eur(b.equity)}
-                  strong
-                  className={b.equity > c.max_equity_eur * 100 ? "text-expense" : "text-finance"}
-                />
+                <Row label="Caja total necesaria" value={eur(b.equity)} strong />
+                <Row label="Coste total de la operación" value={eur(b.totalCost)} />
+                <Row label={`Hipoteca (${num(b.ltvPct)} % del precio)`} value={eur(b.loan)} />
               </dl>
+              <p className="text-muted mt-3 text-xs">
+                El límite se mide con la aportación; los gastos y la reforma van aparte para que no haya sorpresas.
+              </p>
             </Tile>
             <Tile>
               <TileTitle>Financiación</TileTitle>
               <p className="text-muted mt-1 text-sm">
-                {num(a.interest_pct, 2)} % fijo a {a.term_years} años (supuesto editable). No da por aprobada la
-                hipoteca.
+                {num(a.interest_pct, 2)} % fijo a {a.term_years} años, renta conservadora (supuestos editables). No da
+                por aprobada la hipoteca.
               </p>
               <div className="relative mt-4 overflow-x-auto">
                 <table className="w-full text-sm tabular-nums">
@@ -328,9 +368,11 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
                       [
                         ["Préstamo", (x: Analysis) => eur(x.loan)],
                         ["Cuota mensual", (x: Analysis) => eur(x.payment)],
-                        ["Capital propio", (x: Analysis) => eur(x.equity)],
+                        ["Intereses del primer año", (x: Analysis) => eur(x.interestYear1)],
+                        ["Aportación", (x: Analysis) => eur(x.contribution)],
+                        ["Caja total", (x: Analysis) => eur(x.equity)],
+                        ["ROI con apalancamiento", (x: Analysis) => pct(x.leveragedRoi)],
                         ["Cash flow mensual", (x: Analysis) => eur(x.cashflowMonth, true)],
-                        ["Cash-on-cash", (x: Analysis) => pct(x.cashOnCash)],
                       ] as const
                     ).map(([label, fmt]) => (
                       <tr key={label} className="border-border border-t">
@@ -349,9 +391,12 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
 
           <div className="grid gap-3.5 lg:grid-cols-2">
             <Tile>
-              <TileTitle>Gastos operativos al año (base)</TileTitle>
+              <TileTitle>Gastos operativos al año (renta conservadora)</TileTitle>
               <dl className="mt-4 flex flex-col gap-2 text-sm">
-                <Row label={`Vacancia (${num(a.vacancy_months, 1)} meses)`} value={eur(b.opex.vacancy)} />
+                <Row
+                  label={`Vacancia (${num(a.vacancy_months, 1)} meses ≈ ${num((a.vacancy_months / 12) * 100, 0)} %)`}
+                  value={eur(b.opex.vacancy)}
+                />
                 <Row label="Comunidad" value={eur(b.opex.community)} provenance={prov("community_fee")} />
                 <Row label="IBI" value={eur(b.opex.ibi)} provenance={prov("ibi")} />
                 <Row label="Seguro del hogar" value={eur(b.opex.insurance)} />
@@ -368,7 +413,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
               </p>
             </Tile>
             <Tile>
-              <TileTitle>Sensibilidades</TileTitle>
+              <TileTitle>Sensibilidades (renta conservadora)</TileTitle>
               <ul className="mt-4 flex flex-col gap-2 text-sm">
                 {stress.map((s) => (
                   <li
@@ -378,13 +423,63 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
                     <span className="text-muted">{s.label}</span>
                     <span className="tabular-nums">
                       <span className={tone(s.analysis.cashflowMonth)}>{eur(s.analysis.cashflowMonth, true)}/mes</span>
-                      <span className="text-muted"> · CoC {pct(s.analysis.cashOnCash)}</span>
+                      <span className="text-muted"> · ROI {pct(s.analysis.leveragedRoi)}</span>
                     </span>
                   </li>
                 ))}
               </ul>
             </Tile>
           </div>
+
+          {ev.appreciation && (
+            <Tile>
+              <TileTitle>Revalorización estimada</TileTitle>
+              <p className="text-muted mt-1 text-sm">
+                Informativa: no cuenta para clasificar. ROI total = ROI con apalancamiento + revalorización anual ÷
+                aportación.
+              </p>
+              <div className="relative mt-4 overflow-x-auto">
+                <table className="w-full min-w-[420px] text-sm tabular-nums">
+                  <caption className="sr-only">Revalorización por escenario</caption>
+                  <thead className="text-muted">
+                    <tr>
+                      <th scope="col" className="py-2 text-left font-medium">
+                        &nbsp;
+                      </th>
+                      {(["conservative", "base", "optimistic"] as const).map((k) => (
+                        <th key={k} scope="col" className="py-2 text-right font-medium">
+                          {SCENARIO_LABELS[k]}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(
+                      [
+                        ["Al año", (x: { rate: number }) => pct(x.rate)],
+                        ["Importe al año", (x: { yearly: number }) => eur(x.yearly)],
+                        ["ROI total", (x: { totalRoi: number | null }) => pct(x.totalRoi)],
+                      ] as const
+                    ).map(([label, fmt]) => (
+                      <tr key={label} className="border-border border-t">
+                        <th scope="row" className="text-muted py-2 text-left font-normal">
+                          {label}
+                        </th>
+                        {(["conservative", "base", "optimistic"] as const).map((k) => (
+                          <td key={k} className="py-2 text-right">
+                            {fmt(ev.appreciation![k])}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-muted mt-3 text-xs">
+                {l.data.appreciation?.source ?? "Sin datos de la zona: se usan los supuestos de Ajustes."}
+              </p>
+            </Tile>
+          )}
         </>
       )}
 

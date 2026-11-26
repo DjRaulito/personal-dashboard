@@ -34,6 +34,7 @@ export interface ListingRecord {
   first_seen_at: string;
   last_checked_at: string;
   removed_at: string | null;
+  seen_at: string | null;
 }
 
 export interface Listing {
@@ -54,6 +55,8 @@ export interface Listing {
   discardReason: string;
   firstSeenAt: string;
   lastCheckedAt: string;
+  /** Ya abierto o marcado como leído */
+  seen: boolean;
 }
 
 const oneOf = <T extends string>(values: readonly T[], v: string, fallback: T): T =>
@@ -78,6 +81,7 @@ export function toListing(r: ListingRecord): Listing {
     discardReason: r.discard_reason,
     firstSeenAt: r.first_seen_at,
     lastCheckedAt: r.last_checked_at,
+    seen: r.seen_at != null,
   };
 }
 
@@ -121,9 +125,12 @@ export interface Summary {
   newToday: number;
   priceDrops: number;
   meeting: number;
+  /** ROI con apalancamiento ≥ oportunidad / entre opción y oportunidad (renta conservadora) */
+  opportunities: number;
+  options: number;
   best: EvaluatedListing | null;
   bestCashflow: EvaluatedListing | null;
-  bestCashOnCash: EvaluatedListing | null;
+  bestRoi: EvaluatedListing | null;
   lastRun: RunInfo | null;
 }
 
@@ -144,15 +151,17 @@ function bestBy(list: EvaluatedListing[], key: (l: EvaluatedListing) => number |
 
 export function summarize(list: EvaluatedListing[], runs: RunInfo[]): Summary {
   const alive = list.filter(live);
-  const withData = alive.filter((l) => l.ev.base);
+  const withData = alive.filter((l) => l.ev.conservative);
   return {
     active: alive.length,
     newToday: alive.filter((l) => l.isNew).length,
     priceDrops: alive.filter((l) => l.change && l.change.amount < 0).length,
     meeting: alive.filter((l) => l.ev.meetsCriteria).length,
+    opportunities: alive.filter((l) => l.ev.roiClass === "oportunidad").length,
+    options: alive.filter((l) => l.ev.roiClass === "opcion").length,
     best: bestBy(withData, (l) => l.ev.score.total),
-    bestCashflow: bestBy(withData, (l) => l.ev.base!.cashflowYear),
-    bestCashOnCash: bestBy(withData, (l) => l.ev.base!.cashOnCash),
+    bestCashflow: bestBy(withData, (l) => l.ev.conservative!.cashflowYear),
+    bestRoi: bestBy(withData, (l) => l.ev.conservative!.leveragedRoi),
     lastRun: runs[0] ?? null,
   };
 }
